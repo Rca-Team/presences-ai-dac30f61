@@ -1148,6 +1148,25 @@ const StudentIDCardGenerator: React.FC<StudentIDCardGeneratorProps> = ({ student
                   Print
                 </Button>
               </div>
+
+              {pdfProgress && (
+                <div className="mt-3 p-3 rounded-lg border bg-muted/40">
+                  <div className="flex items-center justify-between text-xs mb-2">
+                    <span className="font-medium flex items-center gap-2">
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
+                      {pdfProgress.stage}
+                    </span>
+                    <span className="tabular-nums text-muted-foreground">
+                      {pdfProgress.done} / {pdfProgress.total} ·{' '}
+                      {Math.round((pdfProgress.done / Math.max(1, pdfProgress.total)) * 100)}%
+                    </span>
+                  </div>
+                  <Progress
+                    value={(pdfProgress.done / Math.max(1, pdfProgress.total)) * 100}
+                    className="h-2"
+                  />
+                </div>
+              )}
             </div>
 
             {/* Student Grid */}
