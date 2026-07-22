@@ -562,7 +562,7 @@ const StudentIDCardGenerator: React.FC<StudentIDCardGeneratorProps> = ({ student
     return `
       <div style="
         width: 420px;
-        height: 760px;
+        height: 800px;
         border-radius: 16px;
         overflow: hidden;
         font-family: 'Segoe UI', 'Inter', sans-serif;
