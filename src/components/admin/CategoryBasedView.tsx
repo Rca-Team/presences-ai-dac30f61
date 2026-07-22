@@ -57,6 +57,7 @@ const CategoryBasedView: React.FC = () => {
   const [sendingNotification, setSendingNotification] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState(new Date());
   const [showTeacherManager, setShowTeacherManager] = useState(false);
+  const [fullTimetableOpen, setFullTimetableOpen] = useState(false);
 
   useEffect(() => { fetchUsers(); }, []);
 
