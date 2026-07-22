@@ -212,13 +212,28 @@ const StudentIDCardGenerator: React.FC<StudentIDCardGeneratorProps> = ({ student
           const canonicalUserId = record.user_id || (empKey ? employeeToUserId.get(empKey) : null);
           const nameKey = normalizeName(resolvedName);
 
-          // Look up an existing entry by any known identity, falling back to normalized name
-          // so multiple attendance rows created for the same registration collapse into one card.
+          // Prefer strong identity matches (employee_id / user_id). Only fall back to
+          // normalized-name merging when NEITHER this record nor the candidate carry
+          // a distinguishing id — otherwise two different students that share a name
+          // (e.g. two "Rahul Kumar") get collapsed into a single card.
+          const hasStrongId = Boolean(empKey || studentKey || canonicalUserId);
+          const nameMatchKey = nameKey ? dedupeKeyByName.get(nameKey) : '';
+          const nameMatchIsSafe = (() => {
+            if (!nameMatchKey) return false;
+            if (hasStrongId) return false;
+            const candidate = uniqueStudents.get(nameMatchKey);
+            if (!candidate) return true;
+            const candidateHasStrongId =
+              (candidate.employee_id && candidate.employee_id !== 'N/A') ||
+              (candidate._userIds && candidate._userIds.length > 0);
+            return !candidateHasStrongId;
+          })();
+
           const existingKey =
             (empKey && dedupeKeyByEmployeeId.get(empKey)) ||
             (studentKey && dedupeKeyByEmployeeId.get(studentKey)) ||
             (canonicalUserId && dedupeKeyByUserId.get(canonicalUserId)) ||
-            (nameKey && dedupeKeyByName.get(nameKey)) ||
+            (nameMatchIsSafe ? nameMatchKey : '') ||
             '';
 
           const dedupeKey = existingKey || pickIdentityKey(empKey, studentKey, canonicalUserId) || `name:${nameKey}`;
@@ -274,10 +289,21 @@ const StudentIDCardGenerator: React.FC<StudentIDCardGeneratorProps> = ({ student
         const descriptorUserId = pickIdentityKey(descriptor?.user_id);
         const descriptorStudentId = pickIdentityKey(descriptor?.student_id);
         const nameKey = normalizeName(descriptorName);
+        const hasStrongDescriptorId = Boolean(descriptorStudentId || descriptorUserId);
+        const nameCandidateKey = nameKey ? dedupeKeyByName.get(nameKey) : '';
+        const nameCandidate = nameCandidateKey ? uniqueStudents.get(nameCandidateKey) : undefined;
+        const nameCandidateHasStrongId = nameCandidate
+          ? (nameCandidate.employee_id && nameCandidate.employee_id !== 'N/A') ||
+            (nameCandidate._userIds && nameCandidate._userIds.length > 0)
+          : false;
+        const safeNameMatch = nameCandidateKey && !hasStrongDescriptorId && !nameCandidateHasStrongId
+          ? nameCandidateKey
+          : '';
+
         const existingKey =
           (descriptorStudentId ? dedupeKeyByEmployeeId.get(descriptorStudentId) : undefined) ||
           (descriptorUserId ? dedupeKeyByUserId.get(descriptorUserId) : undefined) ||
-          (nameKey ? dedupeKeyByName.get(nameKey) : undefined);
+          safeNameMatch;
 
         if (existingKey && uniqueStudents.has(existingKey)) {
           const existing = uniqueStudents.get(existingKey)!;
