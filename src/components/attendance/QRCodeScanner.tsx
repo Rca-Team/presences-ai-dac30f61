@@ -762,5 +762,3 @@ const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
 };
 
 export default QRCodeScanner;
-        {/* Tech Grid Background */}
-export default QRCodeScanner;
