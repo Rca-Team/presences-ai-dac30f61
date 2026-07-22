@@ -35,6 +35,13 @@ const TeacherPortal: React.FC = () => {
   const [subs, setSubs] = useState<Substitution[]>([]);
   const [isRealtimeHealthy, setIsRealtimeHealthy] = useState(true);
   const isRealtimeHealthyRef = useRef(true);
+  const [captureMethod, setCaptureMethod] = useState<'face' | 'qr' | 'gate'>('face');
+
+  const allowedCategories = useMemo(
+    () => assignments.map((a) => `${a.class}-${a.section}`),
+    [assignments]
+  );
+  const activeCategory = activeClass ? `${activeClass.class}-${activeClass.section}` : '';
 
   // Gate authorization
   useEffect(() => {
