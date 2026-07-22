@@ -801,7 +801,7 @@ const StudentIDCardGenerator: React.FC<StudentIDCardGeneratorProps> = ({ student
       const dataUrl = await generateIDCard(student);
       const link = document.createElement('a');
       link.href = dataUrl;
-      link.download = `ID_Card_${student.name.replace(/\s+/g, '_')}.png`;
+      link.download = `ID_Card_${student.name.replace(/\s+/g, '_')}.jpg`;
       link.click();
       toast({ title: 'Downloaded', description: `ID card for ${student.name} downloaded` });
     } catch (error) {
