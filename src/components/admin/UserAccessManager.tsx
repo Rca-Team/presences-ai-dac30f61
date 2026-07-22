@@ -79,8 +79,8 @@ const UserAccessManager: React.FC = () => {
   const [tEmail, setTEmail] = useState('');
   const [tPass, setTPass] = useState('');
   const [tName, setTName] = useState('');
-  const [tClass, setTClass] = useState<string>(CLASSES[0] || '6');
-  const [tSection, setTSection] = useState<string>(SECTIONS[0] || 'A');
+  const [tClass, setTClass] = useState<string>(String(CLASSES[0] ?? '6'));
+  const [tSection, setTSection] = useState<string>(String(SECTIONS[0] ?? 'A'));
   const [tCreating, setTCreating] = useState(false);
 
   const handleCreateTeacher = async () => {
