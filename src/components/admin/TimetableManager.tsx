@@ -52,14 +52,19 @@ interface ValidationIssue {
   message: string;
 }
 
-const TimetableManager: React.FC = () => {
+interface TimetableManagerProps {
+  allowedCategories?: string[];
+}
+
+const TimetableManager: React.FC<TimetableManagerProps> = ({ allowedCategories }) => {
   const { toast } = useToast();
+  const categoryOptions = allowedCategories && allowedCategories.length > 0 ? allowedCategories : ALL_CLASS_SECTIONS;
   const [periods, setPeriods] = useState<PeriodTiming[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [draftSlots, setDraftSlots] = useState<Record<string, DraftSlot>>({});
   const [validationIssues, setValidationIssues] = useState<ValidationIssue[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<string>(ALL_CLASS_SECTIONS[0]);
+  const [selectedCategory, setSelectedCategory] = useState<string>(categoryOptions[0]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -326,7 +331,7 @@ const TimetableManager: React.FC = () => {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {ALL_CLASS_SECTIONS.map(cat => (
+                {categoryOptions.map(cat => (
                   <SelectItem key={cat} value={cat}>{getCategoryLabel(cat)}</SelectItem>
                 ))}
               </SelectContent>
