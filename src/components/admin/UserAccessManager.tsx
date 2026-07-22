@@ -75,6 +75,41 @@ const UserAccessManager: React.FC = () => {
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [isSaving, setIsSaving] = useState(false);
 
+  // Create-teacher form state
+  const [tEmail, setTEmail] = useState('');
+  const [tPass, setTPass] = useState('');
+  const [tName, setTName] = useState('');
+  const [tClass, setTClass] = useState<string>(String(CLASSES[0] ?? '6'));
+  const [tSection, setTSection] = useState<string>(String(SECTIONS[0] ?? 'A'));
+  const [tCreating, setTCreating] = useState(false);
+
+  const handleCreateTeacher = async () => {
+    if (!tEmail || !tPass) {
+      toast({ title: 'Missing fields', description: 'Email and password required', variant: 'destructive' });
+      return;
+    }
+    setTCreating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('admin-create-teacher', {
+        body: {
+          email: tEmail.trim().toLowerCase(),
+          password: tPass,
+          name: tName.trim() || tEmail.split('@')[0],
+          classes: [`${tClass}-${tSection}`],
+        },
+      });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      toast({ title: 'Teacher created', description: `${tEmail} → Class ${tClass}-${tSection}` });
+      setTEmail(''); setTPass(''); setTName('');
+      fetchUsers();
+    } catch (e: any) {
+      toast({ title: 'Failed to create teacher', description: e.message || 'Server error', variant: 'destructive' });
+    } finally {
+      setTCreating(false);
+    }
+  };
+
   useEffect(() => {
     fetchUsers();
 
@@ -288,6 +323,43 @@ const UserAccessManager: React.FC = () => {
 
   return (
     <>
+      {/* Quick: Create Teacher Account */}
+      <Card className="mb-4">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <GraduationCap className="h-5 w-5" />
+            Create Teacher Account
+          </CardTitle>
+          <CardDescription>
+            Provisions login + assigns class access + adds them as class teacher
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-3 md:grid-cols-6">
+            <Input className="md:col-span-2" placeholder="teacher@school.com" value={tEmail} onChange={(e) => setTEmail(e.target.value)} />
+            <Input placeholder="Password" type="text" value={tPass} onChange={(e) => setTPass(e.target.value)} />
+            <Input placeholder="Display name (optional)" value={tName} onChange={(e) => setTName(e.target.value)} />
+            <Select value={tClass} onValueChange={setTClass}>
+              <SelectTrigger><SelectValue placeholder="Class" /></SelectTrigger>
+              <SelectContent>
+                {CLASSES.map((c) => (<SelectItem key={String(c)} value={String(c)}>Class {c}</SelectItem>))}
+              </SelectContent>
+            </Select>
+            <Select value={tSection} onValueChange={setTSection}>
+              <SelectTrigger><SelectValue placeholder="Section" /></SelectTrigger>
+              <SelectContent>
+                {SECTIONS.map((s) => (<SelectItem key={String(s)} value={String(s)}>Section {s}</SelectItem>))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="mt-3 flex justify-end">
+            <Button onClick={handleCreateTeacher} disabled={tCreating}>
+              {tCreating ? (<><Loader2 className="h-4 w-4 mr-2 animate-spin" />Creating…</>) : (<>Create Teacher</>)}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
