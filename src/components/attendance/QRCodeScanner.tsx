@@ -418,9 +418,15 @@ const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
         'qr-scan',
       );
 
-      setScanResult({ success: true, name: qrData.name });
+      setScanResult({ success: true, name: qrData.name, employeeId: qrData.employee_id });
       playSuccessSound();
-      
+      try { navigator.vibrate?.(60); } catch {}
+
+      setRecentScans((prev) => {
+        const next = [{ id: attendanceTargetId, name: qrData.name, employeeId: qrData.employee_id, time: Date.now() }, ...prev.filter(r => r.id !== attendanceTargetId)];
+        return next.slice(0, 6);
+      });
+
       toast({
         title: "✓ Attendance Recorded",
         description: `Welcome, ${qrData.name}! Status: ${status}`,
@@ -434,7 +440,7 @@ const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
       // Keep scanning continuously; just clear visual badge quickly.
       setTimeout(() => {
         setScanResult(null);
-      }, 900);
+      }, 1200);
 
       setTimeout(() => {
         setLastScannedId(null);
@@ -505,22 +511,257 @@ const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
   }, []);
 
   useEffect(() => {
-    if (!autoStart) return;
     const timer = window.setTimeout(() => {
       startScanning();
-    }, 450);
+    }, 300);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-    return () => {
-      window.clearTimeout(timer);
-    };
-  }, [autoStart]);
+  // Detect torch capability whenever the stream changes
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      const stream = webcamRef.current?.video?.srcObject as MediaStream | null;
+      const track = stream?.getVideoTracks?.()[0];
+      if (!track) return;
+      const caps: any = track.getCapabilities?.() ?? {};
+      setTorchSupported(!!caps.torch);
+    }, 800);
+    return () => window.clearInterval(id);
+  }, [facingMode]);
+
+  const toggleTorch = useCallback(async () => {
+    const stream = webcamRef.current?.video?.srcObject as MediaStream | null;
+    const track = stream?.getVideoTracks?.()[0];
+    if (!track) return;
+    try {
+      const next = !torchOn;
+      await track.applyConstraints({ advanced: [{ torch: next } as any] });
+      setTorchOn(next);
+    } catch {
+      toast({ title: 'Flash not supported', description: 'This camera does not support torch.', variant: 'destructive' });
+    }
+  }, [torchOn, toast]);
+
+  const toggleFullscreen = useCallback(async () => {
+    const el = containerRef.current;
+    if (!el) return;
+    try {
+      if (!document.fullscreenElement) {
+        await el.requestFullscreen?.();
+        setIsFullscreen(true);
+      } else {
+        await document.exitFullscreen?.();
+        setIsFullscreen(false);
+      }
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    const onFs = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', onFs);
+    return () => document.removeEventListener('fullscreenchange', onFs);
+  }, []);
 
   return (
-    <div className="relative w-full">
+    <div ref={containerRef} className="relative w-full">
       <canvas ref={canvasRef} className="hidden" />
-      
+
       {/* Scanner Container */}
-      <div className="relative aspect-[3/4] sm:aspect-video rounded-2xl overflow-hidden bg-slate-950 shadow-2xl shadow-purple-500/20">
+      <div className="relative aspect-[3/4] sm:aspect-video rounded-3xl overflow-hidden bg-slate-950 shadow-2xl shadow-purple-500/20 ring-1 ring-purple-500/20">
+        {/* Webcam Feed */}
+        <Webcam
+          ref={webcamRef}
+          audio={false}
+          screenshotFormat="image/jpeg"
+          className="absolute inset-0 w-full h-full object-cover"
+          videoConstraints={{
+            facingMode,
+            width: { ideal: 1920, min: 1280 },
+            height: { ideal: 1080, min: 720 },
+            frameRate: { ideal: 30, min: 24 },
+          }}
+        />
+
+        {/* Vignette + subtle grid */}
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_45%,rgba(0,0,0,0.65)_100%)]" />
+
+        {/* Top bar */}
+        <div className="absolute top-3 left-3 right-3 z-30 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-900/70 backdrop-blur-md border border-white/10">
+            <div className={`w-2 h-2 rounded-full ${isScanning ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'}`} />
+            <span className="text-xs font-semibold text-white/90 tracking-wide">
+              {isScanning ? 'LIVE SCANNING' : 'CAMERA READY'}
+            </span>
+            {focusAssistEnabled && (
+              <Badge className="h-5 px-1.5 text-[10px] bg-emerald-500/20 text-emerald-200 border-emerald-400/30">AF</Badge>
+            )}
+          </div>
+          <div className="flex items-center gap-1.5">
+            {torchSupported && (
+              <button
+                onClick={toggleTorch}
+                aria-label="Toggle flash"
+                className={`h-9 w-9 rounded-full grid place-items-center backdrop-blur-md border border-white/10 transition ${torchOn ? 'bg-yellow-400/90 text-slate-900' : 'bg-slate-900/70 text-white/90 hover:bg-slate-800/80'}`}
+              >
+                {torchOn ? <Zap className="w-4 h-4" /> : <ZapOff className="w-4 h-4" />}
+              </button>
+            )}
+            <button
+              onClick={() => setFacingMode(f => (f === 'user' ? 'environment' : 'user'))}
+              aria-label="Flip camera"
+              className="h-9 w-9 rounded-full grid place-items-center bg-slate-900/70 text-white/90 hover:bg-slate-800/80 backdrop-blur-md border border-white/10 transition"
+            >
+              <RefreshCw className="w-4 h-4" />
+            </button>
+            <button
+              onClick={toggleFullscreen}
+              aria-label="Toggle fullscreen"
+              className="h-9 w-9 rounded-full grid place-items-center bg-slate-900/70 text-white/90 hover:bg-slate-800/80 backdrop-blur-md border border-white/10 transition"
+            >
+              {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+            </button>
+          </div>
+        </div>
+
+        {/* Scanning Frame */}
+        <div className="absolute inset-0 z-10 flex items-center justify-center">
+          <motion.div
+            className="relative w-[68%] max-w-[360px] aspect-square"
+            animate={{ scale: [1, 1.015, 1] }}
+            transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
+          >
+            {/* Corner brackets */}
+            <span className="absolute -top-0.5 -left-0.5 w-10 h-10 border-t-[3px] border-l-[3px] border-white rounded-tl-2xl" />
+            <span className="absolute -top-0.5 -right-0.5 w-10 h-10 border-t-[3px] border-r-[3px] border-white rounded-tr-2xl" />
+            <span className="absolute -bottom-0.5 -left-0.5 w-10 h-10 border-b-[3px] border-l-[3px] border-white rounded-bl-2xl" />
+            <span className="absolute -bottom-0.5 -right-0.5 w-10 h-10 border-b-[3px] border-r-[3px] border-white rounded-br-2xl" />
+
+            {/* Moving scan line */}
+            <motion.div
+              className="absolute left-3 right-3 h-[2px] rounded-full bg-gradient-to-r from-transparent via-emerald-400 to-transparent shadow-[0_0_18px_2px_rgba(52,211,153,0.85)]"
+              animate={{ top: ['6%', '94%', '6%'] }}
+              transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
+            />
+          </motion.div>
+        </div>
+
+        {/* Hint */}
+        <div className="absolute bottom-4 left-0 right-0 z-10 text-center px-6">
+          <p className="text-sm sm:text-base font-medium text-white/90 drop-shadow">
+            Align QR code inside the frame
+          </p>
+          <p className="text-xs text-white/60 mt-0.5">Scanning continuously · no need to tap</p>
+        </div>
+
+        {/* Success/Error Overlay */}
+        <AnimatePresence>
+          {scanResult && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.18 }}
+              className={`absolute inset-0 z-20 flex items-center justify-center backdrop-blur-sm ${
+                scanResult.success ? 'bg-emerald-950/60' : 'bg-red-950/60'
+              }`}
+            >
+              <motion.div
+                initial={{ scale: 0.6, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                transition={{ type: 'spring', damping: 16, stiffness: 260 }}
+                className="text-center px-6"
+              >
+                {scanResult.success ? (
+                  <>
+                    <motion.div
+                      className="w-24 h-24 mx-auto rounded-full bg-emerald-500/25 ring-4 ring-emerald-400/40 flex items-center justify-center mb-4"
+                      animate={{ scale: [1, 1.08, 1] }}
+                      transition={{ duration: 1.2, repeat: Infinity }}
+                    >
+                      <CheckCircle className="w-12 h-12 text-emerald-300" />
+                    </motion.div>
+                    <p className="text-2xl font-bold text-emerald-200 tracking-wide">Attendance Marked</p>
+                    <p className="text-lg text-white/95 mt-1">{scanResult.name}</p>
+                    {scanResult.employeeId && (
+                      <p className="text-xs text-white/70 mt-0.5">ID: {scanResult.employeeId}</p>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <div className="w-24 h-24 mx-auto rounded-full bg-red-500/25 ring-4 ring-red-400/40 flex items-center justify-center mb-4">
+                      <AlertCircle className="w-12 h-12 text-red-300" />
+                    </div>
+                    <p className="text-2xl font-bold text-red-200">Invalid QR</p>
+                  </>
+                )}
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* Recent scans */}
+      {recentScans.length > 0 && (
+        <div className="mt-5">
+          <div className="flex items-center justify-between mb-2 px-1">
+            <p className="text-sm font-semibold text-foreground/80 flex items-center gap-1.5">
+              <Clock className="w-4 h-4" /> Recent scans
+            </p>
+            <span className="text-xs text-muted-foreground">{recentScans.length}</span>
+          </div>
+          <div className="space-y-2">
+            <AnimatePresence initial={false}>
+              {recentScans.map((r) => (
+                <motion.div
+                  key={`${r.id}-${r.time}`}
+                  layout
+                  initial={{ opacity: 0, y: -6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  className="flex items-center gap-3 p-3 rounded-2xl bg-card border border-border/60 shadow-sm"
+                >
+                  <div className="h-9 w-9 rounded-full bg-emerald-500/15 text-emerald-600 grid place-items-center">
+                    <User className="w-4 h-4" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold truncate">{r.name}</p>
+                    {r.employeeId && <p className="text-xs text-muted-foreground truncate">ID: {r.employeeId}</p>}
+                  </div>
+                  <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 hover:bg-emerald-500/15">
+                    <ShieldCheck className="w-3 h-3 mr-1" /> Marked
+                  </Badge>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </div>
+        </div>
+      )}
+
+      {/* Optional manual controls — hidden in kiosk mode */}
+      {!hideManualControls && (
+        <div className="flex flex-wrap gap-3 mt-5 justify-center">
+          <Button
+            variant="outline"
+            onClick={() => setFacingMode(f => (f === 'user' ? 'environment' : 'user'))}
+          >
+            <RefreshCw className="w-4 h-4 mr-2" /> Flip Camera
+          </Button>
+          <Button
+            variant={isScanning ? 'destructive' : 'default'}
+            onClick={isScanning ? stopScanning : startScanning}
+          >
+            <Scan className="w-4 h-4 mr-2" />
+            {isScanning ? 'Pause' : 'Resume'}
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default QRCodeScanner;
         {/* Tech Grid Background */}
         <div className="absolute inset-0 opacity-20">
           <div className="absolute inset-0" style={{
