@@ -152,88 +152,68 @@ const PremiumFaceScanner: React.FC = () => {
   useEffect(() => {
     if (phase === 'booting') return;
 
-    const tick = async () => {
-      rafRef.current = requestAnimationFrame(tick);
-      const now = performance.now();
-      if (now - lastDetectAtRef.current < DETECT_INTERVAL_MS) return;
-      const video = videoRef.current;
-      if (!video || video.readyState < 2 || video.videoWidth === 0) return;
-      // Skip duplicate frames
-      if (video.currentTime === lastVideoTimeRef.current) return;
-      lastVideoTimeRef.current = video.currentTime;
-      lastDetectAtRef.current = now;
+    // ---------- Recognition worker (runs in background per queued face) ----------
+    const runRecognitionForTrack = async (video: HTMLVideoElement, trackId: number, box: Track['box']) => {
+      const track = tracksRef.current.get(trackId);
+      if (!track) return;
 
-      try {
-        // Cheap detector — no landmarks, no descriptor
-        const det = await faceapi.detectSingleFace(
-          video,
-          new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.55 })
-        );
+      // Snapshot the ROI to a canvas so the recognition sees THIS face
+      // even after the person shifts and the video frame moves on.
+      if (!cropCanvasRef.current) cropCanvasRef.current = document.createElement('canvas');
+      const canvas = cropCanvasRef.current;
+      const pad = Math.max(box.width, box.height) * 0.35;
+      const sx = Math.max(0, box.x - pad);
+      const sy = Math.max(0, box.y - pad);
+      const sw = Math.min(video.videoWidth - sx, box.width + pad * 2);
+      const sh = Math.min(video.videoHeight - sy, box.height + pad * 2);
+      canvas.width = Math.max(160, Math.round(sw));
+      canvas.height = Math.max(160, Math.round(sh));
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      if (!ctx) { track.state = 'tracking'; return; }
+      ctx.drawImage(video, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
 
-        if (!det) {
-          trackedBoxRef.current = null;
-          stableCountRef.current = 0;
-          setPhaseIfChanged('searching');
-          return;
-        }
-
-        const box = {
-          x: det.box.x, y: det.box.y,
-          width: det.box.width, height: det.box.height,
-        };
-
-        // Track stability by IoU
-        const prev = trackedBoxRef.current;
-        if (prev && iou(prev, box) >= IOU_STABLE) {
-          stableCountRef.current += 1;
-        } else {
-          stableCountRef.current = 1;
-        }
-        trackedBoxRef.current = box;
-
-        setPhaseIfChanged(stableCountRef.current >= STABLE_FRAMES_REQUIRED ? 'locked' : 'searching');
-
-        // Trigger recognition once stable and not already running
-        if (
-          stableCountRef.current >= STABLE_FRAMES_REQUIRED &&
-          !inFlightRef.current
-        ) {
-          inFlightRef.current = true;
-          // Run recognition async without blocking the RAF loop
-          void runRecognition(video);
-        }
-      } catch (e) {
-        // silent — detection errors shouldn't disrupt UI
-      }
-    };
-
-    const runRecognition = async (video: HTMLVideoElement) => {
       try {
         const full = await faceapi
-          .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.5 }))
+          .detectSingleFace(canvas, new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.5 }))
           .withFaceLandmarks()
           .withFaceDescriptor();
 
-        if (!full) return;
+        if (!full) {
+          // Couldn't recover a descriptor; allow re-queue on next stability
+          const t = tracksRef.current.get(trackId);
+          if (t) t.state = 'tracking';
+          return;
+        }
 
-        // Session dedup — same person, same frame-set
         const desc = full.descriptor;
+
+        // Session dedup — same person recognized again in same session
         for (const e of sessionEmbedsRef.current) {
-          if (dist(e, desc) < DEDUP_EMBED_DIST) return;
+          if (dist(e, desc) < DEDUP_EMBED_DIST) {
+            const t = tracksRef.current.get(trackId);
+            if (t) t.state = 'done';
+            return;
+          }
         }
 
         const result = await recognizeFace(desc);
-        if (!result?.recognized || !result.employee) return;
+        if (!result?.recognized || !result.employee) {
+          const t = tracksRef.current.get(trackId);
+          if (t) t.state = 'unknown';
+          return;
+        }
 
-        // Per-user cooldown
         const uid = result.employee.id;
         const lastAt = userCooldownRef.current.get(uid) ?? 0;
-        if (Date.now() - lastAt < USER_COOLDOWN_MS) return;
+        if (Date.now() - lastAt < USER_COOLDOWN_MS) {
+          const t = tracksRef.current.get(trackId);
+          if (t) { t.state = 'done'; t.userId = uid; t.recognizedName = result.employee.name; }
+          return;
+        }
         userCooldownRef.current.set(uid, Date.now());
         sessionEmbedsRef.current.push(new Float32Array(desc));
         if (sessionEmbedsRef.current.length > 200) sessionEmbedsRef.current.splice(0, 50);
 
-        // Cutoff -> status
         let status: 'present' | 'late' = 'present';
         try {
           const cutoff = await getAttendanceCutoffTime();
@@ -248,15 +228,21 @@ const PremiumFaceScanner: React.FC = () => {
           avatar: result.employee.avatar_url || result.employee.firebase_image_url,
         };
 
-        // Optimistic UI immediately
+        const t = tracksRef.current.get(trackId);
+        if (t) {
+          t.state = 'done';
+          t.userId = uid;
+          t.recognizedName = entry.name;
+        }
+
+        // Optimistic UI
         setCurrent(entry);
-        setRecent(prev => [entry, ...prev].slice(0, 6));
+        setRecent(prev => [entry, ...prev].slice(0, 8));
         setPhaseIfChanged('recognized');
-        // Haptic + subtle beep
         if (navigator.vibrate) navigator.vibrate(30);
         playBeep();
 
-        // Fire-and-forget background writes
+        // Background writes — fire and forget
         recordAttendance(uid, status, result.confidence, {
           metadata: {
             name: result.employee.name,
@@ -272,21 +258,134 @@ const PremiumFaceScanner: React.FC = () => {
           result.employee.avatar_url || result.employee.firebase_image_url
         ).catch(err => console.error('parent notify failed', err));
 
-        // Clear "recognized" state after a moment so scanner keeps going
+        // Auto-clear the recognized card so the next queued face can surface
         window.setTimeout(() => {
-          setCurrent(null);
+          setCurrent(prev => (prev?.id === entry.id ? null : prev));
           setPhaseIfChanged('searching');
-        }, 1800);
+        }, 1600);
       } catch (e) {
         console.error('recognition error', e);
+        const t = tracksRef.current.get(trackId);
+        if (t) t.state = 'tracking';
       } finally {
-        inFlightRef.current = false;
+        inFlightCountRef.current = Math.max(0, inFlightCountRef.current - 1);
+      }
+    };
+
+    // Quality score: bigger + more centered + higher detector score = better
+    const qualityScore = (box: Track['box'], score: number, vw: number, vh: number) => {
+      const cx = box.x + box.width / 2;
+      const cy = box.y + box.height / 2;
+      const dx = (cx - vw / 2) / vw;
+      const dy = (cy - vh / 2) / vh;
+      const centerBonus = 1 - Math.min(1, Math.hypot(dx, dy) * 2);
+      const sizeScore = Math.min(1, box.width / (vw * 0.35));
+      return score * 0.5 + sizeScore * 0.3 + centerBonus * 0.2;
+    };
+
+    const tick = async () => {
+      rafRef.current = requestAnimationFrame(tick);
+      const now = performance.now();
+      if (now - lastDetectAtRef.current < DETECT_INTERVAL_MS) return;
+      const video = videoRef.current;
+      if (!video || video.readyState < 2 || video.videoWidth === 0) return;
+      if (video.currentTime === lastVideoTimeRef.current) return;
+      lastVideoTimeRef.current = video.currentTime;
+      lastDetectAtRef.current = now;
+
+      try {
+        // Cheap multi-face detection — no landmarks/descriptor here.
+        const dets = await faceapi.detectAllFaces(
+          video,
+          new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.55 })
+        );
+
+        // Prune stale tracks
+        const nowMs = Date.now();
+        for (const [tid, t] of tracksRef.current) {
+          if (nowMs - t.lastSeen > TRACK_TTL_MS) tracksRef.current.delete(tid);
+        }
+
+        if (!dets || dets.length === 0) {
+          if (inFlightCountRef.current === 0) setPhaseIfChanged('searching');
+          return;
+        }
+
+        // Match each detection to an existing track (IoU) or create a new one
+        const used = new Set<number>();
+        for (const det of dets) {
+          const box = {
+            x: det.box.x, y: det.box.y,
+            width: det.box.width, height: det.box.height,
+          };
+          const score = (det as any).score ?? 0.9;
+
+          let bestId = -1;
+          let bestIoU = 0;
+          for (const [tid, t] of tracksRef.current) {
+            if (used.has(tid)) continue;
+            const s = iou(t.box, box);
+            if (s > bestIoU) { bestIoU = s; bestId = tid; }
+          }
+
+          if (bestId !== -1 && bestIoU >= IOU_MATCH) {
+            const t = tracksRef.current.get(bestId)!;
+            t.box = box;
+            t.score = score;
+            t.stableCount += 1;
+            t.lastSeen = nowMs;
+            used.add(bestId);
+          } else {
+            const id = nextTrackIdRef.current++;
+            tracksRef.current.set(id, {
+              id, box, score,
+              stableCount: 1,
+              lastSeen: nowMs,
+              state: 'tracking',
+            });
+            used.add(id);
+          }
+        }
+
+        // Any track processing right now?
+        let anyProcessing = false;
+        for (const t of tracksRef.current.values()) {
+          if (t.state === 'processing' || t.state === 'queued') { anyProcessing = true; break; }
+        }
+        setPhaseIfChanged(
+          anyProcessing ? 'locked' :
+          tracksRef.current.size > 0 ? 'locked' : 'searching'
+        );
+
+        // Enqueue any stable, unprocessed tracks — sorted by quality so the best face goes first
+        const candidates: Track[] = [];
+        for (const t of tracksRef.current.values()) {
+          if (t.state !== 'tracking') continue;
+          if (t.stableCount < STABLE_FRAMES_REQUIRED) continue;
+          if (t.box.width < MIN_FACE_SIZE) continue;
+          candidates.push(t);
+        }
+        candidates.sort((a, b) =>
+          qualityScore(b.box, b.score, video.videoWidth, video.videoHeight) -
+          qualityScore(a.box, a.score, video.videoWidth, video.videoHeight)
+        );
+
+        for (const t of candidates) {
+          if (inFlightCountRef.current >= MAX_CONCURRENT_RECOG) break;
+          t.state = 'processing';
+          inFlightCountRef.current += 1;
+          // Background — never awaited from the RAF loop
+          void runRecognitionForTrack(video, t.id, { ...t.box });
+        }
+      } catch {
+        // silent — detection errors shouldn't disrupt UI
       }
     };
 
     rafRef.current = requestAnimationFrame(tick);
     return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
   }, [phase, setPhaseIfChanged]);
+
 
   const ringColor =
     phase === 'recognized' ? 'hsl(var(--ios-green))' :
