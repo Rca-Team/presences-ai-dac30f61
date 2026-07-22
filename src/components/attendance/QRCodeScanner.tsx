@@ -61,11 +61,15 @@ const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
   const roiCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const upscaleCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const lastCanvasSizeRef = useRef<{ w: number; h: number }>({ w: 0, h: 0 });
+  const lastVideoTimeRef = useRef(-1);
+  const missStreakRef = useRef(0);
+  const nativeDetectorReadyRef = useRef(false);
 
-  const SCAN_FRAME_INTERVAL_MS = 22;
-  const CENTER_SCAN_RATIO = 0.68;
+  // Perf tuning: decode ~12-15 fps is plenty for QR and keeps the UI at 60fps preview.
+  const SCAN_FRAME_INTERVAL_MS = 70;
+  const CENTER_SCAN_RATIO = 0.7;
   const DUPLICATE_SCAN_COOLDOWN_MS = 10_000;
-  const MAX_SCAN_WIDTH = 960;
+  const MAX_SCAN_WIDTH = 640;
   
   const containerRef = useRef<HTMLDivElement>(null);
   const [isScanning, setIsScanning] = useState(false);
@@ -227,12 +231,17 @@ const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
     const video = webcamRef.current.video;
     if (!video || video.readyState !== 4) return;
 
+    // Skip identical consecutive frames — no new pixels to decode.
+    if (video.currentTime === lastVideoTimeRef.current) return;
+    lastVideoTimeRef.current = video.currentTime;
+
     const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true } as any);
     if (!ctx) return;
 
     const srcWidth = video.videoWidth;
     const srcHeight = video.videoHeight;
+    if (!srcWidth || !srcHeight) return;
     const scale = srcWidth > MAX_SCAN_WIDTH ? MAX_SCAN_WIDTH / srcWidth : 1;
     const targetWidth = Math.max(320, Math.round(srcWidth * scale));
     const targetHeight = Math.max(240, Math.round(srcHeight * scale));
@@ -250,85 +259,68 @@ const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
       frameCounterRef.current += 1;
       let foundRawValue: string | null = null;
 
-      // Use BarcodeDetector API if available (modern browsers)
-      if ('BarcodeDetector' in window) {
+      // Prefer native BarcodeDetector — offloaded to browser, near-zero main-thread cost.
+      if (nativeDetectorReadyRef.current || 'BarcodeDetector' in window) {
         if (!barcodeDetectorRef.current) {
-          barcodeDetectorRef.current = new (window as any).BarcodeDetector({ formats: ['qr_code'] });
+          try {
+            barcodeDetectorRef.current = new (window as any).BarcodeDetector({ formats: ['qr_code'] });
+            nativeDetectorReadyRef.current = true;
+          } catch {
+            nativeDetectorReadyRef.current = false;
+          }
         }
-        // Full-frame first so QR can be recognized anywhere in camera view.
-        let barcodes = await barcodeDetectorRef.current.detect(canvas);
-
-        // Fallback ROI (slightly faster on some low-end devices if full-frame misses).
-        if (barcodes.length === 0) {
-          const roiWidth = Math.round(canvas.width * CENTER_SCAN_RATIO);
-          const roiHeight = Math.round(canvas.height * CENTER_SCAN_RATIO);
-          const roiX = Math.round((canvas.width - roiWidth) / 2);
-          const roiY = Math.round((canvas.height - roiHeight) / 2);
-
-          const roiImageData = ctx.getImageData(roiX, roiY, roiWidth, roiHeight);
-          if (!roiCanvasRef.current) roiCanvasRef.current = document.createElement('canvas');
-          const roiCanvas = roiCanvasRef.current;
-          roiCanvas.width = roiWidth;
-          roiCanvas.height = roiHeight;
-          const roiCtx = roiCanvas.getContext('2d');
-          if (!roiCtx) return;
-          roiCtx.putImageData(roiImageData, 0, 0);
-          barcodes = await barcodeDetectorRef.current.detect(roiCanvas);
-        }
-
-        if (barcodes.length > 0 && barcodes[0]?.rawValue) {
-          foundRawValue = String(barcodes[0].rawValue);
-        }
-      }
-
-      // Fallback path for browsers/devices where BarcodeDetector is missing or unreliable.
-      if (!foundRawValue) {
-        const tryDecodeJsQr = (x: number, y: number, width: number, height: number): string | null => {
-          const imageData = ctx.getImageData(x, y, width, height);
-          const decoded = jsQR(imageData.data, width, height, { inversionAttempts: 'attemptBoth' });
-          return decoded?.data || null;
-        };
-
-        // Full-frame first for "detect from anywhere" behavior.
-        foundRawValue = tryDecodeJsQr(0, 0, canvas.width, canvas.height);
-
-        if (!foundRawValue) {
-          const roiWidth = Math.round(canvas.width * CENTER_SCAN_RATIO);
-          const roiHeight = Math.round(canvas.height * CENTER_SCAN_RATIO);
-          const roiX = Math.round((canvas.width - roiWidth) / 2);
-          const roiY = Math.round((canvas.height - roiHeight) / 2);
-          foundRawValue = tryDecodeJsQr(roiX, roiY, roiWidth, roiHeight);
-
-          // Small/far QR fallback: upscale center region for faster lock from a distance.
-          if (!foundRawValue) {
-            if (!upscaleCanvasRef.current) upscaleCanvasRef.current = document.createElement('canvas');
-            const upscaleCanvas = upscaleCanvasRef.current;
-            const upscaleWidth = Math.max(320, roiWidth * 2);
-            const upscaleHeight = Math.max(320, roiHeight * 2);
-            upscaleCanvas.width = upscaleWidth;
-            upscaleCanvas.height = upscaleHeight;
-
-            const upscaleCtx = upscaleCanvas.getContext('2d');
-            if (upscaleCtx) {
-              upscaleCtx.imageSmoothingEnabled = false;
-              upscaleCtx.drawImage(canvas, roiX, roiY, roiWidth, roiHeight, 0, 0, upscaleWidth, upscaleHeight);
-              const upscaledImage = upscaleCtx.getImageData(0, 0, upscaleWidth, upscaleHeight);
-              const decodedUpscaled = jsQR(upscaledImage.data, upscaleWidth, upscaleHeight, { inversionAttempts: 'attemptBoth' });
-              foundRawValue = decodedUpscaled?.data || null;
-            }
+        if (barcodeDetectorRef.current) {
+          const barcodes = await barcodeDetectorRef.current.detect(canvas);
+          if (barcodes.length > 0 && barcodes[0]?.rawValue) {
+            foundRawValue = String(barcodes[0].rawValue);
           }
         }
       }
 
+      // jsQR fallback — only ROI, and only upscale after a run of misses so the hot path stays cheap.
+      if (!foundRawValue && !nativeDetectorReadyRef.current) {
+        const roiWidth = Math.round(canvas.width * CENTER_SCAN_RATIO);
+        const roiHeight = Math.round(canvas.height * CENTER_SCAN_RATIO);
+        const roiX = Math.round((canvas.width - roiWidth) / 2);
+        const roiY = Math.round((canvas.height - roiHeight) / 2);
+        const roiImage = ctx.getImageData(roiX, roiY, roiWidth, roiHeight);
+        const decoded = jsQR(roiImage.data, roiWidth, roiHeight, { inversionAttempts: 'dontInvert' });
+        foundRawValue = decoded?.data || null;
+
+        // Small/far QR: only every ~6th missed frame, upscale once with attemptBoth.
+        if (!foundRawValue) {
+          missStreakRef.current += 1;
+          if (missStreakRef.current % 6 === 0) {
+            if (!upscaleCanvasRef.current) upscaleCanvasRef.current = document.createElement('canvas');
+            const up = upscaleCanvasRef.current;
+            const uw = roiWidth * 2;
+            const uh = roiHeight * 2;
+            up.width = uw;
+            up.height = uh;
+            const uctx = up.getContext('2d', { willReadFrequently: true } as any);
+            if (uctx) {
+              uctx.imageSmoothingEnabled = false;
+              uctx.drawImage(canvas, roiX, roiY, roiWidth, roiHeight, 0, 0, uw, uh);
+              const upImg = uctx.getImageData(0, 0, uw, uh);
+              const decodedUp = jsQR(upImg.data, uw, uh, { inversionAttempts: 'attemptBoth' });
+              foundRawValue = decodedUp?.data || null;
+            }
+          }
+        } else {
+          missStreakRef.current = 0;
+        }
+      }
+
       if (foundRawValue) {
+        missStreakRef.current = 0;
         await processQRCode(foundRawValue);
       }
-    } catch (err) {
+    } catch {
       // Silently fail for detection errors
     } finally {
       inFlightDecodeRef.current = false;
     }
-  }, [isLoopActiveRef]);
+  }, []);
 
   const playSuccessSound = () => {
     try {
