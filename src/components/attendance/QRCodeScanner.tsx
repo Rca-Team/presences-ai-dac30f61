@@ -10,15 +10,17 @@ import { recordAttendance } from '@/services/face-recognition/RecognitionService
 import { sendAutoParentNotification } from '@/services/notification/AutoNotificationService';
 import {
   QrCode,
-  Camera,
   CheckCircle,
   AlertCircle,
   RefreshCw,
   Zap,
+  ZapOff,
   Scan,
-  Shield,
+  Maximize2,
+  Minimize2,
   User,
-  Clock
+  Clock,
+  ShieldCheck,
 } from 'lucide-react';
 import jsQR from 'jsqr';
 
@@ -65,11 +67,16 @@ const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
   const DUPLICATE_SCAN_COOLDOWN_MS = 10_000;
   const MAX_SCAN_WIDTH = 960;
   
+  const containerRef = useRef<HTMLDivElement>(null);
   const [isScanning, setIsScanning] = useState(false);
-  const [scanResult, setScanResult] = useState<{ success: boolean; name?: string } | null>(null);
+  const [scanResult, setScanResult] = useState<{ success: boolean; name?: string; employeeId?: string } | null>(null);
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
   const [lastScannedId, setLastScannedId] = useState<string | null>(null);
   const [focusAssistEnabled, setFocusAssistEnabled] = useState(false);
+  const [torchOn, setTorchOn] = useState(false);
+  const [torchSupported, setTorchSupported] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [recentScans, setRecentScans] = useState<Array<{ id: string; name: string; employeeId?: string; time: number }>>([]);
   const stopAutoFocusLoop = () => {
     if (autofocusIntervalRef.current) {
       window.clearInterval(autofocusIntervalRef.current);
