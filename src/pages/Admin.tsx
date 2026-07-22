@@ -27,6 +27,7 @@ import NotificationLog from '@/components/admin/NotificationLog';
 import AdminInbox from '@/components/admin/AdminInbox';
 import AdminTutorial from '@/components/admin/AdminTutorial';
 import StudentFaceSamplesManager from '@/components/admin/StudentFaceSamplesManager';
+import AdminQRScanner from '@/components/admin/AdminQRScanner';
 import FaceSamplesDiagnosticsPanel from '@/components/admin/FaceSamplesDiagnosticsPanel';
 import DataBackup from '@/pages/DataBackup';
 import { Button } from '@/components/ui/button';
@@ -41,7 +42,7 @@ import {
   User, Calendar, Clock, FolderKanban, School,
   LayoutDashboard, Settings, Bell, Users, BarChart3,
   Shield, Activity, TrendingUp, ChevronRight, Send, UserCog,
-  CreditCard, Image, Download, RefreshCw, MessageSquareText, Mail, Siren, CalendarDays, DatabaseBackup } from
+  CreditCard, Image, Download, RefreshCw, MessageSquareText, Mail, Siren, CalendarDays, DatabaseBackup, ScanLine } from
 'lucide-react';
 import TimetableManager from '@/components/admin/TimetableManager';
 import { supabase } from '@/integrations/supabase/client';
@@ -243,6 +244,7 @@ const Admin = () => {
   { id: 'calendar', icon: Calendar, label: 'Calendar', group: 'Overview' },
   { id: 'idcard', icon: Image, label: 'ID Extract', group: 'Registration' },
   { id: 'idcards', icon: CreditCard, label: 'ID Cards', group: 'Registration' },
+  { id: 'qr-scanner', icon: ScanLine, label: 'QR Scanner', group: 'Registration' },
   { id: 'reports', icon: BarChart3, label: 'Reports', group: 'Management' },
   { id: 'access', icon: UserCog, label: 'Access', group: 'Management' },
   { id: 'notifications', icon: Bell, label: 'Notifications', group: 'Management', count: notificationCount },
@@ -308,6 +310,12 @@ const Admin = () => {
         return (
           <TabPanel>
             <StudentDetailsTable />
+          </TabPanel>
+        );
+      case 'qr-scanner':
+        return (
+          <TabPanel>
+            <AdminQRScanner />
           </TabPanel>
         );
       case 'reports':
