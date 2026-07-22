@@ -29,11 +29,25 @@ interface Recent {
   avatar?: string;
 }
 
+interface Track {
+  id: number;
+  box: { x: number; y: number; width: number; height: number };
+  score: number;
+  stableCount: number;
+  lastSeen: number;
+  state: 'tracking' | 'queued' | 'processing' | 'done' | 'unknown';
+  recognizedName?: string;
+  userId?: string;
+}
+
 const DEDUP_EMBED_DIST = 0.46;
 const USER_COOLDOWN_MS = 8000;
 const DETECT_INTERVAL_MS = 90;      // ~11fps detection — camera preview stays 60fps
-const IOU_STABLE = 0.55;             // treat as same face if IoU >= this
+const IOU_MATCH = 0.4;               // match same track between frames
 const STABLE_FRAMES_REQUIRED = 2;    // need 2 stable frames before running recog
+const MAX_CONCURRENT_RECOG = 2;      // process up to 2 faces in parallel in background
+const TRACK_TTL_MS = 700;            // drop a track if not seen for this long
+const MIN_FACE_SIZE = 90;            // px — reject tiny/far faces for recog quality
 
 const iou = (
   a: { x: number; y: number; width: number; height: number },
