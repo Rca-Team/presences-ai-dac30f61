@@ -1047,6 +1047,20 @@ const StudentIDCardGenerator: React.FC<StudentIDCardGeneratorProps> = ({ student
                 </Button>
 
                 <Button
+                  variant="destructive"
+                  onClick={deleteSelectedStudents}
+                  disabled={isDeletingSelected || selectedIds.size === 0}
+                  title="Permanently delete the selected students from the database"
+                >
+                  {isDeletingSelected
+                    ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Deleting…</>
+                    : <><Trash2 className="w-4 h-4 mr-2" />Delete Selected ({selectedIds.size})</>
+                  }
+                </Button>
+
+
+
+                <Button
                   variant="secondary"
                   onClick={() => exportPDF(true)}
                   disabled={isGenerating || students.length === 0}
