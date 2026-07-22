@@ -333,7 +333,7 @@ const ClassSectionReport: React.FC<ClassSectionReportProps> = ({ allowedCategori
               <SelectValue placeholder="Choose class-section..." />
             </SelectTrigger>
             <SelectContent>
-              {ALL_CATEGORIES.map(cat => (
+              {categoryOptions.map(cat => (
                 <SelectItem key={cat} value={cat}>{getCategoryLabel(cat)}</SelectItem>
               ))}
             </SelectContent>
