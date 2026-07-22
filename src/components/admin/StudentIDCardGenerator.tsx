@@ -40,6 +40,9 @@ interface StudentData {
   transport_mode: string;
   avatar_url?: string;
   address?: string;
+  _attendanceIds?: string[];
+  _descriptorIds?: string[];
+  _userIds?: string[];
 }
 
 interface StudentIDCardGeneratorProps {
@@ -176,12 +179,25 @@ const StudentIDCardGenerator: React.FC<StudentIDCardGeneratorProps> = ({ student
       const uniqueStudents = new Map<string, StudentData>();
       const dedupeKeyByEmployeeId = new Map<string, string>();
       const dedupeKeyByUserId = new Map<string, string>();
+      const dedupeKeyByName = new Map<string, string>();
 
-      const rememberDedupeKeys = (key: string, employeeId?: string, userId?: string) => {
+      const normalizeName = (n: unknown) =>
+        String(n ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
+
+      const rememberDedupeKeys = (key: string, employeeId?: string, userId?: string, name?: string) => {
         const emp = pickIdentityKey(employeeId);
         const uid = pickIdentityKey(userId);
+        const nm = normalizeName(name);
         if (emp) dedupeKeyByEmployeeId.set(emp, key);
         if (uid) dedupeKeyByUserId.set(uid, key);
+        if (nm) dedupeKeyByName.set(nm, key);
+      };
+
+      const pushUnique = (arr: string[] | undefined, val?: string) => {
+        if (!val) return arr;
+        const list = arr || [];
+        if (!list.includes(val)) list.push(val);
+        return list;
       };
       
       data?.forEach(record => {
@@ -194,7 +210,18 @@ const StudentIDCardGenerator: React.FC<StudentIDCardGeneratorProps> = ({ student
           const empKey = pickIdentityKey(metadata?.employee_id, metadata?.roll_number, deviceInfo?.employee_id);
           const studentKey = pickIdentityKey((record as any).student_id);
           const canonicalUserId = record.user_id || (empKey ? employeeToUserId.get(empKey) : null);
-          const dedupeKey = pickIdentityKey(empKey, studentKey, canonicalUserId, record.id);
+          const nameKey = normalizeName(resolvedName);
+
+          // Look up an existing entry by any known identity, falling back to normalized name
+          // so multiple attendance rows created for the same registration collapse into one card.
+          const existingKey =
+            (empKey && dedupeKeyByEmployeeId.get(empKey)) ||
+            (studentKey && dedupeKeyByEmployeeId.get(studentKey)) ||
+            (canonicalUserId && dedupeKeyByUserId.get(canonicalUserId)) ||
+            (nameKey && dedupeKeyByName.get(nameKey)) ||
+            '';
+
+          const dedupeKey = existingKey || pickIdentityKey(empKey, studentKey, canonicalUserId) || `name:${nameKey}`;
           if (!uniqueStudents.has(dedupeKey)) {
             const imageCandidate = pickPreferredPhotoCandidate(
               canonicalUserId ? profileImageByUserId.get(canonicalUserId) : '',
@@ -203,25 +230,38 @@ const StudentIDCardGenerator: React.FC<StudentIDCardGeneratorProps> = ({ student
               canonicalUserId ? descriptorImageByUserId.get(canonicalUserId) : '',
               studentKey ? descriptorImageByStudentKey.get(studentKey) : (empKey ? descriptorImageByStudentKey.get(empKey) : ''),
               record.image_url,
-              metadata.firebase_image_url,
+              metadata?.firebase_image_url,
             );
 
             uniqueStudents.set(dedupeKey, {
               id: dedupeKey,
               name: resolvedName,
-              employee_id: metadata.employee_id || studentKey || empKey || 'N/A',
-              roll_number: metadata.roll_number || metadata.employee_id || studentKey || empKey || 'N/A',
+              employee_id: metadata?.employee_id || studentKey || empKey || 'N/A',
+              roll_number: metadata?.roll_number || metadata?.employee_id || studentKey || empKey || 'N/A',
               category: record.category || 'General',
-              blood_group: metadata.blood_group || '—',
-              parent_phone: metadata.parent_phone || '—',
-              parent_name: metadata.parent_name || '—',
-              transport_mode: metadata.transport_mode || '—',
+              blood_group: metadata?.blood_group || '—',
+              parent_phone: metadata?.parent_phone || '—',
+              parent_name: metadata?.parent_name || '—',
+              transport_mode: metadata?.transport_mode || '—',
               avatar_url: imageCandidate,
-              address: metadata.address || '',
+              address: metadata?.address || '',
+              _attendanceIds: [record.id],
+              _descriptorIds: [],
+              _userIds: canonicalUserId ? [canonicalUserId] : [],
             });
-
-            rememberDedupeKeys(dedupeKey, metadata?.employee_id || studentKey || empKey, canonicalUserId || undefined);
+          } else {
+            // Merge extra attendance row into existing student
+            const existing = uniqueStudents.get(dedupeKey)!;
+            existing._attendanceIds = pushUnique(existing._attendanceIds, record.id);
+            if (canonicalUserId) existing._userIds = pushUnique(existing._userIds, canonicalUserId);
           }
+
+          rememberDedupeKeys(
+            dedupeKey,
+            metadata?.employee_id || studentKey || empKey,
+            canonicalUserId || undefined,
+            resolvedName,
+          );
         }
       });
 
@@ -233,12 +273,16 @@ const StudentIDCardGenerator: React.FC<StudentIDCardGeneratorProps> = ({ student
 
         const descriptorUserId = pickIdentityKey(descriptor?.user_id);
         const descriptorStudentId = pickIdentityKey(descriptor?.student_id);
+        const nameKey = normalizeName(descriptorName);
         const existingKey =
           (descriptorStudentId ? dedupeKeyByEmployeeId.get(descriptorStudentId) : undefined) ||
-          (descriptorUserId ? dedupeKeyByUserId.get(descriptorUserId) : undefined);
+          (descriptorUserId ? dedupeKeyByUserId.get(descriptorUserId) : undefined) ||
+          (nameKey ? dedupeKeyByName.get(nameKey) : undefined);
 
         if (existingKey && uniqueStudents.has(existingKey)) {
           const existing = uniqueStudents.get(existingKey)!;
+          existing._descriptorIds = pushUnique(existing._descriptorIds, descriptor.id);
+          if (descriptorUserId) existing._userIds = pushUnique(existing._userIds, descriptorUserId);
           if (!existing.avatar_url) {
             const enrichedImage = pickPreferredPhotoCandidate(
               existing.avatar_url,
@@ -247,17 +291,18 @@ const StudentIDCardGenerator: React.FC<StudentIDCardGeneratorProps> = ({ student
               descriptorStudentId ? descriptorImageByStudentKey.get(descriptorStudentId) : '',
               descriptor?.image_url,
             );
-
-            uniqueStudents.set(existingKey, {
-              ...existing,
-              avatar_url: enrichedImage,
-            });
+            existing.avatar_url = enrichedImage;
           }
           return;
         }
 
-        const key = pickIdentityKey(descriptorStudentId, descriptorUserId, descriptor.id);
-        if (!key || uniqueStudents.has(key)) return;
+        const key = pickIdentityKey(descriptorStudentId, descriptorUserId) || `name:${nameKey}` || descriptor.id;
+        if (!key) return;
+        if (uniqueStudents.has(key)) {
+          const existing = uniqueStudents.get(key)!;
+          existing._descriptorIds = pushUnique(existing._descriptorIds, descriptor.id);
+          return;
+        }
 
         const imageCandidate = pickPreferredPhotoCandidate(
           descriptorUserId ? profileImageByUserId.get(descriptorUserId) : '',
@@ -278,9 +323,12 @@ const StudentIDCardGenerator: React.FC<StudentIDCardGeneratorProps> = ({ student
           transport_mode: '—',
           avatar_url: imageCandidate,
           address: '',
+          _attendanceIds: [],
+          _descriptorIds: [descriptor.id],
+          _userIds: descriptorUserId ? [descriptorUserId] : [],
         });
 
-        rememberDedupeKeys(key, descriptorStudentId, descriptorUserId);
+        rememberDedupeKeys(key, descriptorStudentId, descriptorUserId, descriptorName);
       });
 
       const resolvedStudents = await Promise.all(
@@ -442,6 +490,62 @@ const StudentIDCardGenerator: React.FC<StudentIDCardGeneratorProps> = ({ student
       setIsRemovingDuplicates(false);
     }
   };
+
+  const [isDeletingSelected, setIsDeletingSelected] = React.useState(false);
+
+  const deleteSelectedStudents = async () => {
+    if (selectedIds.size === 0) return;
+    const selected = students.filter(s => selectedIds.has(s.id));
+    const confirmed = window.confirm(
+      `Delete ${selected.length} selected student${selected.length === 1 ? '' : 's'} from the database?\n\nAll matching attendance_records and face_descriptors rows will be permanently removed. This cannot be undone.`
+    );
+    if (!confirmed) return;
+
+    setIsDeletingSelected(true);
+    try {
+      const attIds = Array.from(new Set(selected.flatMap(s => s._attendanceIds || [])));
+      const descIds = Array.from(new Set(selected.flatMap(s => s._descriptorIds || [])));
+
+      const chunk = <T,>(arr: T[], n: number) => {
+        const out: T[][] = [];
+        for (let i = 0; i < arr.length; i += n) out.push(arr.slice(i, i + n));
+        return out;
+      };
+
+      let deletedAtt = 0;
+      let deletedDesc = 0;
+
+      for (const ids of chunk(attIds, 100)) {
+        const { error } = await supabase.from('attendance_records').delete().in('id', ids);
+        if (error) console.error('Delete attendance failed:', error);
+        else deletedAtt += ids.length;
+      }
+      for (const ids of chunk(descIds, 100)) {
+        const { error } = await supabase.from('face_descriptors').delete().in('id', ids);
+        if (error) console.error('Delete descriptor failed:', error);
+        else deletedDesc += ids.length;
+      }
+
+      toast({
+        title: `Deleted ${selected.length} student${selected.length === 1 ? '' : 's'}`,
+        description: `Attendance rows: ${deletedAtt} • Face descriptors: ${deletedDesc}`,
+      });
+
+      setSelectedIds(new Set());
+      if (!propStudents) await fetchStudents();
+    } catch (err: any) {
+      console.error('Delete selected failed:', err);
+      toast({
+        title: 'Failed to delete selected',
+        description: err?.message || 'Unknown error',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsDeletingSelected(false);
+    }
+  };
+
+
 
 
   const buildCardHTML = (student: StudentData, qrBase64: string, logoSrc: string) => {
@@ -941,6 +1045,20 @@ const StudentIDCardGenerator: React.FC<StudentIDCardGeneratorProps> = ({ student
                     : <><Trash2 className="w-4 h-4 mr-2" />Remove Duplicates</>
                   }
                 </Button>
+
+                <Button
+                  variant="destructive"
+                  onClick={deleteSelectedStudents}
+                  disabled={isDeletingSelected || selectedIds.size === 0}
+                  title="Permanently delete the selected students from the database"
+                >
+                  {isDeletingSelected
+                    ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Deleting…</>
+                    : <><Trash2 className="w-4 h-4 mr-2" />Delete Selected ({selectedIds.size})</>
+                  }
+                </Button>
+
+
 
                 <Button
                   variant="secondary"
