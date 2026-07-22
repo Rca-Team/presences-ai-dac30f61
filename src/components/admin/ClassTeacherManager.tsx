@@ -105,6 +105,7 @@ const ClassTeacherManager: React.FC<Props> = ({ category, onBack }) => {
   const [newSubjectName, setNewSubjectName] = useState('');
   const [newSubjectShort, setNewSubjectShort] = useState('');
   const [addSubjectOpen, setAddSubjectOpen] = useState(false);
+  const [fullEditorOpen, setFullEditorOpen] = useState(false);
   const [selectedDay, setSelectedDay] = useState(1);
   const [draftAssignments, setDraftAssignments] = useState<Record<string, { teacherId?: string; subjectId?: string }>>({});
 
