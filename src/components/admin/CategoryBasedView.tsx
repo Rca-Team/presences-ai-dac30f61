@@ -9,6 +9,7 @@ import {
   FileText, Download, FolderInput, MoreVertical, CalendarClock
 } from 'lucide-react';
 import ClassTeacherManager from './ClassTeacherManager';
+import FullTimetableManager from './TimetableManager';
 import { supabase } from '@/integrations/supabase/client';
 import { pushNotificationService } from '@/services/PushNotificationService';
 import { useToast } from '@/hooks/use-toast';
