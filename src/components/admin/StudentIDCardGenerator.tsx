@@ -562,7 +562,7 @@ const StudentIDCardGenerator: React.FC<StudentIDCardGeneratorProps> = ({ student
     return `
       <div style="
         width: 420px;
-        height: 760px;
+        height: 800px;
         border-radius: 16px;
         overflow: hidden;
         font-family: 'Segoe UI', 'Inter', sans-serif;
@@ -670,40 +670,41 @@ const StudentIDCardGenerator: React.FC<StudentIDCardGeneratorProps> = ({ student
           </div>
         </div>
 
-        <!-- QR Code + Footer -->
+        <!-- QR Code + Signature -->
         <div style="
-          display: flex; align-items: center; justify-content: space-between;
-          padding: 12px 16px 0;
-          margin-top: 8px;
+          display: flex; align-items: stretch; justify-content: space-between;
+          padding: 14px 16px 0; gap: 14px;
         ">
-          <div style="
-            background: #ffffff; border: 2px solid #e2e8f0; border-radius: 8px;
-            padding: 6px; width: 96px; height: 96px;
-          ">
-            <img src="data:image/svg+xml;base64,${qrBase64}" style="width: 100%; height: 100%;" />
+          <div style="flex-shrink: 0; text-align: center;">
+            <div style="
+              background: #ffffff; border: 2px solid #1e3a5f; border-radius: 10px;
+              padding: 6px; width: 168px; height: 168px; box-sizing: border-box;
+            ">
+              <img src="data:image/svg+xml;base64,${qrBase64}" style="width: 100%; height: 100%; display: block;" />
+            </div>
+            <div style="font-size: 9px; color: #1e3a5f; font-weight: 700; margin-top: 4px; letter-spacing: 0.3px;">SCAN TO VERIFY</div>
           </div>
-          <div style="flex: 1; padding-left: 12px; align-self: stretch; display: flex; flex-direction: column; justify-content: flex-end;">
-            <div style="font-size: 9px; color: #94a3b8; margin-bottom: 3px;">Scan for verification</div>
-            <div style="text-align: center; padding-top: 16px; border-top: 1px dashed #cbd5e1; margin-top: 6px;">
-              <div style="font-size: 9px; font-weight: 700; color: #1e3a5f;">Principal</div>
-              <div style="font-size: 8px; color: #94a3b8;">Signature & Seal</div>
+          <div style="flex: 1; display: flex; flex-direction: column; justify-content: flex-end; text-align: center;">
+            <div style="border-top: 1px dashed #1e3a5f; padding-top: 6px;">
+              <div style="font-size: 11px; font-weight: 700; color: #1e3a5f;">Principal</div>
+              <div style="font-size: 9px; color: #64748b;">Signature &amp; Seal</div>
             </div>
           </div>
         </div>
 
         <!-- Emergency note -->
-        <div style="padding: 4px 16px 0; font-size: 8px; color: #64748b; text-align: center; line-height: 1.3;">
+        <div style="padding: 8px 16px 0; font-size: 8.5px; color: #64748b; text-align: center; line-height: 1.35;">
           If found, please return to <strong>PM SHRI K.V. NFC Vigyan Vihar, Delhi</strong> · Tel: 011-22154398
         </div>
 
         <!-- Bottom Band -->
         <div style="
-          margin-top: 6px;
+          margin-top: 8px;
           background: linear-gradient(135deg, #1e3a5f 0%, #0d2137 100%);
           padding: 7px 16px; text-align: center;
           font-size: 8px; color: #93c5fd; letter-spacing: 0.4px;
         ">
-          Powered by RCA · Made by Gaurav Raj & Jatin Dhama
+          Powered by RCA · Made by Gaurav Raj &amp; Jatin Dhama
         </div>
       </div>
     `;
@@ -732,7 +733,7 @@ const StudentIDCardGenerator: React.FC<StudentIDCardGeneratorProps> = ({ student
     
     await new Promise<void>((resolve) => {
       qrRoot.render(
-        <QRCodeSVG value={qrData} size={96} level="M" bgColor="white" fgColor="#1e3a5f" />
+        <QRCodeSVG value={qrData} size={512} level="H" bgColor="#ffffff" fgColor="#000000" includeMargin={false} />
       );
       setTimeout(resolve, 100);
     });
@@ -1234,25 +1235,33 @@ const StudentIDCardGenerator: React.FC<StudentIDCardGeneratorProps> = ({ student
                   </div>
 
                   {/* QR + Signature */}
-                  <div className="flex items-end justify-between px-3 sm:px-4 pt-2.5 pb-1.5 gap-3">
-                    <div className="flex flex-col items-center">
-                      <div className="border-2 border-slate-200 rounded-lg p-1">
+                  <div className="flex items-stretch justify-between px-3 sm:px-4 pt-3 pb-2 gap-3">
+                    <div className="flex flex-col items-center flex-shrink-0">
+                      <div className="border-2 border-[#1e3a5f] rounded-lg p-1.5 bg-white">
                         <QRCodeSVG
                           value={JSON.stringify({
                             type: 'student_id',
                             id: previewStudent.id,
+                            user_id: previewStudent.id,
+                            student_id: previewStudent.employee_id,
                             name: previewStudent.name,
-                            employee_id: previewStudent.employee_id
+                            employee_id: previewStudent.employee_id,
+                            category: previewStudent.category,
+                            version: 2,
                           })}
-                          size={96}
-                          fgColor="#1e3a5f"
+                          size={140}
+                          level="H"
+                          bgColor="#ffffff"
+                          fgColor="#000000"
                         />
                       </div>
-                      <p className="text-[8px] text-slate-400 mt-1">Scan for verification</p>
+                      <p className="text-[9px] font-bold text-[#1e3a5f] tracking-wide mt-1">SCAN TO VERIFY</p>
                     </div>
-                    <div className="flex-1 text-center border-t border-dashed border-slate-300 pt-3">
-                      <p className="text-[10px] font-bold text-[#1e3a5f]">Principal</p>
-                      <p className="text-[8px] text-slate-400">Signature & Seal</p>
+                    <div className="flex-1 flex flex-col justify-end text-center">
+                      <div className="border-t border-dashed border-[#1e3a5f] pt-2">
+                        <p className="text-[11px] font-bold text-[#1e3a5f]">Principal</p>
+                        <p className="text-[9px] text-slate-500">Signature & Seal</p>
+                      </div>
                     </div>
                   </div>
 
