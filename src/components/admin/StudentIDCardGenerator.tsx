@@ -81,6 +81,7 @@ const StudentIDCardGenerator: React.FC<StudentIDCardGeneratorProps> = ({ student
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [pdfProgress, setPdfProgress] = useState<{ done: number; total: number; stage: string } | null>(null);
   const [previewStudent, setPreviewStudent] = useState<StudentData | null>(null);
   const [printSizePercent, setPrintSizePercent] = useState(100);
   const [printGapMm, setPrintGapMm] = useState(5);
