@@ -792,7 +792,7 @@ const StudentIDCardGenerator: React.FC<StudentIDCardGeneratorProps> = ({ student
     });
 
     document.body.removeChild(container);
-    return canvas.toDataURL('image/png');
+    return canvas.toDataURL('image/jpeg', 0.92);
   };
 
   const downloadSingleCard = async (student: StudentData) => {
