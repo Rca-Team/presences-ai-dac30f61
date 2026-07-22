@@ -940,6 +940,108 @@ const TimetableManager: React.FC<TimetableManagerProps> = ({ allowedCategories }
           )}
         </CardContent>
       </Card>
+
+      {/* AI Extraction Dialog */}
+      <Dialog open={extractOpen} onOpenChange={(o) => { if (!extracting) setExtractOpen(o); }}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-primary" /> Extract timetable from photo
+            </DialogTitle>
+            <DialogDescription>
+              Upload a clear photo of a printed/handwritten class timetable. AI will read the grid and pre-fill the draft for <b>{getCategoryLabel(selectedCategory)}</b>. Review then click Save to persist.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {!extractPreview && (
+              <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded-lg p-8 cursor-pointer hover:bg-muted/40 transition">
+                <Upload className="w-8 h-8 text-muted-foreground" />
+                <span className="text-sm font-medium">Click to upload or drag a photo</span>
+                <span className="text-xs text-muted-foreground">JPG / PNG / HEIC (max ~10MB). A crisp, straight-on shot works best.</span>
+                <input
+                  type="file" accept="image/*" className="hidden"
+                  onChange={(e) => onPickPhoto(e.target.files?.[0] || null)}
+                />
+              </label>
+            )}
+
+            {extractPreview && (
+              <div className="space-y-3">
+                <div className="relative rounded-lg overflow-hidden border bg-muted/20">
+                  <img src={extractPreview} alt="Timetable preview" className="w-full max-h-[360px] object-contain" />
+                  <div className="absolute top-2 right-2 flex gap-1">
+                    <Button size="sm" variant="secondary" onClick={() => onPickPhoto(null)}>
+                      <Trash2 className="w-3 h-3 mr-1" /> Replace
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-4 rounded-md border p-3">
+                  <label className="flex items-center gap-2 text-xs">
+                    <Checkbox checked={importPeriods} onCheckedChange={(v) => setImportPeriods(!!v)} />
+                    Import missing period timings
+                  </label>
+                  <label className="flex items-center gap-2 text-xs">
+                    <Checkbox checked={autoCreateSubjects} onCheckedChange={(v) => setAutoCreateSubjects(!!v)} />
+                    Auto-create unknown subjects
+                  </label>
+                </div>
+
+                {!extractResult ? (
+                  <Button className="w-full" onClick={runExtract} disabled={extracting}>
+                    {extracting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Wand2 className="w-4 h-4 mr-2" />}
+                    {extracting ? 'Reading timetable…' : 'Extract with AI'}
+                  </Button>
+                ) : (
+                  <div className="rounded-md border bg-muted/30 p-3 space-y-2 text-xs">
+                    <div className="flex items-center gap-2 font-medium">
+                      <ImageIcon className="w-4 h-4 text-primary" />
+                      Preview: {(extractResult.slots || []).length} slots • {(extractResult.periods || []).length} periods
+                      {extractResult.class_teacher && <Badge variant="outline">Class T: {extractResult.class_teacher}</Badge>}
+                    </div>
+                    <div className="max-h-[180px] overflow-y-auto rounded border bg-background">
+                      <table className="w-full text-[11px]">
+                        <thead className="sticky top-0 bg-muted">
+                          <tr>
+                            <th className="p-1 text-left">Day</th>
+                            <th className="p-1 text-left">P#</th>
+                            <th className="p-1 text-left">Subject</th>
+                            <th className="p-1 text-left">Teacher</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(extractResult.slots || []).slice(0, 60).map((s: any, i: number) => (
+                            <tr key={i} className="border-t">
+                              <td className="p-1">{s.day}</td>
+                              <td className="p-1">{s.period_number}</td>
+                              <td className="p-1">{s.subject_short || s.subject}</td>
+                              <td className="p-1 text-muted-foreground">{s.teacher || '—'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">
+                      Applying will fill the draft. Unmatched teachers stay blank so you can pick from the dropdown.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setExtractOpen(false)} disabled={extracting}>Cancel</Button>
+            {extractResult && (
+              <Button onClick={applyExtraction} disabled={extracting}>
+                {extracting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2" />}
+                Apply to draft
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
