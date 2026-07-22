@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Slider } from '@/components/ui/slider';
+import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { getCategoryLabel } from '@/constants/schoolConfig';
@@ -81,6 +82,7 @@ const StudentIDCardGenerator: React.FC<StudentIDCardGeneratorProps> = ({ student
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [pdfProgress, setPdfProgress] = useState<{ done: number; total: number; stage: string } | null>(null);
   const [previewStudent, setPreviewStudent] = useState<StudentData | null>(null);
   const [printSizePercent, setPrintSizePercent] = useState(100);
   const [printGapMm, setPrintGapMm] = useState(5);
@@ -791,7 +793,7 @@ const StudentIDCardGenerator: React.FC<StudentIDCardGeneratorProps> = ({ student
     });
 
     document.body.removeChild(container);
-    return canvas.toDataURL('image/png');
+    return canvas.toDataURL('image/jpeg', 0.92);
   };
 
   const downloadSingleCard = async (student: StudentData) => {
@@ -800,7 +802,7 @@ const StudentIDCardGenerator: React.FC<StudentIDCardGeneratorProps> = ({ student
       const dataUrl = await generateIDCard(student);
       const link = document.createElement('a');
       link.href = dataUrl;
-      link.download = `ID_Card_${student.name.replace(/\s+/g, '_')}.png`;
+      link.download = `ID_Card_${student.name.replace(/\s+/g, '_')}.jpg`;
       link.click();
       toast({ title: 'Downloaded', description: `ID card for ${student.name} downloaded` });
     } catch (error) {
@@ -884,22 +886,70 @@ const StudentIDCardGenerator: React.FC<StudentIDCardGeneratorProps> = ({ student
       return;
     }
     setIsGenerating(true);
+    setPdfProgress({ done: 0, total: list.length, stage: 'Rendering cards' });
+    const t0 = performance.now();
     try {
       const { columns, cardsPerPage, CARD_W, CARD_H, CARD_GAP, START_X, START_Y } = getPrintLayout(printSizePercent, printGapMm);
 
-      const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+      // Warm the logo cache once so parallel workers don't race the fetch.
+      await loadLogoDataUrl();
+
+      const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait', compress: true });
+      pdf.setProperties({
+        title: `Student ID Cards – ${SCHOOL_NAME}`,
+        subject: `Academic Year ${ACADEMIC_YEAR}`,
+        author: SCHOOL_NAME,
+        creator: 'Presences AI',
+      });
+
+      // Render cards in small parallel batches for a big speed win while
+      // keeping the main thread responsive. Order is preserved by index.
+      const CONCURRENCY = 3;
+      const dataUrls: string[] = new Array(list.length);
+      let completed = 0;
+
+      for (let start = 0; start < list.length; start += CONCURRENCY) {
+        const slice = list.slice(start, start + CONCURRENCY);
+        await Promise.all(
+          slice.map(async (student, k) => {
+            const idx = start + k;
+            dataUrls[idx] = await generateIDCard(student);
+            completed += 1;
+            setPdfProgress({ done: completed, total: list.length, stage: 'Rendering cards' });
+          })
+        );
+        // Yield to the browser so the progress bar animates smoothly.
+        await new Promise((r) => requestAnimationFrame(() => r(null)));
+      }
+
+      setPdfProgress({ done: list.length, total: list.length, stage: 'Assembling PDF' });
+
+      // Faint cut-mark helper for a premium print finish.
+      const drawCutMarks = (x: number, y: number, w: number, h: number) => {
+        pdf.setDrawColor(210);
+        pdf.setLineWidth(0.1);
+        const m = 1.6;
+        // corners only, very subtle
+        pdf.line(x - m, y, x - 0.2, y);
+        pdf.line(x, y - m, x, y - 0.2);
+        pdf.line(x + w + 0.2, y, x + w + m, y);
+        pdf.line(x + w, y - m, x + w, y - 0.2);
+        pdf.line(x - m, y + h, x - 0.2, y + h);
+        pdf.line(x, y + h + 0.2, x, y + h + m);
+        pdf.line(x + w + 0.2, y + h, x + w + m, y + h);
+        pdf.line(x + w, y + h + 0.2, x + w, y + h + m);
+      };
 
       for (let i = 0; i < list.length; i++) {
         if (i > 0 && i % cardsPerPage === 0) pdf.addPage();
-
         const slotIndex = i % cardsPerPage;
         const row = Math.floor(slotIndex / columns);
         const col = slotIndex % columns;
         const x = START_X + col * (CARD_W + CARD_GAP);
         const y = START_Y + row * (CARD_H + CARD_GAP);
-
-        const dataUrl = await generateIDCard(list[i]);
-        pdf.addImage(dataUrl, 'PNG', x, y, CARD_W, CARD_H, undefined, 'FAST');
+        // JPEG @ MEDIUM keeps the file lean and rendering fast in Preview/Acrobat.
+        pdf.addImage(dataUrls[i], 'JPEG', x, y, CARD_W, CARD_H, undefined, 'MEDIUM');
+        drawCutMarks(x, y, CARD_W, CARD_H);
       }
 
       const totalPages = Math.ceil(list.length / cardsPerPage);
@@ -940,15 +990,17 @@ const StudentIDCardGenerator: React.FC<StudentIDCardGeneratorProps> = ({ student
         pdf.save(opts.filename || 'student-id-cards.pdf');
       }
 
+      const secs = ((performance.now() - t0) / 1000).toFixed(1);
       toast({
         title: 'PDF Ready',
-        description: `${list.length} card(s) on ${totalPages} A4 page(s) (6/page, ${Math.round(CARD_H)}mm height)`,
+        description: `${list.length} card(s) · ${totalPages} A4 page(s) · ${secs}s`,
       });
     } catch (e) {
       console.error('PDF export error:', e);
       toast({ title: 'Error', description: 'Failed to build PDF', variant: 'destructive' });
     } finally {
       setIsGenerating(false);
+      setPdfProgress(null);
     }
   };
 
@@ -1096,6 +1148,25 @@ const StudentIDCardGenerator: React.FC<StudentIDCardGeneratorProps> = ({ student
                   Print
                 </Button>
               </div>
+
+              {pdfProgress && (
+                <div className="mt-3 p-3 rounded-lg border bg-muted/40">
+                  <div className="flex items-center justify-between text-xs mb-2">
+                    <span className="font-medium flex items-center gap-2">
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
+                      {pdfProgress.stage}
+                    </span>
+                    <span className="tabular-nums text-muted-foreground">
+                      {pdfProgress.done} / {pdfProgress.total} ·{' '}
+                      {Math.round((pdfProgress.done / Math.max(1, pdfProgress.total)) * 100)}%
+                    </span>
+                  </div>
+                  <Progress
+                    value={(pdfProgress.done / Math.max(1, pdfProgress.total)) * 100}
+                    className="h-2"
+                  />
+                </div>
+              )}
             </div>
 
             {/* Student Grid */}
