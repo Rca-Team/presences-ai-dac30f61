@@ -244,6 +244,7 @@ const Admin = () => {
   { id: 'calendar', icon: Calendar, label: 'Calendar', group: 'Overview' },
   { id: 'idcard', icon: Image, label: 'ID Extract', group: 'Registration' },
   { id: 'idcards', icon: CreditCard, label: 'ID Cards', group: 'Registration' },
+  { id: 'qr-scanner', icon: ScanLine, label: 'QR Scanner', group: 'Registration' },
   { id: 'reports', icon: BarChart3, label: 'Reports', group: 'Management' },
   { id: 'access', icon: UserCog, label: 'Access', group: 'Management' },
   { id: 'notifications', icon: Bell, label: 'Notifications', group: 'Management', count: notificationCount },
