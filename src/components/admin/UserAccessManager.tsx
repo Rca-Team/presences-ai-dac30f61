@@ -75,6 +75,41 @@ const UserAccessManager: React.FC = () => {
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [isSaving, setIsSaving] = useState(false);
 
+  // Create-teacher form state
+  const [tEmail, setTEmail] = useState('');
+  const [tPass, setTPass] = useState('');
+  const [tName, setTName] = useState('');
+  const [tClass, setTClass] = useState<string>(CLASSES[0] || '6');
+  const [tSection, setTSection] = useState<string>(SECTIONS[0] || 'A');
+  const [tCreating, setTCreating] = useState(false);
+
+  const handleCreateTeacher = async () => {
+    if (!tEmail || !tPass) {
+      toast({ title: 'Missing fields', description: 'Email and password required', variant: 'destructive' });
+      return;
+    }
+    setTCreating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('admin-create-teacher', {
+        body: {
+          email: tEmail.trim().toLowerCase(),
+          password: tPass,
+          name: tName.trim() || tEmail.split('@')[0],
+          classes: [`${tClass}-${tSection}`],
+        },
+      });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      toast({ title: 'Teacher created', description: `${tEmail} → Class ${tClass}-${tSection}` });
+      setTEmail(''); setTPass(''); setTName('');
+      fetchUsers();
+    } catch (e: any) {
+      toast({ title: 'Failed to create teacher', description: e.message || 'Server error', variant: 'destructive' });
+    } finally {
+      setTCreating(false);
+    }
+  };
+
   useEffect(() => {
     fetchUsers();
 
