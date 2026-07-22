@@ -35,19 +35,27 @@ interface Track {
   score: number;
   stableCount: number;
   lastSeen: number;
+  firstSeen: number;
   state: 'tracking' | 'queued' | 'processing' | 'done' | 'unknown';
   recognizedName?: string;
   userId?: string;
+  // Best-quality snapshot captured during the quality window
+  bestQuality: number;
+  bestSnapshot?: HTMLCanvasElement;
+  bestBox?: { x: number; y: number; width: number; height: number };
 }
 
 const DEDUP_EMBED_DIST = 0.46;
 const USER_COOLDOWN_MS = 8000;
-const DETECT_INTERVAL_MS = 90;      // ~11fps detection — camera preview stays 60fps
-const IOU_MATCH = 0.4;               // match same track between frames
-const STABLE_FRAMES_REQUIRED = 2;    // need 2 stable frames before running recog
-const MAX_CONCURRENT_RECOG = 2;      // process up to 2 faces in parallel in background
-const TRACK_TTL_MS = 700;            // drop a track if not seen for this long
-const MIN_FACE_SIZE = 90;            // px — reject tiny/far faces for recog quality
+const DETECT_INTERVAL_MS = 70;       // ~14fps detection — camera preview stays 60fps
+const IOU_MATCH = 0.4;                // match same track between frames
+const STABLE_FRAMES_REQUIRED = 2;     // need at least 2 frames before snapshotting
+const QUALITY_WINDOW_MS = 900;        // collect best frame within this window (~1s)
+const MIN_QUALITY_TO_SHIP_EARLY = 0.72; // ship immediately if quality is already excellent
+const MAX_CONCURRENT_RECOG = 3;       // process up to 3 faces in parallel in background
+const TRACK_TTL_MS = 700;             // drop a track if not seen for this long
+const MIN_FACE_SIZE = 90;             // px — reject tiny/far faces for recog quality
+
 
 const iou = (
   a: { x: number; y: number; width: number; height: number },
@@ -153,35 +161,21 @@ const PremiumFaceScanner: React.FC = () => {
     if (phase === 'booting') return;
 
     // ---------- Recognition worker (runs in background per queued face) ----------
-    const runRecognitionForTrack = async (video: HTMLVideoElement, trackId: number, box: Track['box']) => {
+    // Uses a pre-captured best-quality snapshot canvas, so it recognizes the SHARPEST
+    // frame the tracker saw for this person — not whatever frame the video is on now.
+    const runRecognitionForTrack = async (trackId: number, snapshot: HTMLCanvasElement) => {
       const track = tracksRef.current.get(trackId);
-      if (!track) return;
-
-      // Snapshot the ROI to a canvas so the recognition sees THIS face
-      // even after the person shifts and the video frame moves on.
-      if (!cropCanvasRef.current) cropCanvasRef.current = document.createElement('canvas');
-      const canvas = cropCanvasRef.current;
-      const pad = Math.max(box.width, box.height) * 0.35;
-      const sx = Math.max(0, box.x - pad);
-      const sy = Math.max(0, box.y - pad);
-      const sw = Math.min(video.videoWidth - sx, box.width + pad * 2);
-      const sh = Math.min(video.videoHeight - sy, box.height + pad * 2);
-      canvas.width = Math.max(160, Math.round(sw));
-      canvas.height = Math.max(160, Math.round(sh));
-      const ctx = canvas.getContext('2d', { willReadFrequently: true });
-      if (!ctx) { track.state = 'tracking'; return; }
-      ctx.drawImage(video, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+      if (!track) { inFlightCountRef.current = Math.max(0, inFlightCountRef.current - 1); return; }
 
       try {
         const full = await faceapi
-          .detectSingleFace(canvas, new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.5 }))
+          .detectSingleFace(snapshot, new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.5 }))
           .withFaceLandmarks()
           .withFaceDescriptor();
 
         if (!full) {
-          // Couldn't recover a descriptor; allow re-queue on next stability
           const t = tracksRef.current.get(trackId);
-          if (t) t.state = 'tracking';
+          if (t) { t.state = 'tracking'; t.bestQuality = 0; t.bestSnapshot = undefined; t.firstSeen = Date.now(); }
           return;
         }
 
@@ -229,11 +223,7 @@ const PremiumFaceScanner: React.FC = () => {
         };
 
         const t = tracksRef.current.get(trackId);
-        if (t) {
-          t.state = 'done';
-          t.userId = uid;
-          t.recognizedName = entry.name;
-        }
+        if (t) { t.state = 'done'; t.userId = uid; t.recognizedName = entry.name; }
 
         // Optimistic UI
         setCurrent(entry);
@@ -258,11 +248,10 @@ const PremiumFaceScanner: React.FC = () => {
           result.employee.avatar_url || result.employee.firebase_image_url
         ).catch(err => console.error('parent notify failed', err));
 
-        // Auto-clear the recognized card so the next queued face can surface
         window.setTimeout(() => {
           setCurrent(prev => (prev?.id === entry.id ? null : prev));
           setPhaseIfChanged('searching');
-        }, 1600);
+        }, 1400);
       } catch (e) {
         console.error('recognition error', e);
         const t = tracksRef.current.get(trackId);
@@ -283,6 +272,22 @@ const PremiumFaceScanner: React.FC = () => {
       return score * 0.5 + sizeScore * 0.3 + centerBonus * 0.2;
     };
 
+    // Capture the ROI of the current video frame into a fresh canvas we can keep.
+    const captureSnapshot = (video: HTMLVideoElement, box: Track['box']): HTMLCanvasElement | null => {
+      const pad = Math.max(box.width, box.height) * 0.35;
+      const sx = Math.max(0, box.x - pad);
+      const sy = Math.max(0, box.y - pad);
+      const sw = Math.min(video.videoWidth - sx, box.width + pad * 2);
+      const sh = Math.min(video.videoHeight - sy, box.height + pad * 2);
+      const c = document.createElement('canvas');
+      c.width = Math.max(160, Math.round(sw));
+      c.height = Math.max(160, Math.round(sh));
+      const ctx = c.getContext('2d', { willReadFrequently: true });
+      if (!ctx) return null;
+      ctx.drawImage(video, sx, sy, sw, sh, 0, 0, c.width, c.height);
+      return c;
+    };
+
     const tick = async () => {
       rafRef.current = requestAnimationFrame(tick);
       const now = performance.now();
@@ -294,13 +299,11 @@ const PremiumFaceScanner: React.FC = () => {
       lastDetectAtRef.current = now;
 
       try {
-        // Cheap multi-face detection — no landmarks/descriptor here.
         const dets = await faceapi.detectAllFaces(
           video,
           new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.55 })
         );
 
-        // Prune stale tracks
         const nowMs = Date.now();
         for (const [tid, t] of tracksRef.current) {
           if (nowMs - t.lastSeen > TRACK_TTL_MS) tracksRef.current.delete(tid);
@@ -311,14 +314,15 @@ const PremiumFaceScanner: React.FC = () => {
           return;
         }
 
-        // Match each detection to an existing track (IoU) or create a new one
+        const vw = video.videoWidth;
+        const vh = video.videoHeight;
+
+        // Match detections to tracks; update best-quality snapshot per track continuously.
         const used = new Set<number>();
         for (const det of dets) {
-          const box = {
-            x: det.box.x, y: det.box.y,
-            width: det.box.width, height: det.box.height,
-          };
+          const box = { x: det.box.x, y: det.box.y, width: det.box.width, height: det.box.height };
           const score = (det as any).score ?? 0.9;
+          const q = qualityScore(box, score, vw, vh);
 
           let bestId = -1;
           let bestIoU = 0;
@@ -328,58 +332,75 @@ const PremiumFaceScanner: React.FC = () => {
             if (s > bestIoU) { bestIoU = s; bestId = tid; }
           }
 
+          let track: Track;
           if (bestId !== -1 && bestIoU >= IOU_MATCH) {
-            const t = tracksRef.current.get(bestId)!;
-            t.box = box;
-            t.score = score;
-            t.stableCount += 1;
-            t.lastSeen = nowMs;
+            track = tracksRef.current.get(bestId)!;
+            track.box = box;
+            track.score = score;
+            track.stableCount += 1;
+            track.lastSeen = nowMs;
             used.add(bestId);
           } else {
             const id = nextTrackIdRef.current++;
-            tracksRef.current.set(id, {
+            track = {
               id, box, score,
               stableCount: 1,
               lastSeen: nowMs,
+              firstSeen: nowMs,
               state: 'tracking',
-            });
+              bestQuality: 0,
+            };
+            tracksRef.current.set(id, track);
             used.add(id);
+          }
+
+          // Only bother snapshotting tracks that still need recognition
+          if (track.state === 'tracking' && box.width >= MIN_FACE_SIZE && q > track.bestQuality) {
+            const snap = captureSnapshot(video, box);
+            if (snap) {
+              track.bestQuality = q;
+              track.bestSnapshot = snap;
+              track.bestBox = box;
+            }
           }
         }
 
-        // Any track processing right now?
+        // Phase indicator
         let anyProcessing = false;
         for (const t of tracksRef.current.values()) {
           if (t.state === 'processing' || t.state === 'queued') { anyProcessing = true; break; }
         }
         setPhaseIfChanged(
-          anyProcessing ? 'locked' :
-          tracksRef.current.size > 0 ? 'locked' : 'searching'
+          anyProcessing || tracksRef.current.size > 0 ? 'locked' : 'searching'
         );
 
-        // Enqueue any stable, unprocessed tracks — sorted by quality so the best face goes first
-        const candidates: Track[] = [];
+        // Ship any track that either: (a) has excellent quality already, or
+        // (b) has been tracked for QUALITY_WINDOW_MS. Best-quality snapshot wins.
+        const ready: Track[] = [];
         for (const t of tracksRef.current.values()) {
           if (t.state !== 'tracking') continue;
+          if (!t.bestSnapshot) continue;
           if (t.stableCount < STABLE_FRAMES_REQUIRED) continue;
-          if (t.box.width < MIN_FACE_SIZE) continue;
-          candidates.push(t);
+          const age = nowMs - t.firstSeen;
+          if (t.bestQuality >= MIN_QUALITY_TO_SHIP_EARLY || age >= QUALITY_WINDOW_MS) {
+            ready.push(t);
+          }
         }
-        candidates.sort((a, b) =>
-          qualityScore(b.box, b.score, video.videoWidth, video.videoHeight) -
-          qualityScore(a.box, a.score, video.videoWidth, video.videoHeight)
-        );
+        // Best faces first
+        ready.sort((a, b) => b.bestQuality - a.bestQuality);
 
-        for (const t of candidates) {
+        for (const t of ready) {
           if (inFlightCountRef.current >= MAX_CONCURRENT_RECOG) break;
+          const snap = t.bestSnapshot!;
           t.state = 'processing';
+          t.bestSnapshot = undefined; // release ref; the worker owns the canvas now
           inFlightCountRef.current += 1;
-          // Background — never awaited from the RAF loop
-          void runRecognitionForTrack(video, t.id, { ...t.box });
+          void runRecognitionForTrack(t.id, snap);
         }
       } catch {
-        // silent — detection errors shouldn't disrupt UI
+        // silent
       }
+
     };
 
     rafRef.current = requestAnimationFrame(tick);
