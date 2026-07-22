@@ -256,7 +256,7 @@ const Attendance = () => {
                       <AnimatePresence mode="wait">
                         {attendanceMethod === 'face' ? (
                           <motion.div key="face" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }}>
-                            <FuturisticFaceScanner />
+                            <PremiumFaceScanner />
                           </motion.div>
                         ) : (
                           <motion.div key="qr" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
