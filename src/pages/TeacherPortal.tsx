@@ -1,16 +1,19 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Loader2, GraduationCap, Camera, DoorOpen, Calendar, RefreshCcw, LogOut } from 'lucide-react';
+import { Loader2, GraduationCap, Camera, DoorOpen, Calendar, RefreshCcw, LogOut, FileDown, CalendarCog, QrCode, Scan } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useToast } from '@/hooks/use-toast';
 import PageLayout from '@/components/layouts/PageLayout';
 import AttendanceCapture from '@/components/attendance/AttendanceCapture';
 import GateModeScanner from '@/components/gate/GateModeScanner';
+import QRCodeScanner from '@/components/attendance/QRCodeScanner';
+import ClassSectionReport from '@/components/admin/ClassSectionReport';
+import TimetableManager from '@/components/admin/TimetableManager';
 import { fetchTeacherCategories, parseClassSection } from '@/utils/teacherAccess';
 
 interface ClassAssignment { class: string; section: string; teacher_name?: string | null; }
