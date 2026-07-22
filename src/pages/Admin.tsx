@@ -27,6 +27,7 @@ import NotificationLog from '@/components/admin/NotificationLog';
 import AdminInbox from '@/components/admin/AdminInbox';
 import AdminTutorial from '@/components/admin/AdminTutorial';
 import StudentFaceSamplesManager from '@/components/admin/StudentFaceSamplesManager';
+import AdminQRScanner from '@/components/admin/AdminQRScanner';
 import FaceSamplesDiagnosticsPanel from '@/components/admin/FaceSamplesDiagnosticsPanel';
 import DataBackup from '@/pages/DataBackup';
 import { Button } from '@/components/ui/button';
