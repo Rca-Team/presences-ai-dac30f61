@@ -830,10 +830,8 @@ const StudentIDCardGenerator: React.FC<StudentIDCardGeneratorProps> = ({ student
     const maxCardHFromGrid = (usableH - (rows - 1) * gapMm) / rows;
     const maxFitCardH = Math.min(maxCardHFromGrid, maxCardWFromGrid / CARD_ASPECT);
 
-    // 88mm gives a bigger physical card than before; user can scale around it.
-    const baseCardH = 88;
-    const requestedCardH = baseCardH * (sizePercent / 100);
-    const CARD_H = Math.min(requestedCardH, maxFitCardH);
+    // 100% = fully fill the A4 page (no wasted space). Slider scales down from the max.
+    const CARD_H = maxFitCardH * (sizePercent / 100);
     const CARD_W = CARD_H * CARD_ASPECT;
 
     const contentW = columns * CARD_W + (columns - 1) * gapMm;
