@@ -340,7 +340,7 @@ const AdminQRScanner: React.FC = () => {
     if (!video || video.readyState !== 4) return;
     if (!canvasRef.current) canvasRef.current = document.createElement('canvas');
     const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d', { willReadFrequently: true } as any);
+    const ctx = canvas.getContext('2d', { willReadFrequently: true } as any) as CanvasRenderingContext2D | null;
     if (!ctx) return;
 
     const sw = video.videoWidth;
