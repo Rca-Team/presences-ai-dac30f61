@@ -1235,25 +1235,33 @@ const StudentIDCardGenerator: React.FC<StudentIDCardGeneratorProps> = ({ student
                   </div>
 
                   {/* QR + Signature */}
-                  <div className="flex items-end justify-between px-3 sm:px-4 pt-2.5 pb-1.5 gap-3">
-                    <div className="flex flex-col items-center">
-                      <div className="border-2 border-slate-200 rounded-lg p-1">
+                  <div className="flex items-stretch justify-between px-3 sm:px-4 pt-3 pb-2 gap-3">
+                    <div className="flex flex-col items-center flex-shrink-0">
+                      <div className="border-2 border-[#1e3a5f] rounded-lg p-1.5 bg-white">
                         <QRCodeSVG
                           value={JSON.stringify({
                             type: 'student_id',
                             id: previewStudent.id,
+                            user_id: previewStudent.id,
+                            student_id: previewStudent.employee_id,
                             name: previewStudent.name,
-                            employee_id: previewStudent.employee_id
+                            employee_id: previewStudent.employee_id,
+                            category: previewStudent.category,
+                            version: 2,
                           })}
-                          size={96}
-                          fgColor="#1e3a5f"
+                          size={140}
+                          level="H"
+                          bgColor="#ffffff"
+                          fgColor="#000000"
                         />
                       </div>
-                      <p className="text-[8px] text-slate-400 mt-1">Scan for verification</p>
+                      <p className="text-[9px] font-bold text-[#1e3a5f] tracking-wide mt-1">SCAN TO VERIFY</p>
                     </div>
-                    <div className="flex-1 text-center border-t border-dashed border-slate-300 pt-3">
-                      <p className="text-[10px] font-bold text-[#1e3a5f]">Principal</p>
-                      <p className="text-[8px] text-slate-400">Signature & Seal</p>
+                    <div className="flex-1 flex flex-col justify-end text-center">
+                      <div className="border-t border-dashed border-[#1e3a5f] pt-2">
+                        <p className="text-[11px] font-bold text-[#1e3a5f]">Principal</p>
+                        <p className="text-[9px] text-slate-500">Signature & Seal</p>
+                      </div>
                     </div>
                   </div>
 
