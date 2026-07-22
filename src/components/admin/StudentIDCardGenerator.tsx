@@ -40,6 +40,9 @@ interface StudentData {
   transport_mode: string;
   avatar_url?: string;
   address?: string;
+  _attendanceIds?: string[];
+  _descriptorIds?: string[];
+  _userIds?: string[];
 }
 
 interface StudentIDCardGeneratorProps {
