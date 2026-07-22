@@ -8,12 +8,25 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import {
   Loader2, Save, Trash2, CalendarDays, BookOpen, AlertTriangle,
-  Plus, Clock, Copy, Eraser,
+  Plus, Clock, Copy, Eraser, Sparkles, Upload, Image as ImageIcon, Wand2,
 } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { ALL_CLASS_SECTIONS, getCategoryLabel } from '@/constants/schoolConfig';
 import { parseClassSection } from '@/utils/teacherAccess';
+
+const DAY_INDEX: Record<string, number> = {
+  monday: 1, mon: 1,
+  tuesday: 2, tue: 2, tues: 2,
+  wednesday: 3, wed: 3,
+  thursday: 4, thu: 4, thurs: 4,
+  friday: 5, fri: 5,
+  saturday: 6, sat: 6,
+};
+
+const norm = (s: string) => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -433,6 +446,169 @@ const TimetableManager: React.FC<TimetableManagerProps> = ({ allowedCategories }
 
   const filledCount = Object.values(draftSlots).filter((s) => s.teacherId && s.subjectId).length;
 
+  // ============ AI photo extraction ============
+  const [extractOpen, setExtractOpen] = useState(false);
+  const [extractFile, setExtractFile] = useState<File | null>(null);
+  const [extractPreview, setExtractPreview] = useState<string | null>(null);
+  const [extracting, setExtracting] = useState(false);
+  const [extractResult, setExtractResult] = useState<any | null>(null);
+  const [importPeriods, setImportPeriods] = useState(true);
+  const [autoCreateSubjects, setAutoCreateSubjects] = useState(true);
+
+  const onPickPhoto = (file: File | null) => {
+    setExtractResult(null);
+    setExtractFile(file);
+    if (!file) { setExtractPreview(null); return; }
+    const reader = new FileReader();
+    reader.onload = () => setExtractPreview(reader.result as string);
+    reader.readAsDataURL(file);
+  };
+
+  const runExtract = async () => {
+    if (!extractPreview) return;
+    setExtracting(true);
+    setExtractResult(null);
+    try {
+      const parsed = parseClassSection(selectedCategory);
+      const { data, error } = await supabase.functions.invoke('extract-timetable-photo', {
+        body: {
+          fileData: extractPreview,
+          className: parsed?.className || null,
+          section: parsed?.section || null,
+          knownSubjects: filteredSubjects.map((s) => ({ name: s.name, short_name: s.short_name })),
+          knownTeachers: teachers.map((t) => ({ name: t.name })),
+        },
+      });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      setExtractResult(data);
+      const nSlots = Array.isArray((data as any)?.slots) ? (data as any).slots.length : 0;
+      const nPeriods = Array.isArray((data as any)?.periods) ? (data as any).periods.length : 0;
+      toast({ title: 'Extracted', description: `${nSlots} slots • ${nPeriods} periods detected. Review below and Apply.` });
+    } catch (e: any) {
+      toast({ title: 'Extraction failed', description: e.message || 'AI could not read this image', variant: 'destructive' });
+    } finally {
+      setExtracting(false);
+    }
+  };
+
+  const applyExtraction = async () => {
+    if (!extractResult) return;
+    const result = extractResult;
+    const parsed = parseClassSection(selectedCategory);
+    setExtracting(true);
+    try {
+      // 1. Optionally import period timings (add missing ones)
+      let workingPeriods = [...periods];
+      if (importPeriods && Array.isArray(result.periods)) {
+        for (const p of result.periods) {
+          const num = Number(p.period_number);
+          if (!num) continue;
+          if (workingPeriods.find((wp) => wp.period_number === num)) continue;
+          const row: PeriodTiming = {
+            period_number: num,
+            start_time: (p.start_time || '09:00') + ':00'.slice((p.start_time || '').length >= 5 ? 3 : 0),
+            end_time: (p.end_time || '09:45') + ':00'.slice((p.end_time || '').length >= 5 ? 3 : 0),
+            is_break: !!p.is_break,
+            label: p.label || null,
+          };
+          // normalize HH:MM -> HH:MM:SS if needed
+          if (row.start_time && row.start_time.length === 5) row.start_time += ':00';
+          if (row.end_time && row.end_time.length === 5) row.end_time += ':00';
+          try {
+            const newId = await savePeriodRow(row);
+            workingPeriods.push({ ...row, id: newId });
+          } catch (err) { console.error('period save', err); }
+        }
+        workingPeriods.sort((a, b) => a.period_number - b.period_number);
+      }
+
+      // 2. Build subject map (auto-create if allowed)
+      let workingSubjects = [...subjects];
+      const findSubject = (needle: string, short?: string | null) => {
+        const n = norm(needle);
+        const sn = short ? norm(short) : '';
+        return workingSubjects.find((s) => {
+          const sameClass = !s.class || (s.class === parsed?.className && s.section === parsed?.section);
+          if (!sameClass) return false;
+          return norm(s.name) === n || (s.short_name && norm(s.short_name) === n)
+            || (sn && ((s.short_name && norm(s.short_name) === sn) || norm(s.name) === sn));
+        }) || workingSubjects.find((s) =>
+          norm(s.name) === n || (s.short_name && norm(s.short_name) === n)
+          || (sn && ((s.short_name && norm(s.short_name) === sn) || norm(s.name) === sn))
+        );
+      };
+      const ensureSubject = async (name: string, short?: string | null): Promise<string | null> => {
+        if (!name) return null;
+        const existing = findSubject(name, short);
+        if (existing) return existing.id;
+        if (!autoCreateSubjects) return null;
+        const row: any = {
+          name: name.trim(),
+          short_name: (short || name).trim().slice(0, 12),
+          code: (short || name).trim().slice(0, 12),
+          class: parsed?.className || null,
+          section: parsed?.section || null,
+        };
+        const { data, error } = await db.from('subjects').insert(row).select('id, name, short_name, class, section').single();
+        if (error) { console.error('subject', error); return null; }
+        workingSubjects.push({
+          id: data.id, name: data.name,
+          short_name: data.short_name ?? null,
+          class: data.class ?? null, section: data.section ?? null,
+        });
+        return data.id;
+      };
+
+      // 3. Teacher matcher
+      const findTeacher = (name?: string | null) => {
+        if (!name) return '';
+        const n = norm(name);
+        const t = teachers.find((t) => norm(t.name) === n)
+          || teachers.find((t) => norm(t.name).includes(n) || n.includes(norm(t.name)));
+        return t?.id || '';
+      };
+
+      // 4. Build draft slots
+      const next: Record<string, DraftSlot> = { ...draftSlots };
+      let applied = 0, skippedNoPeriod = 0, skippedNoSubject = 0;
+      for (const s of (result.slots || [])) {
+        const dayNum = DAY_INDEX[String(s.day || '').toLowerCase()];
+        const perNum = Number(s.period_number);
+        if (!dayNum || !perNum) continue;
+        const periodExists = workingPeriods.find((p) => p.period_number === perNum);
+        if (!periodExists) { skippedNoPeriod++; continue; }
+        if (periodExists.is_break) continue;
+        const subjName = s.subject || s.subject_short || '';
+        const subjectId = await ensureSubject(subjName, s.subject_short);
+        if (!subjectId) { skippedNoSubject++; continue; }
+        next[slotKey(dayNum, perNum)] = {
+          teacherId: findTeacher(s.teacher),
+          subjectId,
+          room: s.room || '',
+          notes: s.notes || '',
+        };
+        applied++;
+      }
+      setDraftSlots(next);
+      // Refresh periods + subjects from DB in background
+      fetchData();
+
+      toast({
+        title: 'Applied to draft',
+        description: `${applied} slots filled${skippedNoPeriod ? ` • ${skippedNoPeriod} skipped (no period)` : ''}${skippedNoSubject ? ` • ${skippedNoSubject} skipped (no subject)` : ''}. Review then Save.`,
+      });
+      setExtractOpen(false);
+      setExtractFile(null);
+      setExtractPreview(null);
+      setExtractResult(null);
+    } catch (e: any) {
+      toast({ title: 'Apply failed', description: e.message || 'Could not apply extraction', variant: 'destructive' });
+    } finally {
+      setExtracting(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -454,6 +630,9 @@ const TimetableManager: React.FC<TimetableManagerProps> = ({ allowedCategories }
                   ))}
                 </SelectContent>
               </Select>
+              <Button size="sm" variant="outline" onClick={() => setExtractOpen(true)} className="gap-1">
+                <Sparkles className="w-4 h-4 text-primary" /> Extract from photo
+              </Button>
               <Button size="sm" variant="outline" onClick={clearAll}>
                 <Eraser className="w-4 h-4 mr-1" /> Clear all
               </Button>
@@ -761,6 +940,108 @@ const TimetableManager: React.FC<TimetableManagerProps> = ({ allowedCategories }
           )}
         </CardContent>
       </Card>
+
+      {/* AI Extraction Dialog */}
+      <Dialog open={extractOpen} onOpenChange={(o) => { if (!extracting) setExtractOpen(o); }}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-primary" /> Extract timetable from photo
+            </DialogTitle>
+            <DialogDescription>
+              Upload a clear photo of a printed/handwritten class timetable. AI will read the grid and pre-fill the draft for <b>{getCategoryLabel(selectedCategory)}</b>. Review then click Save to persist.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {!extractPreview && (
+              <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded-lg p-8 cursor-pointer hover:bg-muted/40 transition">
+                <Upload className="w-8 h-8 text-muted-foreground" />
+                <span className="text-sm font-medium">Click to upload or drag a photo</span>
+                <span className="text-xs text-muted-foreground">JPG / PNG / HEIC (max ~10MB). A crisp, straight-on shot works best.</span>
+                <input
+                  type="file" accept="image/*" className="hidden"
+                  onChange={(e) => onPickPhoto(e.target.files?.[0] || null)}
+                />
+              </label>
+            )}
+
+            {extractPreview && (
+              <div className="space-y-3">
+                <div className="relative rounded-lg overflow-hidden border bg-muted/20">
+                  <img src={extractPreview} alt="Timetable preview" className="w-full max-h-[360px] object-contain" />
+                  <div className="absolute top-2 right-2 flex gap-1">
+                    <Button size="sm" variant="secondary" onClick={() => onPickPhoto(null)}>
+                      <Trash2 className="w-3 h-3 mr-1" /> Replace
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-4 rounded-md border p-3">
+                  <label className="flex items-center gap-2 text-xs">
+                    <Checkbox checked={importPeriods} onCheckedChange={(v) => setImportPeriods(!!v)} />
+                    Import missing period timings
+                  </label>
+                  <label className="flex items-center gap-2 text-xs">
+                    <Checkbox checked={autoCreateSubjects} onCheckedChange={(v) => setAutoCreateSubjects(!!v)} />
+                    Auto-create unknown subjects
+                  </label>
+                </div>
+
+                {!extractResult ? (
+                  <Button className="w-full" onClick={runExtract} disabled={extracting}>
+                    {extracting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Wand2 className="w-4 h-4 mr-2" />}
+                    {extracting ? 'Reading timetable…' : 'Extract with AI'}
+                  </Button>
+                ) : (
+                  <div className="rounded-md border bg-muted/30 p-3 space-y-2 text-xs">
+                    <div className="flex items-center gap-2 font-medium">
+                      <ImageIcon className="w-4 h-4 text-primary" />
+                      Preview: {(extractResult.slots || []).length} slots • {(extractResult.periods || []).length} periods
+                      {extractResult.class_teacher && <Badge variant="outline">Class T: {extractResult.class_teacher}</Badge>}
+                    </div>
+                    <div className="max-h-[180px] overflow-y-auto rounded border bg-background">
+                      <table className="w-full text-[11px]">
+                        <thead className="sticky top-0 bg-muted">
+                          <tr>
+                            <th className="p-1 text-left">Day</th>
+                            <th className="p-1 text-left">P#</th>
+                            <th className="p-1 text-left">Subject</th>
+                            <th className="p-1 text-left">Teacher</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(extractResult.slots || []).slice(0, 60).map((s: any, i: number) => (
+                            <tr key={i} className="border-t">
+                              <td className="p-1">{s.day}</td>
+                              <td className="p-1">{s.period_number}</td>
+                              <td className="p-1">{s.subject_short || s.subject}</td>
+                              <td className="p-1 text-muted-foreground">{s.teacher || '—'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">
+                      Applying will fill the draft. Unmatched teachers stay blank so you can pick from the dropdown.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setExtractOpen(false)} disabled={extracting}>Cancel</Button>
+            {extractResult && (
+              <Button onClick={applyExtraction} disabled={extracting}>
+                {extracting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2" />}
+                Apply to draft
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
