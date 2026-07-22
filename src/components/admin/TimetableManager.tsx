@@ -455,13 +455,28 @@ const TimetableManager: React.FC<TimetableManagerProps> = ({ allowedCategories }
   const [importPeriods, setImportPeriods] = useState(true);
   const [autoCreateSubjects, setAutoCreateSubjects] = useState(true);
 
-  const onPickPhoto = (file: File | null) => {
+  const onPickPhoto = async (file: File | null) => {
     setExtractResult(null);
     setExtractFile(file);
     if (!file) { setExtractPreview(null); return; }
-    const reader = new FileReader();
-    reader.onload = () => setExtractPreview(reader.result as string);
-    reader.readAsDataURL(file);
+    // Downscale to keep payload well under edge-function body limits.
+    try {
+      const bmp = await createImageBitmap(file);
+      const maxDim = 1600;
+      const scale = Math.min(1, maxDim / Math.max(bmp.width, bmp.height));
+      const w = Math.round(bmp.width * scale);
+      const h = Math.round(bmp.height * scale);
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d')!;
+      ctx.drawImage(bmp, 0, 0, w, h);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+      setExtractPreview(dataUrl);
+    } catch {
+      const reader = new FileReader();
+      reader.onload = () => setExtractPreview(reader.result as string);
+      reader.readAsDataURL(file);
+    }
   };
 
   const runExtract = async () => {
