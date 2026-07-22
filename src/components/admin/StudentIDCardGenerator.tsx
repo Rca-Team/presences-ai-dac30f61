@@ -733,7 +733,7 @@ const StudentIDCardGenerator: React.FC<StudentIDCardGeneratorProps> = ({ student
     
     await new Promise<void>((resolve) => {
       qrRoot.render(
-        <QRCodeSVG value={qrData} size={96} level="M" bgColor="white" fgColor="#1e3a5f" />
+        <QRCodeSVG value={qrData} size={512} level="H" bgColor="#ffffff" fgColor="#000000" includeMargin={false} />
       );
       setTimeout(resolve, 100);
     });
