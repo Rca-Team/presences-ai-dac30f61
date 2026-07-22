@@ -1047,12 +1047,28 @@ const ClassTeacherManager: React.FC<Props> = ({ category, onBack }) => {
 
         {/* ====== TIMETABLE TAB ====== */}
         <TabsContent value="timetable" className="space-y-4 mt-4">
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
             <p className="text-xs text-muted-foreground">Working days: Mon-Sat • 8 periods/day • Lunch after period 4</p>
-            <Button variant="outline" size="sm" onClick={setupDefaultTimetableStructure} disabled={isSaving}>
-              {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-              Setup Timetable
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={setupDefaultTimetableStructure} disabled={isSaving}>
+                {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                Setup Structure
+              </Button>
+              <Dialog open={fullEditorOpen} onOpenChange={setFullEditorOpen}>
+                <DialogTrigger asChild>
+                  <Button size="sm">
+                    <CalendarClock className="w-4 h-4 mr-2" />
+                    Open Full Editor
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-6xl w-[95vw] max-h-[90vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>Full Timetable Editor — {getCategoryLabel(category)}</DialogTitle>
+                  </DialogHeader>
+                  <FullTimetableManager allowedCategories={[category]} />
+                </DialogContent>
+              </Dialog>
+            </div>
           </div>
 
           {/* Day selector */}
