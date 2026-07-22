@@ -9,6 +9,7 @@ import {
   FileText, Download, FolderInput, MoreVertical, CalendarClock
 } from 'lucide-react';
 import ClassTeacherManager from './ClassTeacherManager';
+import FullTimetableManager from './TimetableManager';
 import { supabase } from '@/integrations/supabase/client';
 import { pushNotificationService } from '@/services/PushNotificationService';
 import { useToast } from '@/hooks/use-toast';
@@ -56,6 +57,7 @@ const CategoryBasedView: React.FC = () => {
   const [sendingNotification, setSendingNotification] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState(new Date());
   const [showTeacherManager, setShowTeacherManager] = useState(false);
+  const [fullTimetableOpen, setFullTimetableOpen] = useState(false);
 
   useEffect(() => { fetchUsers(); }, []);
 
@@ -305,9 +307,24 @@ const CategoryBasedView: React.FC = () => {
           </div>
           <div className="flex flex-wrap gap-2">
             {selectedCategory !== 'Teacher' && (
-              <Button variant="outline" size="sm" onClick={() => setShowTeacherManager(true)}>
-                <CalendarClock className="h-4 w-4 mr-2" />Timetable
-              </Button>
+              <>
+                <Button variant="outline" size="sm" onClick={() => setShowTeacherManager(true)}>
+                  <CalendarClock className="h-4 w-4 mr-2" />Timetable
+                </Button>
+                <Dialog open={fullTimetableOpen} onOpenChange={setFullTimetableOpen}>
+                  <DialogTrigger asChild>
+                    <Button size="sm">
+                      <CalendarClock className="h-4 w-4 mr-2" />Edit Timetable
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-6xl w-[95vw] max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                      <DialogTitle>Timetable Editor — {getCategoryLabel(selectedCategory)}</DialogTitle>
+                    </DialogHeader>
+                    <FullTimetableManager allowedCategories={[selectedCategory]} />
+                  </DialogContent>
+                </Dialog>
+              </>
             )}
             <Button variant="outline" size="sm" onClick={handlePrintDailyAttendance}>
               <Printer className="h-4 w-4 mr-2" />Daily Report
