@@ -441,6 +441,51 @@ const TeacherPortal: React.FC = () => {
                   </CardContent>
                 </Card>
               </TabsContent>
+              {/* Edit timetable — scoped to teacher's assigned classes */}
+              <TabsContent value="editPlan" className="mt-4">
+                {allowedCategories.length > 0 ? (
+                  <TimetableManager allowedCategories={allowedCategories} />
+                ) : (
+                  <Card><CardHeader><CardTitle>No class assigned</CardTitle><CardDescription>Ask the admin to assign you a class before editing the timetable.</CardDescription></CardHeader></Card>
+                )}
+              </TabsContent>
+
+              {/* Class report — PDF/CSV export */}
+              <TabsContent value="report" className="mt-4">
+                {allowedCategories.length > 0 ? (
+                  <ClassSectionReport allowedCategories={allowedCategories} />
+                ) : (
+                  <Card><CardHeader><CardTitle>No class assigned</CardTitle><CardDescription>Ask the admin to assign you a class before exporting reports.</CardDescription></CardHeader></Card>
+                )}
+              </TabsContent>
+
+              {/* Stats — today's totals for the active class */}
+              <TabsContent value="stats" className="mt-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Today's stats — {activeCategory}</CardTitle>
+                    <CardDescription>Live counts for your class.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="rounded-xl border p-3 text-center">
+                      <p className="text-xs text-muted-foreground">Total marked</p>
+                      <p className="text-2xl font-bold">{today.length}</p>
+                    </div>
+                    <div className="rounded-xl border p-3 text-center">
+                      <p className="text-xs text-muted-foreground">Present</p>
+                      <p className="text-2xl font-bold text-emerald-600">{presentCount}</p>
+                    </div>
+                    <div className="rounded-xl border p-3 text-center">
+                      <p className="text-xs text-muted-foreground">Late</p>
+                      <p className="text-2xl font-bold text-amber-600">{lateCount}</p>
+                    </div>
+                    <div className="rounded-xl border p-3 text-center">
+                      <p className="text-xs text-muted-foreground">Absent</p>
+                      <p className="text-2xl font-bold text-rose-600">{absentCount}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
             </Tabs>
           </>
         )}
