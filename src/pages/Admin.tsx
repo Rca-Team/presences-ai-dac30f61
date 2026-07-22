@@ -312,6 +312,12 @@ const Admin = () => {
             <StudentDetailsTable />
           </TabPanel>
         );
+      case 'qr-scanner':
+        return (
+          <TabPanel>
+            <AdminQRScanner />
+          </TabPanel>
+        );
       case 'reports':
         return (
           <TabPanel className="space-y-6">
