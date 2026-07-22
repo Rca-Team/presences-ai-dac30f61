@@ -331,7 +331,7 @@ const TimetableManager: React.FC<TimetableManagerProps> = ({ allowedCategories }
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {ALL_CLASS_SECTIONS.map(cat => (
+                {categoryOptions.map(cat => (
                   <SelectItem key={cat} value={cat}>{getCategoryLabel(cat)}</SelectItem>
                 ))}
               </SelectContent>
