@@ -630,6 +630,9 @@ const TimetableManager: React.FC<TimetableManagerProps> = ({ allowedCategories }
                   ))}
                 </SelectContent>
               </Select>
+              <Button size="sm" variant="outline" onClick={() => setExtractOpen(true)} className="gap-1">
+                <Sparkles className="w-4 h-4 text-primary" /> Extract from photo
+              </Button>
               <Button size="sm" variant="outline" onClick={clearAll}>
                 <Eraser className="w-4 h-4 mr-1" /> Clear all
               </Button>
