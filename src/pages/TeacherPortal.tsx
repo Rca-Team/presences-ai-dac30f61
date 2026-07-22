@@ -309,11 +309,13 @@ const TeacherPortal: React.FC = () => {
             </div>
 
             <Tabs defaultValue="attendance" className="w-full">
-              <TabsList className="grid grid-cols-4 w-full">
+              <TabsList className="grid grid-cols-3 sm:grid-cols-6 w-full">
                 <TabsTrigger value="attendance"><Camera className="h-4 w-4 mr-1" />Take</TabsTrigger>
-                <TabsTrigger value="gate"><DoorOpen className="h-4 w-4 mr-1" />Gate</TabsTrigger>
                 <TabsTrigger value="today">Today</TabsTrigger>
                 <TabsTrigger value="timetable"><Calendar className="h-4 w-4 mr-1" />Plan</TabsTrigger>
+                <TabsTrigger value="editPlan"><CalendarCog className="h-4 w-4 mr-1" />Edit Plan</TabsTrigger>
+                <TabsTrigger value="report"><FileDown className="h-4 w-4 mr-1" />Report</TabsTrigger>
+                <TabsTrigger value="stats">Stats</TabsTrigger>
               </TabsList>
               <div className="mt-2">
                 <Badge variant={isRealtimeHealthy ? 'default' : 'secondary'}>
@@ -321,41 +323,52 @@ const TeacherPortal: React.FC = () => {
                 </Badge>
               </div>
 
-              {/* Take attendance — uses face capture, scoped to teacher's class */}
+              {/* Take attendance — Face / QR / Gate */}
               <TabsContent value="attendance" className="mt-4">
                 <Card>
                   <CardHeader>
                     <CardTitle>Take attendance — Class {activeClass.class} {activeClass.section}</CardTitle>
-                    <CardDescription>Faces are matched against students registered to your class.</CardDescription>
+                    <CardDescription>Choose a method — Face ID, QR code, or continuous Gate mode.</CardDescription>
                   </CardHeader>
-                  <CardContent>
-                    <AttendanceCapture
-                      classScope={{
-                        className: activeClass.class,
-                        section: activeClass.section,
-                      }}
-                    />
+                  <CardContent className="space-y-4">
+                    <div className="flex flex-wrap gap-2">
+                      <Button size="sm" variant={captureMethod === 'face' ? 'default' : 'outline'} onClick={() => setCaptureMethod('face')}>
+                        <Scan className="h-4 w-4 mr-1" /> Face ID
+                      </Button>
+                      <Button size="sm" variant={captureMethod === 'qr' ? 'default' : 'outline'} onClick={() => setCaptureMethod('qr')}>
+                        <QrCode className="h-4 w-4 mr-1" /> QR Code
+                      </Button>
+                      <Button size="sm" variant={captureMethod === 'gate' ? 'default' : 'outline'} onClick={() => setCaptureMethod('gate')}>
+                        <DoorOpen className="h-4 w-4 mr-1" /> Gate Mode
+                      </Button>
+                    </div>
+
+                    {captureMethod === 'face' && (
+                      <AttendanceCapture
+                        classScope={{
+                          className: activeClass.class,
+                          section: activeClass.section,
+                        }}
+                      />
+                    )}
+                    {captureMethod === 'qr' && (
+                      <QRCodeScanner
+                        autoStart
+                        onScanComplete={() => loadTodayAttendance(activeClass)}
+                      />
+                    )}
+                    {captureMethod === 'gate' && (
+                      <GateModeScanner
+                        isActive={true}
+                        onFaceDetected={() => loadTodayAttendance(activeClass)}
+                        className={activeClass.class}
+                        section={activeClass.section}
+                      />
+                    )}
                   </CardContent>
                 </Card>
               </TabsContent>
 
-              {/* Gate mode */}
-              <TabsContent value="gate" className="mt-4">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Gate mode</CardTitle>
-                    <CardDescription>Continuous scanning — ideal for classroom door at start of period.</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <GateModeScanner
-                      isActive={true}
-                      onFaceDetected={() => loadTodayAttendance(activeClass)}
-                      className={activeClass.class}
-                      section={activeClass.section}
-                    />
-                  </CardContent>
-                </Card>
-              </TabsContent>
 
               {/* Today list */}
               <TabsContent value="today" className="mt-4">
