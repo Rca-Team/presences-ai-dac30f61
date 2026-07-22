@@ -19,6 +19,7 @@ import {
   UserCheck, AlertTriangle, ChevronLeft, RefreshCw, Printer,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import FullTimetableManager from '@/components/admin/TimetableManager';
 import { useToast } from '@/hooks/use-toast';
 import { getCategoryLabel, ALL_CLASS_SECTIONS } from '@/constants/schoolConfig';
 import { parseClassSection } from '@/utils/teacherAccess';
