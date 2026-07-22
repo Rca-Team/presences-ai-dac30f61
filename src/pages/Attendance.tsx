@@ -6,7 +6,7 @@ import PageLayout from '@/components/layouts/PageLayout';
 import PageTransition from '@/components/PageTransition';
 import AttendanceInstructions from '@/components/attendance/AttendanceInstructions';
 import AttendanceStats from '@/components/attendance/AttendanceStats';
-import FuturisticFaceScanner from '@/components/attendance/FuturisticFaceScanner';
+import PremiumFaceScanner from '@/components/attendance/PremiumFaceScanner';
 import QRCodeScanner from '@/components/attendance/QRCodeScanner';
 import LiveAttendanceFeed from '@/components/attendance/LiveAttendanceFeed';
 import QuickStatsPanel from '@/components/attendance/QuickStatsPanel';
