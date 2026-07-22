@@ -289,10 +289,21 @@ const StudentIDCardGenerator: React.FC<StudentIDCardGeneratorProps> = ({ student
         const descriptorUserId = pickIdentityKey(descriptor?.user_id);
         const descriptorStudentId = pickIdentityKey(descriptor?.student_id);
         const nameKey = normalizeName(descriptorName);
+        const hasStrongDescriptorId = Boolean(descriptorStudentId || descriptorUserId);
+        const nameCandidateKey = nameKey ? dedupeKeyByName.get(nameKey) : '';
+        const nameCandidate = nameCandidateKey ? uniqueStudents.get(nameCandidateKey) : undefined;
+        const nameCandidateHasStrongId = nameCandidate
+          ? (nameCandidate.employee_id && nameCandidate.employee_id !== 'N/A') ||
+            (nameCandidate._userIds && nameCandidate._userIds.length > 0)
+          : false;
+        const safeNameMatch = nameCandidateKey && !hasStrongDescriptorId && !nameCandidateHasStrongId
+          ? nameCandidateKey
+          : '';
+
         const existingKey =
           (descriptorStudentId ? dedupeKeyByEmployeeId.get(descriptorStudentId) : undefined) ||
           (descriptorUserId ? dedupeKeyByUserId.get(descriptorUserId) : undefined) ||
-          (nameKey ? dedupeKeyByName.get(nameKey) : undefined);
+          safeNameMatch;
 
         if (existingKey && uniqueStudents.has(existingKey)) {
           const existing = uniqueStudents.get(existingKey)!;
