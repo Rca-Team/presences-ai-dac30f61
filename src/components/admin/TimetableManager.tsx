@@ -446,6 +446,169 @@ const TimetableManager: React.FC<TimetableManagerProps> = ({ allowedCategories }
 
   const filledCount = Object.values(draftSlots).filter((s) => s.teacherId && s.subjectId).length;
 
+  // ============ AI photo extraction ============
+  const [extractOpen, setExtractOpen] = useState(false);
+  const [extractFile, setExtractFile] = useState<File | null>(null);
+  const [extractPreview, setExtractPreview] = useState<string | null>(null);
+  const [extracting, setExtracting] = useState(false);
+  const [extractResult, setExtractResult] = useState<any | null>(null);
+  const [importPeriods, setImportPeriods] = useState(true);
+  const [autoCreateSubjects, setAutoCreateSubjects] = useState(true);
+
+  const onPickPhoto = (file: File | null) => {
+    setExtractResult(null);
+    setExtractFile(file);
+    if (!file) { setExtractPreview(null); return; }
+    const reader = new FileReader();
+    reader.onload = () => setExtractPreview(reader.result as string);
+    reader.readAsDataURL(file);
+  };
+
+  const runExtract = async () => {
+    if (!extractPreview) return;
+    setExtracting(true);
+    setExtractResult(null);
+    try {
+      const parsed = parseClassSection(selectedCategory);
+      const { data, error } = await supabase.functions.invoke('extract-timetable-photo', {
+        body: {
+          fileData: extractPreview,
+          className: parsed?.className || null,
+          section: parsed?.section || null,
+          knownSubjects: filteredSubjects.map((s) => ({ name: s.name, short_name: s.short_name })),
+          knownTeachers: teachers.map((t) => ({ name: t.name })),
+        },
+      });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      setExtractResult(data);
+      const nSlots = Array.isArray((data as any)?.slots) ? (data as any).slots.length : 0;
+      const nPeriods = Array.isArray((data as any)?.periods) ? (data as any).periods.length : 0;
+      toast({ title: 'Extracted', description: `${nSlots} slots • ${nPeriods} periods detected. Review below and Apply.` });
+    } catch (e: any) {
+      toast({ title: 'Extraction failed', description: e.message || 'AI could not read this image', variant: 'destructive' });
+    } finally {
+      setExtracting(false);
+    }
+  };
+
+  const applyExtraction = async () => {
+    if (!extractResult) return;
+    const result = extractResult;
+    const parsed = parseClassSection(selectedCategory);
+    setExtracting(true);
+    try {
+      // 1. Optionally import period timings (add missing ones)
+      let workingPeriods = [...periods];
+      if (importPeriods && Array.isArray(result.periods)) {
+        for (const p of result.periods) {
+          const num = Number(p.period_number);
+          if (!num) continue;
+          if (workingPeriods.find((wp) => wp.period_number === num)) continue;
+          const row: PeriodTiming = {
+            period_number: num,
+            start_time: (p.start_time || '09:00') + ':00'.slice((p.start_time || '').length >= 5 ? 3 : 0),
+            end_time: (p.end_time || '09:45') + ':00'.slice((p.end_time || '').length >= 5 ? 3 : 0),
+            is_break: !!p.is_break,
+            label: p.label || null,
+          };
+          // normalize HH:MM -> HH:MM:SS if needed
+          if (row.start_time && row.start_time.length === 5) row.start_time += ':00';
+          if (row.end_time && row.end_time.length === 5) row.end_time += ':00';
+          try {
+            const newId = await savePeriodRow(row);
+            workingPeriods.push({ ...row, id: newId });
+          } catch (err) { console.error('period save', err); }
+        }
+        workingPeriods.sort((a, b) => a.period_number - b.period_number);
+      }
+
+      // 2. Build subject map (auto-create if allowed)
+      let workingSubjects = [...subjects];
+      const findSubject = (needle: string, short?: string | null) => {
+        const n = norm(needle);
+        const sn = short ? norm(short) : '';
+        return workingSubjects.find((s) => {
+          const sameClass = !s.class || (s.class === parsed?.className && s.section === parsed?.section);
+          if (!sameClass) return false;
+          return norm(s.name) === n || (s.short_name && norm(s.short_name) === n)
+            || (sn && ((s.short_name && norm(s.short_name) === sn) || norm(s.name) === sn));
+        }) || workingSubjects.find((s) =>
+          norm(s.name) === n || (s.short_name && norm(s.short_name) === n)
+          || (sn && ((s.short_name && norm(s.short_name) === sn) || norm(s.name) === sn))
+        );
+      };
+      const ensureSubject = async (name: string, short?: string | null): Promise<string | null> => {
+        if (!name) return null;
+        const existing = findSubject(name, short);
+        if (existing) return existing.id;
+        if (!autoCreateSubjects) return null;
+        const row: any = {
+          name: name.trim(),
+          short_name: (short || name).trim().slice(0, 12),
+          code: (short || name).trim().slice(0, 12),
+          class: parsed?.className || null,
+          section: parsed?.section || null,
+        };
+        const { data, error } = await db.from('subjects').insert(row).select('id, name, short_name, class, section').single();
+        if (error) { console.error('subject', error); return null; }
+        workingSubjects.push({
+          id: data.id, name: data.name,
+          short_name: data.short_name ?? null,
+          class: data.class ?? null, section: data.section ?? null,
+        });
+        return data.id;
+      };
+
+      // 3. Teacher matcher
+      const findTeacher = (name?: string | null) => {
+        if (!name) return '';
+        const n = norm(name);
+        const t = teachers.find((t) => norm(t.name) === n)
+          || teachers.find((t) => norm(t.name).includes(n) || n.includes(norm(t.name)));
+        return t?.id || '';
+      };
+
+      // 4. Build draft slots
+      const next: Record<string, DraftSlot> = { ...draftSlots };
+      let applied = 0, skippedNoPeriod = 0, skippedNoSubject = 0;
+      for (const s of (result.slots || [])) {
+        const dayNum = DAY_INDEX[String(s.day || '').toLowerCase()];
+        const perNum = Number(s.period_number);
+        if (!dayNum || !perNum) continue;
+        const periodExists = workingPeriods.find((p) => p.period_number === perNum);
+        if (!periodExists) { skippedNoPeriod++; continue; }
+        if (periodExists.is_break) continue;
+        const subjName = s.subject || s.subject_short || '';
+        const subjectId = await ensureSubject(subjName, s.subject_short);
+        if (!subjectId) { skippedNoSubject++; continue; }
+        next[slotKey(dayNum, perNum)] = {
+          teacherId: findTeacher(s.teacher),
+          subjectId,
+          room: s.room || '',
+          notes: s.notes || '',
+        };
+        applied++;
+      }
+      setDraftSlots(next);
+      // Refresh periods + subjects from DB in background
+      fetchData();
+
+      toast({
+        title: 'Applied to draft',
+        description: `${applied} slots filled${skippedNoPeriod ? ` • ${skippedNoPeriod} skipped (no period)` : ''}${skippedNoSubject ? ` • ${skippedNoSubject} skipped (no subject)` : ''}. Review then Save.`,
+      });
+      setExtractOpen(false);
+      setExtractFile(null);
+      setExtractPreview(null);
+      setExtractResult(null);
+    } catch (e: any) {
+      toast({ title: 'Apply failed', description: e.message || 'Could not apply extraction', variant: 'destructive' });
+    } finally {
+      setExtracting(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
       {/* Header */}
