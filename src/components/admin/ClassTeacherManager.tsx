@@ -19,6 +19,7 @@ import {
   UserCheck, AlertTriangle, ChevronLeft, RefreshCw, Printer,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import FullTimetableManager from '@/components/admin/TimetableManager';
 import { useToast } from '@/hooks/use-toast';
 import { getCategoryLabel, ALL_CLASS_SECTIONS } from '@/constants/schoolConfig';
 import { parseClassSection } from '@/utils/teacherAccess';
@@ -105,6 +106,7 @@ const ClassTeacherManager: React.FC<Props> = ({ category, onBack }) => {
   const [newSubjectName, setNewSubjectName] = useState('');
   const [newSubjectShort, setNewSubjectShort] = useState('');
   const [addSubjectOpen, setAddSubjectOpen] = useState(false);
+  const [fullEditorOpen, setFullEditorOpen] = useState(false);
   const [selectedDay, setSelectedDay] = useState(1);
   const [draftAssignments, setDraftAssignments] = useState<Record<string, { teacherId?: string; subjectId?: string }>>({});
 
@@ -1047,12 +1049,28 @@ const ClassTeacherManager: React.FC<Props> = ({ category, onBack }) => {
 
         {/* ====== TIMETABLE TAB ====== */}
         <TabsContent value="timetable" className="space-y-4 mt-4">
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
             <p className="text-xs text-muted-foreground">Working days: Mon-Sat • 8 periods/day • Lunch after period 4</p>
-            <Button variant="outline" size="sm" onClick={setupDefaultTimetableStructure} disabled={isSaving}>
-              {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-              Setup Timetable
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={setupDefaultTimetableStructure} disabled={isSaving}>
+                {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                Setup Structure
+              </Button>
+              <Dialog open={fullEditorOpen} onOpenChange={setFullEditorOpen}>
+                <DialogTrigger asChild>
+                  <Button size="sm">
+                    <CalendarClock className="w-4 h-4 mr-2" />
+                    Open Full Editor
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-6xl w-[95vw] max-h-[90vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>Full Timetable Editor — {getCategoryLabel(category)}</DialogTitle>
+                  </DialogHeader>
+                  <FullTimetableManager allowedCategories={[category]} />
+                </DialogContent>
+              </Dialog>
+            </div>
           </div>
 
           {/* Day selector */}
