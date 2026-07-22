@@ -80,12 +80,13 @@ const PremiumFaceScanner: React.FC = () => {
   const lastVideoTimeRef = useRef(-1);
 
   // Tracking state (refs — never trigger renders)
-  const trackedBoxRef = useRef<{ x: number; y: number; width: number; height: number } | null>(null);
-  const stableCountRef = useRef(0);
-  const inFlightRef = useRef(false);
+  const tracksRef = useRef<Map<number, Track>>(new Map());
+  const nextTrackIdRef = useRef(1);
+  const inFlightCountRef = useRef(0);
   const sessionEmbedsRef = useRef<Float32Array[]>([]);
   const userCooldownRef = useRef<Map<string, number>>(new Map());
   const lastPhaseRef = useRef<Phase>('booting');
+  const cropCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
   const [phase, setPhase] = useState<Phase>('booting');
   const [current, setCurrent] = useState<Recent | null>(null);
