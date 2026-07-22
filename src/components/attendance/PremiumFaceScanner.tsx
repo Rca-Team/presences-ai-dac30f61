@@ -35,19 +35,27 @@ interface Track {
   score: number;
   stableCount: number;
   lastSeen: number;
+  firstSeen: number;
   state: 'tracking' | 'queued' | 'processing' | 'done' | 'unknown';
   recognizedName?: string;
   userId?: string;
+  // Best-quality snapshot captured during the quality window
+  bestQuality: number;
+  bestSnapshot?: HTMLCanvasElement;
+  bestBox?: { x: number; y: number; width: number; height: number };
 }
 
 const DEDUP_EMBED_DIST = 0.46;
 const USER_COOLDOWN_MS = 8000;
-const DETECT_INTERVAL_MS = 90;      // ~11fps detection — camera preview stays 60fps
-const IOU_MATCH = 0.4;               // match same track between frames
-const STABLE_FRAMES_REQUIRED = 2;    // need 2 stable frames before running recog
-const MAX_CONCURRENT_RECOG = 2;      // process up to 2 faces in parallel in background
-const TRACK_TTL_MS = 700;            // drop a track if not seen for this long
-const MIN_FACE_SIZE = 90;            // px — reject tiny/far faces for recog quality
+const DETECT_INTERVAL_MS = 70;       // ~14fps detection — camera preview stays 60fps
+const IOU_MATCH = 0.4;                // match same track between frames
+const STABLE_FRAMES_REQUIRED = 2;     // need at least 2 frames before snapshotting
+const QUALITY_WINDOW_MS = 900;        // collect best frame within this window (~1s)
+const MIN_QUALITY_TO_SHIP_EARLY = 0.72; // ship immediately if quality is already excellent
+const MAX_CONCURRENT_RECOG = 3;       // process up to 3 faces in parallel in background
+const TRACK_TTL_MS = 700;             // drop a track if not seen for this long
+const MIN_FACE_SIZE = 90;             // px — reject tiny/far faces for recog quality
+
 
 const iou = (
   a: { x: number; y: number; width: number; height: number },
