@@ -30,9 +30,16 @@ interface ReportData {
   endDate: Date;
 }
 
-const ClassSectionReport: React.FC = () => {
+interface ClassSectionReportProps {
+  allowedCategories?: string[];
+}
+
+const ClassSectionReport: React.FC<ClassSectionReportProps> = ({ allowedCategories }) => {
   const { toast } = useToast();
-  const [selectedCategory, setSelectedCategory] = useState<string>('');
+  const categoryOptions = allowedCategories && allowedCategories.length > 0 ? allowedCategories : ALL_CATEGORIES;
+  const [selectedCategory, setSelectedCategory] = useState<string>(
+    allowedCategories && allowedCategories.length > 0 ? allowedCategories[0] : ''
+  );
   const [busy, setBusy] = useState<'pdf' | 'csv' | 'print' | null>(null);
 
   const buildReport = async (): Promise<ReportData | null> => {
