@@ -236,7 +236,7 @@ const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
     lastVideoTimeRef.current = video.currentTime;
 
     const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d', { willReadFrequently: true } as any);
+    const ctx = canvas.getContext('2d', { willReadFrequently: true }) as CanvasRenderingContext2D | null;
     if (!ctx) return;
 
     const srcWidth = video.videoWidth;
@@ -297,7 +297,7 @@ const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
             const uh = roiHeight * 2;
             up.width = uw;
             up.height = uh;
-            const uctx = up.getContext('2d', { willReadFrequently: true } as any);
+            const uctx = up.getContext('2d', { willReadFrequently: true }) as CanvasRenderingContext2D | null;
             if (uctx) {
               uctx.imageSmoothingEnabled = false;
               uctx.drawImage(canvas, roiX, roiY, roiWidth, roiHeight, 0, 0, uw, uh);
