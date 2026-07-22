@@ -491,6 +491,62 @@ const StudentIDCardGenerator: React.FC<StudentIDCardGeneratorProps> = ({ student
     }
   };
 
+  const [isDeletingSelected, setIsDeletingSelected] = React.useState(false);
+
+  const deleteSelectedStudents = async () => {
+    if (selectedIds.size === 0) return;
+    const selected = students.filter(s => selectedIds.has(s.id));
+    const confirmed = window.confirm(
+      `Delete ${selected.length} selected student${selected.length === 1 ? '' : 's'} from the database?\n\nAll matching attendance_records and face_descriptors rows will be permanently removed. This cannot be undone.`
+    );
+    if (!confirmed) return;
+
+    setIsDeletingSelected(true);
+    try {
+      const attIds = Array.from(new Set(selected.flatMap(s => s._attendanceIds || [])));
+      const descIds = Array.from(new Set(selected.flatMap(s => s._descriptorIds || [])));
+
+      const chunk = <T,>(arr: T[], n: number) => {
+        const out: T[][] = [];
+        for (let i = 0; i < arr.length; i += n) out.push(arr.slice(i, i + n));
+        return out;
+      };
+
+      let deletedAtt = 0;
+      let deletedDesc = 0;
+
+      for (const ids of chunk(attIds, 100)) {
+        const { error } = await supabase.from('attendance_records').delete().in('id', ids);
+        if (error) console.error('Delete attendance failed:', error);
+        else deletedAtt += ids.length;
+      }
+      for (const ids of chunk(descIds, 100)) {
+        const { error } = await supabase.from('face_descriptors').delete().in('id', ids);
+        if (error) console.error('Delete descriptor failed:', error);
+        else deletedDesc += ids.length;
+      }
+
+      toast({
+        title: `Deleted ${selected.length} student${selected.length === 1 ? '' : 's'}`,
+        description: `Attendance rows: ${deletedAtt} • Face descriptors: ${deletedDesc}`,
+      });
+
+      setSelectedIds(new Set());
+      if (!propStudents) await fetchStudents();
+    } catch (err: any) {
+      console.error('Delete selected failed:', err);
+      toast({
+        title: 'Failed to delete selected',
+        description: err?.message || 'Unknown error',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsDeletingSelected(false);
+    }
+  };
+
+
+
 
   const buildCardHTML = (student: StudentData, qrBase64: string, logoSrc: string) => {
     const classLabel = getCategoryLabel(student.category);
