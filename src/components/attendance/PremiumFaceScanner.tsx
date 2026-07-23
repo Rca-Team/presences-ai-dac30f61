@@ -36,6 +36,8 @@ interface Track {
   stableCount: number;
   lastSeen: number;
   firstSeen: number;
+  processingStartedAt?: number;
+  attempts: number;
   state: 'tracking' | 'queued' | 'processing' | 'done' | 'unknown';
   recognizedName?: string;
   userId?: string;
