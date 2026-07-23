@@ -78,34 +78,44 @@ const Navbar = () => {
               { text: 'Gate Mode', path: '/gate', show: isAdminOrPrincipal || isTeacher },
               { text: 'Admin', path: '/admin', show: isAdminOrPrincipal || isTeacher },
             ].filter(item => item.show).map((item) => (
-              <Link
+              <motion.div
                 key={item.path}
-                to={item.path}
-                className={cn(
-                  "relative px-5 py-2.5 rounded-full text-sm font-medium mobile-touch-target",
-                  isActive(item.path)
-                    ? "text-foreground"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-                style={{ transition: 'color 0.3s ease' }}
+                whileHover={{ y: -1, scale: 1.04 }}
+                whileTap={{ scale: 0.96 }}
+                transition={{ type: 'spring', stiffness: 500, damping: 30, mass: 0.7 }}
+                className="relative"
               >
-                {isActive(item.path) && (
-                    <motion.div
-                    layoutId="navbar-active-pill"
-                      className="absolute inset-0 rounded-full"
-                      style={{
-                        background: 'linear-gradient(150deg, hsl(var(--card) / 0.8), hsl(var(--card) / 0.45))',
-                        border: '1px solid hsl(var(--primary) / 0.22)',
-                        boxShadow: '0 10px 20px -14px hsl(var(--primary) / 0.55), inset 0 1px 0 hsl(var(--foreground) / 0.14)'
-                      }}
-                    transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                  />
-                )}
-                <span className="relative z-10">
-                  {item.text === 'Admin' && isTeacher && !isAdminOrPrincipal ? 'Teacher' : item.text}
-                </span>
-              </Link>
+                <Link
+                  to={item.path}
+                  onMouseEnter={() => import('@/lib/preloadRoute').then(m => m.preloadRoute(item.path)).catch(() => undefined)}
+                  onFocus={() => import('@/lib/preloadRoute').then(m => m.preloadRoute(item.path)).catch(() => undefined)}
+                  className={cn(
+                    "relative block px-5 py-2.5 rounded-full text-sm font-medium mobile-touch-target",
+                    isActive(item.path)
+                      ? "text-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                  style={{ transition: 'color 0.28s cubic-bezier(0.4,0,0.2,1)' }}
+                >
+                  {isActive(item.path) && (
+                      <motion.div
+                      layoutId="navbar-active-pill"
+                        className="absolute inset-0 rounded-full"
+                        style={{
+                          background: 'linear-gradient(150deg, hsl(var(--card) / 0.8), hsl(var(--card) / 0.45))',
+                          border: '1px solid hsl(var(--primary) / 0.22)',
+                          boxShadow: '0 10px 20px -14px hsl(var(--primary) / 0.55), inset 0 1px 0 hsl(var(--foreground) / 0.14)'
+                        }}
+                      transition={{ type: "spring", stiffness: 520, damping: 34, mass: 0.9 }}
+                    />
+                  )}
+                  <span className="relative z-10">
+                    {item.text === 'Admin' && isTeacher && !isAdminOrPrincipal ? 'Teacher' : item.text}
+                  </span>
+                </Link>
+              </motion.div>
             ))}
+
           </nav>
         </LayoutGroup>
         
