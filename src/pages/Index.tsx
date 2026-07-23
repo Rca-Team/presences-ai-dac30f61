@@ -4,6 +4,7 @@ import gauravPhoto from '@/assets/gaurav-photo.png';
 import swamiAnantVyasPhoto from '@/assets/swami-anant-vyas.png.asset.json';
 import { usePortfolioData } from '@/hooks/usePortfolioData';
 import { PublicPortfolioView } from '@/pages/Portfolio';
+import { MemberAvatar } from '@/components/portfolio/MemberAvatar';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
