@@ -4,6 +4,7 @@ import gauravPhoto from '@/assets/gaurav-photo.png';
 import swamiAnantVyasPhoto from '@/assets/swami-anant-vyas.png.asset.json';
 import { usePortfolioData } from '@/hooks/usePortfolioData';
 import { PublicPortfolioView } from '@/pages/Portfolio';
+import { MemberAvatar } from '@/components/portfolio/MemberAvatar';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
@@ -296,18 +297,13 @@ const Index = () => {
                       aria-label={`Open ${member.name} profile`}
                     >
                       <span>Team Member: {member.name}</span>
-                      {member.image ? (
-                        <img
-                          src={member.image}
-                          alt={member.name}
-                          className="h-6 w-6 rounded-full border border-border/60 object-cover"
-                          loading="lazy"
-                        />
-                      ) : (
-                        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-border/60 bg-primary/10 text-[10px] font-bold text-primary">
-                          {member.name.slice(0, 1)}
-                        </span>
-                      )}
+                      <MemberAvatar
+                        name={member.name}
+                        image={member.image}
+                        className="h-6 w-6 rounded-full border border-border/60"
+                        fallbackClassName="text-[10px]"
+                      />
+
                     </button>
                   ))}
                 </div>
@@ -427,13 +423,13 @@ const Index = () => {
               >
                 <DialogHeader className="space-y-3 text-left">
                   <div className="flex items-center gap-3">
-                    {activeProfile.image ? (
-                      <img src={activeProfile.image} alt={activeProfile.name} className="h-16 w-16 rounded-xl border border-border/60 object-cover" />
-                    ) : (
-                      <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-primary/10 text-lg font-semibold text-primary">
-                        {activeProfile.name.slice(0, 1)}
-                      </div>
-                    )}
+                    <MemberAvatar
+                      name={activeProfile.name}
+                      image={activeProfile.image}
+                      className="h-16 w-16 rounded-xl border border-border/60"
+                      fallbackClassName="text-lg"
+                    />
+
                     <div>
                       <DialogTitle className="text-xl">{activeProfile.name}</DialogTitle>
                       <p className="text-sm text-muted-foreground">{activeProfile.role}</p>

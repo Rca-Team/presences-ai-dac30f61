@@ -40,6 +40,7 @@ import {
   portfolioUid,
 } from '@/hooks/usePortfolioData';
 import { ImageDropzone } from '@/components/portfolio/ImageDropzone';
+import { MemberAvatar } from '@/components/portfolio/MemberAvatar';
 import {
   DndContext,
   closestCenter,
@@ -237,13 +238,13 @@ export function PublicPortfolioView({ data, onUnlock }: { data: PortfolioData; o
             {data.members.map((m) => (
               <div key={m.id} className="rounded-2xl border bg-card/70 p-4 backdrop-blur">
                 <div className="flex items-center gap-3">
-                  {m.image ? (
-                    <img src={m.image} alt={m.name} className="h-14 w-14 rounded-xl border object-cover" />
-                  ) : (
-                    <div className="flex h-14 w-14 items-center justify-center rounded-xl border bg-primary/10 text-lg font-bold text-primary">
-                      {m.name.slice(0, 1) || '?'}
-                    </div>
-                  )}
+                  <MemberAvatar
+                    name={m.name}
+                    image={m.image}
+                    className="h-14 w-14 rounded-xl border"
+                    fallbackClassName="text-lg"
+                  />
+
                   <div className="min-w-0">
                     <p className="truncate text-sm font-bold">{m.name}</p>
                     <p className="truncate text-[11px] text-muted-foreground">{m.role}</p>
