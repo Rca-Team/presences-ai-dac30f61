@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, useLocation, useNavigationType } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { Helmet, HelmetProvider } from "react-helmet-async";
 import { Skeleton } from "@/components/ui/skeleton";
 import { lazyWithRetry } from "@/lib/lazyWithRetry";
@@ -29,8 +29,8 @@ const OAuthConsent = lazyWithRetry(() => import('./pages/OAuthConsent'), 'oauth-
 const Portfolio = lazyWithRetry(() => import('./pages/Portfolio'), 'portfolio');
 
 import { AttendanceProvider } from './contexts/AttendanceContext';
-import { motion, useReducedMotion } from 'framer-motion';
 import { ThemeProvider } from './hooks/use-theme';
+
 import MobileAppShell from "./components/mobile/MobileAppShell";
 import { ProtectedRoute } from './components/ProtectedRoute';
 import PWAInstallPrompt from './components/PWAInstallPrompt';
@@ -40,7 +40,7 @@ import AppExperienceLayer from './components/AppExperienceLayer';
 import SplashAnimation from './components/SplashAnimation';
 import { areGateDetectionModelsLoaded, loadGateDetectionModels } from '@/services/face-recognition/ModelService';
 import NotificationPermissionGate from './components/NotificationPermissionGate';
-import { useIsMobile } from "./hooks/use-mobile";
+
 
 const queryClient = new QueryClient();
 
@@ -168,9 +168,6 @@ function SeoHead() {
 // This component wraps our routes with AnimatePresence for exit animations
 function AnimatedRoutes() {
   const location = useLocation();
-  const navigationType = useNavigationType();
-  const isMobile = useIsMobile();
-  const prefersReducedMotion = useReducedMotion();
   const routeFallback = (
     <div className="min-h-[60vh] px-4 py-6 space-y-3">
       <Skeleton className="h-10 w-1/2" />
@@ -178,27 +175,11 @@ function AnimatedRoutes() {
       <Skeleton className="h-44 w-full" />
     </div>
   );
-  
+
   return (
     <Suspense fallback={routeFallback}>
-      <motion.div
-        key={location.pathname}
-        initial={
-          isMobile && !prefersReducedMotion
-            ? { opacity: 0, x: navigationType === 'POP' ? -16 : 16 }
-            : false
-        }
-        animate={
-          isMobile && !prefersReducedMotion
-            ? { opacity: 1, x: 0 }
-            : { opacity: 1 }
-        }
-        transition={
-          isMobile && !prefersReducedMotion
-            ? { duration: 0.28, ease: [0.22, 1, 0.36, 1] }
-            : { duration: 0.01 }
-        }
-      >
+      <div key={location.pathname}>
+
         <Routes location={location}>
             <Route path="/" element={<Index />} />
             <Route path="/login" element={<Login />} />
@@ -261,7 +242,7 @@ function AnimatedRoutes() {
             } />
             <Route path="*" element={<NotFound />} />
         </Routes>
-      </motion.div>
+      </div>
     </Suspense>
   );
 }
