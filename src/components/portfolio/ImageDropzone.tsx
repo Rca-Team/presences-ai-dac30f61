@@ -1,7 +1,7 @@
 import React, { useCallback, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { PORTFOLIO_BUCKET, PORTFOLIO_PREFIX } from '@/hooks/usePortfolioData';
-import { UploadCloud, X, Loader2, ImagePlus } from 'lucide-react';
+import { UploadCloud, X, Loader2, ImagePlus, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 
@@ -20,17 +20,38 @@ const aspectClass: Record<NonNullable<Props['aspect']>, string> = {
   cover: 'aspect-[3/1]',
 };
 
+const ACCEPTED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const;
+const ACCEPTED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp'] as const;
+
+function isAcceptedImage(file: File): boolean {
+  if (ACCEPTED_MIME_TYPES.includes(file.type as any)) return true;
+  const ext = file.name.toLowerCase().slice(file.name.lastIndexOf('.'));
+  return ACCEPTED_EXTENSIONS.includes(ext as any);
+}
+
 export function ImageDropzone({ value, onChange, label, aspect = 'square', className, allowClear = true }: Props) {
   const [dragging, setDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+  const errorTimer = useRef<number | null>(null);
+
+  const showError = useCallback(
+    (message: string) => {
+      setError(message);
+      toast({ title: 'Unsupported file', description: message, variant: 'destructive' });
+      if (errorTimer.current) window.clearTimeout(errorTimer.current);
+      errorTimer.current = window.setTimeout(() => setError(null), 4000);
+    },
+    [toast],
+  );
 
   const upload = useCallback(
     async (file: File) => {
-      if (!file.type.startsWith('image/')) {
-        toast({ title: 'Not an image', description: 'Please drop an image file.', variant: 'destructive' });
+      if (!isAcceptedImage(file)) {
+        showError('Only JPG, PNG, and WebP images are supported. Please convert your file and try again.');
         return;
       }
       setUploading(true);
@@ -54,7 +75,7 @@ export function ImageDropzone({ value, onChange, label, aspect = 'square', class
         setTimeout(() => setProgress(0), 400);
       }
     },
-    [onChange, toast],
+    [onChange, toast, showError],
   );
 
   const onDrop = (e: React.DragEvent) => {
@@ -66,8 +87,15 @@ export function ImageDropzone({ value, onChange, label, aspect = 'square', class
   };
 
   const onPaste = (e: React.ClipboardEvent) => {
-    const file = Array.from(e.clipboardData.files).find((f) => f.type.startsWith('image/'));
-    if (file) void upload(file);
+    const files = Array.from(e.clipboardData.files);
+    const valid = files.find(isAcceptedImage);
+    if (valid) {
+      void upload(valid);
+      return;
+    }
+    if (files.length > 0) {
+      showError('Only JPG, PNG, and WebP images can be pasted here.');
+    }
   };
 
   return (
@@ -91,6 +119,7 @@ export function ImageDropzone({ value, onChange, label, aspect = 'square', class
           dragging
             ? 'border-primary bg-primary/10 scale-[1.01]'
             : 'border-border/60 bg-muted/30 hover:border-primary/50 hover:bg-muted/50',
+          error && 'border-destructive bg-destructive/5',
           'cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary relative',
         )}
       >
@@ -119,9 +148,9 @@ export function ImageDropzone({ value, onChange, label, aspect = 'square', class
           </>
         ) : (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 text-center text-muted-foreground">
-            <UploadCloud className="h-6 w-6" />
+            <UploadCloud className={cn('h-6 w-6', error && 'text-destructive')} />
             <p className="text-xs font-medium">Drop, paste, or click to upload</p>
-            <p className="text-[10px] opacity-70">PNG · JPG · WEBP · no size limit</p>
+            <p className="text-[10px] opacity-70">JPG · PNG · WEBP · no size limit</p>
           </div>
         )}
 
@@ -135,10 +164,17 @@ export function ImageDropzone({ value, onChange, label, aspect = 'square', class
         )}
       </div>
 
+      {error && (
+        <div className="mt-1.5 flex items-start gap-1.5 text-xs text-destructive">
+          <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+
       <input
         ref={inputRef}
         type="file"
-        accept="image/*"
+        accept="image/jpeg,image/png,image/webp"
         className="hidden"
         onChange={(e) => {
           const file = e.target.files?.[0];
