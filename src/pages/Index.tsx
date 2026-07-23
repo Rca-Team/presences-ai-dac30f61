@@ -144,6 +144,7 @@ const Index = () => {
   ];
 
   const { data: portfolio } = usePortfolioData();
+  const navigate = useNavigate();
 
   // Fallback (used until portfolio JSON loads, or if a member has no image)
   const fallbackImages: Record<string, string> = {
