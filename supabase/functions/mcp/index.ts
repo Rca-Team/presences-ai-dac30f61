@@ -2,15 +2,12 @@
 // To take ownership, delete this banner line; the plugin then leaves the file alone.
 // supabase function: mcp
 // Bundled from src/lib/mcp/index.ts by @lovable.dev/mcp-js.
-// <define:import.meta.env>
-var define_import_meta_env_default = { MODE: "production", BASE_URL: "/", DEV: false, PROD: true, SSR: false };
-
 // src/lib/mcp/index.ts
 import { auth, defineMcp } from "npm:@lovable.dev/mcp-js@0.20.0";
 
 // src/lib/mcp/tools/get-school-overview.ts
 import { defineTool } from "npm:@lovable.dev/mcp-js@0.20.0";
-import { createClient } from "npm:@supabase/supabase-js@^2.105.2";
+import { createClient } from "npm:@supabase/supabase-js@^2.110.8";
 var supabaseForUser = (ctx) => {
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_PUBLISHABLE_KEY;
@@ -85,7 +82,7 @@ var get_school_overview_default = defineTool({
 
 // src/lib/mcp/tools/list-recent-gate-entries.ts
 import { defineTool as defineTool2 } from "npm:@lovable.dev/mcp-js@0.20.0";
-import { createClient as createClient2 } from "npm:@supabase/supabase-js@^2.105.2";
+import { createClient as createClient2 } from "npm:@supabase/supabase-js@^2.110.8";
 import { z } from "npm:zod@^4.1.13";
 var supabaseForUser2 = (ctx) => {
   const url = process.env.SUPABASE_URL;
@@ -158,12 +155,12 @@ var list_recent_gate_entries_default = defineTool2({
 
 // src/lib/mcp/index.ts
 var projectRefFromUrl = (() => {
-  const url = define_import_meta_env_default.VITE_SUPABASE_URL;
+  const url = "https://mhiqslfnycfkalfqnkco.supabase.co";
   if (!url) return null;
   const match = url.match(/^https:\/\/([^.]+)\.supabase\.co/i);
   return match?.[1] || null;
 })();
-var projectRef = define_import_meta_env_default.VITE_SUPABASE_PROJECT_ID ?? projectRefFromUrl ?? "eiahucigcvsnuvviajqt";
+var projectRef = "mhiqslfnycfkalfqnkco";
 var mcp_default = defineMcp({
   name: "presences-mcp",
   title: "Presences MCP",
