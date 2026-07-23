@@ -29,8 +29,8 @@ const OAuthConsent = lazyWithRetry(() => import('./pages/OAuthConsent'), 'oauth-
 const Portfolio = lazyWithRetry(() => import('./pages/Portfolio'), 'portfolio');
 
 import { AttendanceProvider } from './contexts/AttendanceContext';
-import { motion, useReducedMotion } from 'framer-motion';
 import { ThemeProvider } from './hooks/use-theme';
+
 import MobileAppShell from "./components/mobile/MobileAppShell";
 import { ProtectedRoute } from './components/ProtectedRoute';
 import PWAInstallPrompt from './components/PWAInstallPrompt';
