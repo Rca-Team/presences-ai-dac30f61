@@ -87,7 +87,7 @@ function SortableItem({ id, children }: { id: string; children: (handle: React.R
 /* Public View                                                         */
 /* ------------------------------------------------------------------ */
 
-function PublicPortfolioView({ data, onUnlock }: { data: PortfolioData; onUnlock: () => void }) {
+export function PublicPortfolioView({ data, onUnlock }: { data: PortfolioData; onUnlock?: () => void }) {
   return (
     <section className="space-y-10 pb-16">
       {/* Hero */}
