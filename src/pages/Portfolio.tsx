@@ -90,27 +90,27 @@ function SortableItem({ id, children }: { id: string; children: (handle: React.R
 
 export function PublicPortfolioView({ data, onUnlock }: { data: PortfolioData; onUnlock?: () => void }) {
   return (
-    <section className="space-y-10 pb-16">
+    <section className="space-y-8 md:space-y-12 pb-12 md:pb-16 min-w-0">
       {/* Hero */}
-      <div className="relative overflow-hidden rounded-3xl border bg-card/60 backdrop-blur">
+      <div className="relative overflow-hidden rounded-2xl md:rounded-3xl border bg-card/60 backdrop-blur">
         <div
-          className="h-48 md:h-64 w-full bg-gradient-to-br from-primary/30 via-accent/20 to-primary/10"
+          className="h-36 sm:h-48 md:h-64 w-full bg-gradient-to-br from-primary/30 via-accent/20 to-primary/10"
           style={data.coverImage ? { backgroundImage: `url(${data.coverImage})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}
         />
-        <div className="px-6 pb-8 md:px-10">
-          <div className="-mt-14 md:-mt-20 flex flex-col md:flex-row md:items-end gap-5">
+        <div className="px-4 sm:px-6 md:px-10 pb-6 md:pb-8">
+          <div className="-mt-12 sm:-mt-14 md:-mt-20 flex flex-col md:flex-row md:items-end gap-4 md:gap-5">
             <img
               src={data.profileImage}
               alt={data.name}
-              className="h-28 w-28 md:h-36 md:w-36 rounded-2xl border-4 border-background object-cover shadow-xl"
+              className="h-24 w-24 sm:h-28 sm:w-28 md:h-36 md:w-36 rounded-2xl border-4 border-background object-cover shadow-xl"
             />
-            <div className="flex-1">
+            <div className="flex-1 min-w-0">
               <div className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-widest text-primary">
                 <Sparkles className="h-3 w-3" /> Portfolio
               </div>
-              <h1 className="mt-2 text-3xl md:text-5xl font-extrabold tracking-tight">{data.name}</h1>
-              <p className="text-sm md:text-base text-muted-foreground">{data.role}</p>
-              <p className="mt-2 max-w-2xl text-sm md:text-base">{data.tagline}</p>
+              <h1 className="mt-2 text-2xl sm:text-3xl md:text-5xl font-extrabold tracking-tight break-words">{data.name}</h1>
+              <p className="text-sm md:text-base text-muted-foreground break-words">{data.role}</p>
+              <p className="mt-2 max-w-2xl text-sm md:text-base break-words">{data.tagline}</p>
             </div>
             <div className="flex flex-wrap gap-2">
               {data.socials?.github && (
@@ -141,32 +141,33 @@ export function PublicPortfolioView({ data, onUnlock }: { data: PortfolioData; o
             </div>
           </div>
 
-          <div className="mt-6 grid gap-3 md:grid-cols-4 text-sm">
+          <div className="mt-5 md:mt-6 grid gap-2.5 md:gap-3 md:grid-cols-2 lg:grid-cols-4 text-sm">
             {data.location && (
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <MapPin className="h-4 w-4" /> {data.location}
+              <div className="flex items-center gap-2 text-muted-foreground min-w-0">
+                <MapPin className="h-4 w-4 flex-shrink-0" /> <span className="truncate">{data.location}</span>
               </div>
             )}
             {data.email && (
-              <a href={`mailto:${data.email}`} className="flex items-center gap-2 text-muted-foreground hover:text-foreground">
-                <Mail className="h-4 w-4" /> {data.email}
+              <a href={`mailto:${data.email}`} className="flex items-center gap-2 text-muted-foreground hover:text-foreground min-w-0">
+                <Mail className="h-4 w-4 flex-shrink-0" /> <span className="truncate">{data.email}</span>
               </a>
             )}
             {data.phone && (
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Phone className="h-4 w-4" /> {data.phone}
+              <div className="flex items-center gap-2 text-muted-foreground min-w-0">
+                <Phone className="h-4 w-4 flex-shrink-0" /> <span className="truncate">{data.phone}</span>
               </div>
             )}
             {data.website && (
-              <a href={data.website} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-muted-foreground hover:text-foreground">
-                <Globe className="h-4 w-4" /> {data.website.replace(/^https?:\/\//, '')}
+              <a href={data.website} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-muted-foreground hover:text-foreground min-w-0">
+                <Globe className="h-4 w-4 flex-shrink-0" /> <span className="truncate">{data.website.replace(/^https?:\/\//, '')}</span>
               </a>
             )}
           </div>
 
-          {data.bio && <p className="mt-6 max-w-3xl text-sm md:text-base text-muted-foreground leading-relaxed">{data.bio}</p>}
+          {data.bio && <p className="mt-5 md:mt-6 max-w-3xl text-sm md:text-base text-muted-foreground leading-relaxed break-words">{data.bio}</p>}
         </div>
       </div>
+
 
       {/* Projects */}
       {data.projects.length > 0 && (
