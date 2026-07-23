@@ -1014,6 +1014,129 @@ const StudentIDCardGenerator: React.FC<StudentIDCardGeneratorProps> = ({ student
     });
   };
 
+  const renderQRDataUrl = async (value: string, sizePx = 1024): Promise<string> => {
+    const holder = document.createElement('div');
+    holder.style.cssText = 'position:absolute;left:-9999px;top:-9999px;';
+    document.body.appendChild(holder);
+    const { createRoot } = await import('react-dom/client');
+    const root = createRoot(holder);
+    await new Promise<void>((resolve) => {
+      root.render(
+        <QRCodeSVG value={value} size={sizePx} level="H" bgColor="#ffffff" fgColor="#000000" includeMargin={false} />
+      );
+      setTimeout(resolve, 80);
+    });
+    const svg = holder.querySelector('svg');
+    const svgStr = svg ? new XMLSerializer().serializeToString(svg) : '';
+    root.unmount();
+    holder.remove();
+    const svg64 = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgStr)));
+    const img = new Image();
+    await new Promise<void>((res, rej) => { img.onload = () => res(); img.onerror = () => rej(new Error('qr load')); img.src = svg64; });
+    const canvas = document.createElement('canvas');
+    canvas.width = sizePx;
+    canvas.height = sizePx;
+    const ctx = canvas.getContext('2d')!;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, sizePx, sizePx);
+    ctx.drawImage(img, 0, 0, sizePx, sizePx);
+    return canvas.toDataURL('image/png');
+  };
+
+  const exportQRSheet = async (autoPrint: boolean) => {
+    const list = selectedIds.size > 0
+      ? students.filter(s => selectedIds.has(s.id))
+      : students;
+    if (list.length === 0) {
+      toast({ title: 'No students', description: 'Add or select students first', variant: 'destructive' });
+      return;
+    }
+
+    setIsGenerating(true);
+    setPdfProgress({ stage: 'Rendering QR codes', done: 0, total: list.length, percent: 0 });
+
+    try {
+      const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait', compress: true });
+      const PAGE_W = 210;
+      const PAGE_H = 297;
+      const MARGIN = 8;
+      const COLS = 2;
+      const ROWS = 3;
+      const PER_PAGE = COLS * ROWS;
+      const GAP = 6;
+      const CELL_W = (PAGE_W - MARGIN * 2 - GAP * (COLS - 1)) / COLS;
+      const CELL_H = (PAGE_H - MARGIN * 2 - GAP * (ROWS - 1)) / ROWS;
+      const TEXT_BAND = 16;
+      const QR_SIZE = Math.min(CELL_W, CELL_H - TEXT_BAND) - 4;
+
+      for (let i = 0; i < list.length; i++) {
+        const student = list[i];
+        if (i > 0 && i % PER_PAGE === 0) pdf.addPage();
+        const idxOnPage = i % PER_PAGE;
+        const col = idxOnPage % COLS;
+        const row = Math.floor(idxOnPage / COLS);
+        const cellX = MARGIN + col * (CELL_W + GAP);
+        const cellY = MARGIN + row * (CELL_H + GAP);
+
+        pdf.setDrawColor(210);
+        pdf.setLineWidth(0.2);
+        pdf.roundedRect(cellX, cellY, CELL_W, CELL_H, 2, 2, 'S');
+
+        const qrData = JSON.stringify({
+          type: 'student_id',
+          id: student.id,
+          user_id: student.id,
+          student_id: student.employee_id,
+          name: student.name,
+          employee_id: student.employee_id,
+          category: student.category,
+          version: 2,
+        });
+        const qrPng = await renderQRDataUrl(qrData, 1024);
+
+        const qrX = cellX + (CELL_W - QR_SIZE) / 2;
+        const qrY = cellY + 3;
+        pdf.addImage(qrPng, 'PNG', qrX, qrY, QR_SIZE, QR_SIZE, undefined, 'FAST');
+
+        const textY = qrY + QR_SIZE + 7;
+        pdf.setTextColor(15, 23, 42);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(18);
+        pdf.text(String(student.employee_id || '—'), cellX + CELL_W / 2, textY, { align: 'center' });
+
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(9);
+        pdf.setTextColor(110);
+        const nameLine = (student.name || '').length > 34
+          ? student.name.slice(0, 32) + '…'
+          : student.name;
+        pdf.text(nameLine, cellX + CELL_W / 2, textY + 5, { align: 'center' });
+
+        const pct = Math.round(((i + 1) / list.length) * 100);
+        setPdfProgress({ stage: 'Rendering QR codes', done: i + 1, total: list.length, percent: pct });
+        if ((i + 1) % 2 === 0) await new Promise(r => requestAnimationFrame(() => r(null)));
+      }
+
+      const filename = `QR_Sheet_${list.length}_${new Date().toISOString().slice(0, 10)}.pdf`;
+      if (autoPrint) {
+        pdf.autoPrint();
+        const blobUrl = pdf.output('bloburl');
+        const w = window.open(blobUrl, '_blank');
+        if (!w) pdf.save(filename);
+      } else {
+        pdf.save(filename);
+      }
+      toast({ title: 'QR sheet ready', description: `${list.length} QR codes · 6 per A4 page` });
+    } catch (e) {
+      console.error('QR sheet failed', e);
+      toast({ title: 'QR sheet failed', description: e instanceof Error ? e.message : 'Unknown error', variant: 'destructive' });
+    } finally {
+      setPdfProgress(null);
+      setIsGenerating(false);
+    }
+  };
+
+
   return (
     <Card className="border-border shadow-lg overflow-hidden">
       <CardHeader className="pb-4 border-b bg-gradient-to-r from-[#1e3a5f] to-[#0d2137]">
