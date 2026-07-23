@@ -110,6 +110,12 @@ const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
           advanced.focusMode = 'single-shot';
         }
       }
+      if (Array.isArray((capabilities as any).exposureMode) && (capabilities as any).exposureMode.includes('continuous')) {
+        advanced.exposureMode = 'continuous';
+      }
+      if (Array.isArray((capabilities as any).whiteBalanceMode) && (capabilities as any).whiteBalanceMode.includes('continuous')) {
+        advanced.whiteBalanceMode = 'continuous';
+      }
 
       if (Object.keys(advanced).length === 0) return false;
 
