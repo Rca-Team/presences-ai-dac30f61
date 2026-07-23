@@ -242,7 +242,7 @@ function AnimatedRoutes() {
             } />
             <Route path="*" element={<NotFound />} />
         </Routes>
-      </motion.div>
+      </div>
     </Suspense>
   );
 }
