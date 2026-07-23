@@ -296,18 +296,13 @@ const Index = () => {
                       aria-label={`Open ${member.name} profile`}
                     >
                       <span>Team Member: {member.name}</span>
-                      {member.image ? (
-                        <img
-                          src={member.image}
-                          alt={member.name}
-                          className="h-6 w-6 rounded-full border border-border/60 object-cover"
-                          loading="lazy"
-                        />
-                      ) : (
-                        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-border/60 bg-primary/10 text-[10px] font-bold text-primary">
-                          {member.name.slice(0, 1)}
-                        </span>
-                      )}
+                      <MemberAvatar
+                        name={member.name}
+                        image={member.image}
+                        className="h-6 w-6 rounded-full border border-border/60"
+                        fallbackClassName="text-[10px]"
+                      />
+
                     </button>
                   ))}
                 </div>
