@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import gauravPhoto from '@/assets/gaurav-photo.png';
 import swamiAnantVyasPhoto from '@/assets/swami-anant-vyas.png.asset.json';
+import { usePortfolioData } from '@/hooks/usePortfolioData';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -140,28 +141,28 @@ const Index = () => {
     },
   ];
 
-  const creatorMembers = [
-    {
-      name: 'Gaurav',
-      role: 'Developer & Team Leader',
-      image: gauravPhoto,
-      bio: 'Creator of Presence Smart School automation. I build scalable attendance, security, and school workflow systems with a focus on speed, clarity, and real-time reliability.',
-      details: 'Full-stack engineer focused on face-recognition workflows, realtime school operations, and production-ready education systems.',
-    },
-    {
-      name: 'Swami Anant Vyas',
-      role: 'Hardware Prototype & Software Feedback Contributor',
-      image: swamiAnantVyasPhoto.url,
-      bio: 'Helped build the hardware prototype and contributed feedback and ideas for the software experience.',
-      details: 'Built and validated early hardware concepts for gate mode and supported practical software refinements.',
-    },
-    {
-      name: 'Jatin Dhama',
-      role: 'Team Member',
-      bio: 'Contributes to system testing, execution support, and project coordination for stable real-world rollouts.',
-      details: 'Supports feature QA, field readiness checks, and collaborative delivery of school automation workflows.',
-    },
-  ];
+  const { data: portfolio } = usePortfolioData();
+
+  // Fallback (used until portfolio JSON loads, or if a member has no image)
+  const fallbackImages: Record<string, string> = {
+    Gaurav: gauravPhoto,
+    'Gaurav Raj': gauravPhoto,
+    'Swami Anant Vyas': swamiAnantVyasPhoto.url,
+  };
+
+  const creatorMembers = useMemo(
+    () =>
+      (portfolio.members.length > 0 ? portfolio.members : []).map((m) => ({
+        name: m.name,
+        role: m.role,
+        image: m.image || fallbackImages[m.name] || '',
+        bio: m.bio,
+        details: m.details,
+      })),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [portfolio.members],
+  );
+
 
   return (
     <PageTransition>
@@ -261,13 +262,26 @@ const Index = () => {
                 style={{ perspective: 900, transformStyle: 'preserve-3d' }}
                 {...cardTilt}
               >
-                <button type="button" onClick={() => setActiveProfile(creatorMembers[0])} className="group block w-full text-left" aria-label="Open Gaurav portfolio">
+                <button
+                  type="button"
+                  onClick={() => creatorMembers[0] && setActiveProfile(creatorMembers[0])}
+                  className="group block w-full text-left"
+                  aria-label="Open Gaurav portfolio"
+                >
                   <div className="flex items-center gap-3">
-                    <img src={gauravPhoto} alt="Gaurav" className="h-11 w-11 rounded-full border border-border/70 object-cover" loading="lazy" />
+                    <img
+                      src={portfolio.profileImage || creatorMembers[0]?.image || gauravPhoto}
+                      alt={creatorMembers[0]?.name || 'Gaurav'}
+                      className="h-11 w-11 rounded-full border border-border/70 object-cover"
+                      loading="lazy"
+                    />
                   </div>
-                  <p className="mt-8 text-lg font-bold text-foreground transition-colors group-hover:text-primary">Developed by Gaurav</p>
+                  <p className="mt-8 text-lg font-bold text-foreground transition-colors group-hover:text-primary">
+                    Developed by {creatorMembers[0]?.name || 'Gaurav'}
+                  </p>
                   <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Tap to view portfolio</p>
                 </button>
+
 
                 <div className="mt-4 space-y-2">
                   {creatorMembers.slice(1).map((member) => (
