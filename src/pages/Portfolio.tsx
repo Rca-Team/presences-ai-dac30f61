@@ -302,8 +302,9 @@ export function PublicPortfolioView({ data, onUnlock }: { data: PortfolioData; o
       {/* Gallery */}
       {data.gallery.length > 0 && (
         <div>
-          <h2 className="mb-4 text-xl font-bold">Gallery</h2>
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          <h2 className="mb-3 md:mb-4 text-lg md:text-xl font-bold">Gallery</h2>
+          <div className="grid grid-cols-2 gap-2.5 sm:gap-3 sm:grid-cols-3 md:grid-cols-4">
+
             {data.gallery.map((src, i) => (
               <img key={i} src={src} alt={`Gallery ${i + 1}`} className="aspect-square w-full rounded-xl border object-cover" loading="lazy" />
             ))}
