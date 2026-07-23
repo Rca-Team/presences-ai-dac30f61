@@ -423,13 +423,13 @@ const Index = () => {
               >
                 <DialogHeader className="space-y-3 text-left">
                   <div className="flex items-center gap-3">
-                    {activeProfile.image ? (
-                      <img src={activeProfile.image} alt={activeProfile.name} className="h-16 w-16 rounded-xl border border-border/60 object-cover" />
-                    ) : (
-                      <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-primary/10 text-lg font-semibold text-primary">
-                        {activeProfile.name.slice(0, 1)}
-                      </div>
-                    )}
+                    <MemberAvatar
+                      name={activeProfile.name}
+                      image={activeProfile.image}
+                      className="h-16 w-16 rounded-xl border border-border/60"
+                      fallbackClassName="text-lg"
+                    />
+
                     <div>
                       <DialogTitle className="text-xl">{activeProfile.name}</DialogTitle>
                       <p className="text-sm text-muted-foreground">{activeProfile.role}</p>
