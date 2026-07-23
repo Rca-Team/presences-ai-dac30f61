@@ -228,7 +228,30 @@ const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
     return false;
   };
 
-  // Simple QR code detection using canvas
+  // Enqueue a raw QR value for processing. Dedupes rapid repeats and lets
+  // multiple students in one frame all get marked in sequence.
+  const enqueueRawValue = (rawValue: string) => {
+    const key = rawValue.trim();
+    if (!key) return;
+    if (queueSeenRef.current.has(key)) return;
+    queueSeenRef.current.add(key);
+    scanQueueRef.current.push(key);
+    // Kick the queue drain (fire and forget)
+    void drainQueue();
+    // Auto-forget the dedupe key after cooldown so a legit re-scan later still works
+    window.setTimeout(() => queueSeenRef.current.delete(key), DUPLICATE_SCAN_COOLDOWN_MS);
+  };
+
+  const drainQueue = async () => {
+    if (isProcessingScanRef.current) return;
+    while (scanQueueRef.current.length > 0) {
+      const next = scanQueueRef.current.shift();
+      if (!next) break;
+      await processQRCode(next);
+    }
+  };
+
+  // Smart multi-pass QR detection: native multi-code → jsQR ROI → adaptive upscale/invert.
   const detectQRCode = useCallback(async () => {
     if (inFlightDecodeRef.current || !webcamRef.current || !canvasRef.current || !isLoopActiveRef.current) return;
 
@@ -261,9 +284,9 @@ const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
     inFlightDecodeRef.current = true;
     try {
       frameCounterRef.current += 1;
-      let foundRawValue: string | null = null;
+      let foundAny = false;
 
-      // Prefer native BarcodeDetector — offloaded to browser, near-zero main-thread cost.
+      // 1) Native BarcodeDetector — decodes ALL codes in the frame at once (multi-QR).
       if (nativeDetectorReadyRef.current || 'BarcodeDetector' in window) {
         if (!barcodeDetectorRef.current) {
           try {
@@ -274,50 +297,95 @@ const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
           }
         }
         if (barcodeDetectorRef.current) {
-          const barcodes = await barcodeDetectorRef.current.detect(canvas);
-          if (barcodes.length > 0 && barcodes[0]?.rawValue) {
-            foundRawValue = String(barcodes[0].rawValue);
+          try {
+            const barcodes = await barcodeDetectorRef.current.detect(canvas);
+            for (const b of barcodes) {
+              if (b?.rawValue) {
+                enqueueRawValue(String(b.rawValue));
+                foundAny = true;
+              }
+            }
+          } catch {
+            // fall through to jsQR
           }
         }
       }
 
-      // jsQR fallback — only ROI, and only upscale after a run of misses so the hot path stays cheap.
-      if (!foundRawValue && !nativeDetectorReadyRef.current) {
+      // 2) jsQR ROI pass — always run when native missed, so far/printed QRs on ID cards still catch.
+      if (!foundAny) {
         const roiWidth = Math.round(canvas.width * CENTER_SCAN_RATIO);
         const roiHeight = Math.round(canvas.height * CENTER_SCAN_RATIO);
         const roiX = Math.round((canvas.width - roiWidth) / 2);
         const roiY = Math.round((canvas.height - roiHeight) / 2);
         const roiImage = ctx.getImageData(roiX, roiY, roiWidth, roiHeight);
-        const decoded = jsQR(roiImage.data, roiWidth, roiHeight, { inversionAttempts: 'dontInvert' });
-        foundRawValue = decoded?.data || null;
 
-        // Small/far QR: only every ~6th missed frame, upscale once with attemptBoth.
-        if (!foundRawValue) {
+        // Ambient-light sample from ROI luma every ~2s (very cheap: strided).
+        const nowTs = performance.now();
+        if (nowTs - lastLumaCheckRef.current > 2000) {
+          lastLumaCheckRef.current = nowTs;
+          const data = roiImage.data;
+          let sum = 0;
+          let n = 0;
+          const step = 40 * 4; // sample sparsely
+          for (let i = 0; i < data.length; i += step) {
+            sum += 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+            n++;
+          }
+          const avg = n ? sum / n : 128;
+          setLowLight(avg < 55);
+        }
+
+        const decoded = jsQR(roiImage.data, roiWidth, roiHeight, { inversionAttempts: 'dontInvert' });
+        if (decoded?.data) {
+          enqueueRawValue(decoded.data);
+          foundAny = true;
+          missStreakRef.current = 0;
+        }
+
+        // 3) Adaptive rescue passes for small/far or printed cards.
+        if (!foundAny) {
           missStreakRef.current += 1;
-          if (missStreakRef.current % 6 === 0) {
+
+          // Every 3rd miss: try inverted (helps glossy/printed cards with reflections).
+          if (missStreakRef.current % 3 === 0) {
+            const decodedInv = jsQR(roiImage.data, roiWidth, roiHeight, { inversionAttempts: 'onlyInvert' });
+            if (decodedInv?.data) {
+              enqueueRawValue(decodedInv.data);
+              foundAny = true;
+              missStreakRef.current = 0;
+            }
+          }
+
+          // Every 5th miss: upscale center 2x with attemptBoth for far/small QRs.
+          if (!foundAny && missStreakRef.current % 5 === 0) {
             if (!upscaleCanvasRef.current) upscaleCanvasRef.current = document.createElement('canvas');
             const up = upscaleCanvasRef.current;
-            const uw = roiWidth * 2;
-            const uh = roiHeight * 2;
+            // Tighter center to boost apparent QR size when it's far away.
+            const tight = 0.55;
+            const tw = Math.round(canvas.width * tight);
+            const th = Math.round(canvas.height * tight);
+            const tx = Math.round((canvas.width - tw) / 2);
+            const ty = Math.round((canvas.height - th) / 2);
+            const uw = tw * 2;
+            const uh = th * 2;
             up.width = uw;
             up.height = uh;
             const uctx = up.getContext('2d', { willReadFrequently: true }) as CanvasRenderingContext2D | null;
             if (uctx) {
               uctx.imageSmoothingEnabled = false;
-              uctx.drawImage(canvas, roiX, roiY, roiWidth, roiHeight, 0, 0, uw, uh);
+              uctx.drawImage(canvas, tx, ty, tw, th, 0, 0, uw, uh);
               const upImg = uctx.getImageData(0, 0, uw, uh);
               const decodedUp = jsQR(upImg.data, uw, uh, { inversionAttempts: 'attemptBoth' });
-              foundRawValue = decodedUp?.data || null;
+              if (decodedUp?.data) {
+                enqueueRawValue(decodedUp.data);
+                foundAny = true;
+                missStreakRef.current = 0;
+              }
             }
           }
-        } else {
-          missStreakRef.current = 0;
         }
-      }
-
-      if (foundRawValue) {
+      } else {
         missStreakRef.current = 0;
-        await processQRCode(foundRawValue);
       }
     } catch {
       // Silently fail for detection errors
