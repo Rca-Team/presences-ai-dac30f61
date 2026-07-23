@@ -377,6 +377,7 @@ const PremiumFaceScanner: React.FC = () => {
               stableCount: 1,
               lastSeen: nowMs,
               firstSeen: nowMs,
+              attempts: 0,
               state: 'tracking',
               bestQuality: 0,
             };
