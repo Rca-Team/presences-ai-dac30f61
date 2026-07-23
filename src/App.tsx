@@ -248,8 +248,23 @@ function AnimatedRoutes() {
 
 function App() {
   const [mountNonCritical, setMountNonCritical] = useState(false);
-  const [showSplash, setShowSplash] = useState(true);
+  // Skip in-app splash for PWA/standalone launches (OS already showed the manifest
+  // splash) and for same-tab re-renders. Only fresh web loads see the branded splash.
+  const [showSplash, setShowSplash] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    try {
+      const isStandalone =
+        window.matchMedia?.('(display-mode: standalone)').matches ||
+        (window.navigator as any).standalone === true;
+      if (isStandalone) return false;
+      if (sessionStorage.getItem('presence:splash-seen')) return false;
+    } catch {
+      // sessionStorage may throw in private mode — fall through and show splash.
+    }
+    return true;
+  });
   const chunkRecoveryKey = "presence:chunk-recovery";
+
 
   useEffect(() => {
     const onPreloadError = (event: Event) => {
