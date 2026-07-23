@@ -282,7 +282,7 @@ const PremiumFaceScanner: React.FC = () => {
         window.setTimeout(() => {
           setCurrent(prev => (prev?.id === entry.id ? null : prev));
           setPhaseIfChanged('searching');
-        }, 1400);
+        }, 900);
       } catch (e) {
         console.error('recognition error', e);
         releaseTrack('tracking');
