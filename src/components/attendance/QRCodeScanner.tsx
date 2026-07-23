@@ -106,13 +106,6 @@ const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
         }
       }
 
-      if (typeof (capabilities as any).zoom?.max === 'number' && typeof (capabilities as any).zoom?.min === 'number') {
-        const min = Number((capabilities as any).zoom.min);
-        const max = Number((capabilities as any).zoom.max);
-        const targetZoom = Math.max(min, Math.min(max, min + (max - min) * 0.15));
-        advanced.zoom = targetZoom;
-      }
-
       if (Object.keys(advanced).length === 0) return false;
 
       await track.applyConstraints({ advanced: [advanced] as any });
