@@ -170,19 +170,16 @@ function SeoHead() {
 // This component wraps our routes with AnimatePresence for exit animations
 function AnimatedRoutes() {
   const location = useLocation();
-  const routeFallback = (
-    <div className="min-h-[60vh] px-4 py-6 space-y-3">
-      <Skeleton className="h-10 w-1/2" />
-      <Skeleton className="h-44 w-full" />
-      <Skeleton className="h-44 w-full" />
-    </div>
-  );
 
   return (
-    <Suspense fallback={routeFallback}>
-      <div key={location.pathname}>
+    <Suspense fallback={<RouteFallback />}>
+      <div
+        key={location.pathname}
+        className="route-mount"
+      >
 
         <Routes location={location}>
+
             <Route path="/" element={<Index />} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
