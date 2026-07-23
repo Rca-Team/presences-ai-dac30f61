@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import gauravPhoto from '@/assets/gaurav-photo.png';
 import swamiAnantVyasPhoto from '@/assets/swami-anant-vyas.png.asset.json';
 import { usePortfolioData } from '@/hooks/usePortfolioData';
+import { PublicPortfolioView } from '@/pages/Portfolio';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -142,6 +144,7 @@ const Index = () => {
   ];
 
   const { data: portfolio } = usePortfolioData();
+  const navigate = useNavigate();
 
   // Fallback (used until portfolio JSON loads, or if a member has no image)
   const fallbackImages: Record<string, string> = {
@@ -359,6 +362,29 @@ const Index = () => {
             </div>
           </section>
         ))}
+
+        {/* Full developer portfolio — profile, projects, gallery, achievements, skills, socials */}
+        <section id="developer-portfolio" className="pb-14">
+          <div className="mb-6 flex items-end justify-between gap-4">
+            <div>
+              <p className="inline-flex items-center gap-2 rounded-full bg-primary/15 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-primary">
+                <Sparkles className="h-3 w-3" /> Meet the Developer
+              </p>
+              <h2
+                className="mt-2 text-3xl font-black text-foreground md:text-4xl"
+                style={{ fontFamily: 'Sora, sans-serif' }}
+              >
+                {portfolio.name || 'Gaurav Raj'}
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground md:text-base">
+                {portfolio.role || 'Developer & Team Leader'}
+              </p>
+            </div>
+          </div>
+          <PublicPortfolioView data={portfolio} onUnlock={() => navigate('/portfolio')} />
+        </section>
+
+
 
         <section className="pb-10">
           <motion.div

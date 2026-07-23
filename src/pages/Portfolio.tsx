@@ -87,7 +87,7 @@ function SortableItem({ id, children }: { id: string; children: (handle: React.R
 /* Public View                                                         */
 /* ------------------------------------------------------------------ */
 
-function PublicPortfolioView({ data, onUnlock }: { data: PortfolioData; onUnlock: () => void }) {
+export function PublicPortfolioView({ data, onUnlock }: { data: PortfolioData; onUnlock?: () => void }) {
   return (
     <section className="space-y-10 pb-16">
       {/* Hero */}
@@ -132,9 +132,11 @@ function PublicPortfolioView({ data, onUnlock }: { data: PortfolioData; onUnlock
                   <Instagram className="h-4 w-4" />
                 </a>
               )}
-              <Button size="sm" variant="outline" onClick={onUnlock}>
-                <Lock className="mr-1 h-3.5 w-3.5" /> Edit
-              </Button>
+              {onUnlock && (
+                <Button size="sm" variant="outline" onClick={onUnlock}>
+                  <Lock className="mr-1 h-3.5 w-3.5" /> Edit
+                </Button>
+              )}
             </div>
           </div>
 
