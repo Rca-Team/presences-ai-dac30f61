@@ -49,14 +49,14 @@ interface Track {
 
 const DEDUP_EMBED_DIST = 0.46;
 const USER_COOLDOWN_MS = 8000;
-const DETECT_INTERVAL_MS = 70;       // ~14fps detection — camera preview stays 60fps
+const DETECT_INTERVAL_MS = 45;       // ~22fps detection — faster reaction
 const IOU_MATCH = 0.4;                // match same track between frames
-const STABLE_FRAMES_REQUIRED = 2;     // need at least 2 frames before snapshotting
-const QUALITY_WINDOW_MS = 900;        // collect best frame within this window (~1s)
-const MIN_QUALITY_TO_SHIP_EARLY = 0.72; // ship immediately if quality is already excellent
-const MAX_CONCURRENT_RECOG = 3;       // process up to 3 faces in parallel in background
+const STABLE_FRAMES_REQUIRED = 1;     // ship after first solid detection
+const QUALITY_WINDOW_MS = 300;        // much shorter best-frame window
+const MIN_QUALITY_TO_SHIP_EARLY = 0.5; // ship as soon as quality is decent
+const MAX_CONCURRENT_RECOG = 4;       // process up to 4 faces in parallel in background
 const TRACK_TTL_MS = 700;             // drop a track if not seen for this long
-const MIN_FACE_SIZE = 90;             // px — reject tiny/far faces for recog quality
+const MIN_FACE_SIZE = 70;             // px — allow slightly smaller faces to enter recog sooner
 
 
 const iou = (
@@ -219,7 +219,7 @@ const PremiumFaceScanner: React.FC = () => {
 
         const result = await Promise.race([
           recognizeFace(desc),
-          new Promise<null>(resolve => setTimeout(() => resolve(null), 6000)),
+          new Promise<null>(resolve => setTimeout(() => resolve(null), 3500)),
         ]);
         if (!result?.recognized || !result.employee) {
           releaseTrack('unknown');
