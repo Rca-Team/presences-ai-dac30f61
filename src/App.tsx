@@ -358,8 +358,9 @@ function App() {
               <div className="premium-glass-app">
                 <BrowserRouter>
                   {showSplash ? (
-                    <SplashAnimation onComplete={handleSplashComplete} duration={2200} />
+                    <SplashAnimation onComplete={handleSplashComplete} duration={1100} />
                   ) : (
+
                     <NotificationPermissionGate>
                       <MobileAppShell>
                         <SeoHead />
