@@ -48,15 +48,15 @@ interface Track {
 }
 
 const DEDUP_EMBED_DIST = 0.46;
-const USER_COOLDOWN_MS = 8000;
-const DETECT_INTERVAL_MS = 45;       // ~22fps detection — faster reaction
-const IOU_MATCH = 0.4;                // match same track between frames
-const STABLE_FRAMES_REQUIRED = 1;     // ship after first solid detection
-const QUALITY_WINDOW_MS = 300;        // much shorter best-frame window
-const MIN_QUALITY_TO_SHIP_EARLY = 0.5; // ship as soon as quality is decent
-const MAX_CONCURRENT_RECOG = 4;       // process up to 4 faces in parallel in background
-const TRACK_TTL_MS = 700;             // drop a track if not seen for this long
-const MIN_FACE_SIZE = 70;             // px — allow slightly smaller faces to enter recog sooner
+const USER_COOLDOWN_MS = 6000;
+const DETECT_INTERVAL_MS = 33;       // ~30fps detection
+const IOU_MATCH = 0.35;
+const STABLE_FRAMES_REQUIRED = 1;    // ship on first solid detection
+const QUALITY_WINDOW_MS = 0;         // no waiting — fire immediately
+const MIN_QUALITY_TO_SHIP_EARLY = 0; // ship right away
+const MAX_CONCURRENT_RECOG = 5;
+const TRACK_TTL_MS = 700;
+const MIN_FACE_SIZE = 60;
 
 
 const iou = (
