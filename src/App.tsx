@@ -5,8 +5,10 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { Helmet, HelmetProvider } from "react-helmet-async";
-import { Skeleton } from "@/components/ui/skeleton";
 import { lazyWithRetry } from "@/lib/lazyWithRetry";
+import RouteFallback from "@/components/RouteFallback";
+import { warmCommonRoutes } from "@/lib/preloadRoute";
+
 
 const Index = lazyWithRetry(() => import("./pages/Index"), "index");
 const Register = lazyWithRetry(() => import("./pages/Register"), "register");
@@ -168,19 +170,16 @@ function SeoHead() {
 // This component wraps our routes with AnimatePresence for exit animations
 function AnimatedRoutes() {
   const location = useLocation();
-  const routeFallback = (
-    <div className="min-h-[60vh] px-4 py-6 space-y-3">
-      <Skeleton className="h-10 w-1/2" />
-      <Skeleton className="h-44 w-full" />
-      <Skeleton className="h-44 w-full" />
-    </div>
-  );
 
   return (
-    <Suspense fallback={routeFallback}>
-      <div key={location.pathname}>
+    <Suspense fallback={<RouteFallback />}>
+      <div
+        key={location.pathname}
+        className="route-mount"
+      >
 
         <Routes location={location}>
+
             <Route path="/" element={<Index />} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
@@ -249,8 +248,23 @@ function AnimatedRoutes() {
 
 function App() {
   const [mountNonCritical, setMountNonCritical] = useState(false);
-  const [showSplash, setShowSplash] = useState(true);
+  // Skip in-app splash for PWA/standalone launches (OS already showed the manifest
+  // splash) and for same-tab re-renders. Only fresh web loads see the branded splash.
+  const [showSplash, setShowSplash] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    try {
+      const isStandalone =
+        window.matchMedia?.('(display-mode: standalone)').matches ||
+        (window.navigator as any).standalone === true;
+      if (isStandalone) return false;
+      if (sessionStorage.getItem('presence:splash-seen')) return false;
+    } catch {
+      // sessionStorage may throw in private mode — fall through and show splash.
+    }
+    return true;
+  });
   const chunkRecoveryKey = "presence:chunk-recovery";
+
 
   useEffect(() => {
     const onPreloadError = (event: Event) => {
@@ -300,8 +314,9 @@ function App() {
     if (!mountNonCritical) return;
 
     const prefetchTimer = window.setTimeout(() => {
-      void import('./pages/Attendance').catch(() => undefined);
-      void import('./pages/GateMode').catch(() => undefined);
+      // Warm the most common route chunks so first tab click is instant.
+      warmCommonRoutes(['/attendance', '/register', '/profile', '/admin', '/gate']);
+
       void import('./components/gate/GateModeScanner').catch(() => undefined);
       void import('./components/attendance/FuturisticFaceScanner').catch(() => undefined);
 
@@ -316,21 +331,15 @@ function App() {
   }, [mountNonCritical]);
 
   useEffect(() => {
-    const splashSeen = sessionStorage.getItem('presence:splash-seen');
-    if (splashSeen) {
-      setShowSplash(false);
-    }
-  }, []);
-
-  useEffect(() => {
     if (!showSplash) return;
 
     const failSafeTimer = window.setTimeout(() => {
       setShowSplash(false);
-    }, 6000);
+    }, 4000);
 
     return () => window.clearTimeout(failSafeTimer);
   }, [showSplash]);
+
 
   const handleSplashComplete = () => {
     sessionStorage.setItem('presence:splash-seen', '1');
@@ -349,8 +358,9 @@ function App() {
               <div className="premium-glass-app">
                 <BrowserRouter>
                   {showSplash ? (
-                    <SplashAnimation onComplete={handleSplashComplete} duration={2200} />
+                    <SplashAnimation onComplete={handleSplashComplete} duration={1100} />
                   ) : (
+
                     <NotificationPermissionGate>
                       <MobileAppShell>
                         <SeoHead />
