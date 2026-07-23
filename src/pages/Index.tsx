@@ -262,13 +262,26 @@ const Index = () => {
                 style={{ perspective: 900, transformStyle: 'preserve-3d' }}
                 {...cardTilt}
               >
-                <button type="button" onClick={() => setActiveProfile(creatorMembers[0])} className="group block w-full text-left" aria-label="Open Gaurav portfolio">
+                <button
+                  type="button"
+                  onClick={() => creatorMembers[0] && setActiveProfile(creatorMembers[0])}
+                  className="group block w-full text-left"
+                  aria-label="Open Gaurav portfolio"
+                >
                   <div className="flex items-center gap-3">
-                    <img src={gauravPhoto} alt="Gaurav" className="h-11 w-11 rounded-full border border-border/70 object-cover" loading="lazy" />
+                    <img
+                      src={portfolio.profileImage || creatorMembers[0]?.image || gauravPhoto}
+                      alt={creatorMembers[0]?.name || 'Gaurav'}
+                      className="h-11 w-11 rounded-full border border-border/70 object-cover"
+                      loading="lazy"
+                    />
                   </div>
-                  <p className="mt-8 text-lg font-bold text-foreground transition-colors group-hover:text-primary">Developed by Gaurav</p>
+                  <p className="mt-8 text-lg font-bold text-foreground transition-colors group-hover:text-primary">
+                    Developed by {creatorMembers[0]?.name || 'Gaurav'}
+                  </p>
                   <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Tap to view portfolio</p>
                 </button>
+
 
                 <div className="mt-4 space-y-2">
                   {creatorMembers.slice(1).map((member) => (
