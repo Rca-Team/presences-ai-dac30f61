@@ -396,6 +396,19 @@ const PremiumFaceScanner: React.FC = () => {
           }
         }
 
+        // Recover any track stuck in 'processing' for too long (e.g. worker crashed
+        // or the network timed out). Prevents the UI getting frozen on "Verifying…".
+        for (const t of tracksRef.current.values()) {
+          if (t.state === 'processing' && t.processingStartedAt && nowMs - t.processingStartedAt > 7000) {
+            t.state = 'tracking';
+            t.processingStartedAt = undefined;
+            t.bestQuality = 0;
+            t.bestSnapshot = undefined;
+            t.firstSeen = nowMs;
+            inFlightCountRef.current = Math.max(0, inFlightCountRef.current - 1);
+          }
+        }
+
         // Phase indicator
         let anyProcessing = false;
         for (const t of tracksRef.current.values()) {
@@ -424,6 +437,7 @@ const PremiumFaceScanner: React.FC = () => {
           if (inFlightCountRef.current >= MAX_CONCURRENT_RECOG) break;
           const snap = t.bestSnapshot!;
           t.state = 'processing';
+          t.processingStartedAt = nowMs;
           t.bestSnapshot = undefined; // release ref; the worker owns the canvas now
           inFlightCountRef.current += 1;
           void runRecognitionForTrack(t.id, snap);
