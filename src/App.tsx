@@ -167,25 +167,119 @@ function SeoHead() {
   );
 }
 
-// This component wraps our routes with AnimatePresence for exit animations
+// Routes that should preserve their state and scroll position when the user
+// navigates away and back. Excludes routes with cameras, one-time flows, or
+// auth screens where a fresh mount is required.
+const KEEP_ALIVE_PATHS = new Set<string>([
+  '/',
+  '/features',
+  '/contact',
+  '/profile',
+  '/portfolio',
+  '/parent',
+  '/admin',
+  '/teacher',
+  '/notifications',
+]);
+
+// Elements rendered when a keep-alive path is visited. Kept as stable node
+// references so React never unmounts them across navigations.
+const keepAliveElements: Record<string, JSX.Element> = {
+  '/': <Index />,
+  '/features': (
+    <ProtectedRoute requireRoles={["admin", "principal", "teacher", "user"]}>
+      <Features />
+    </ProtectedRoute>
+  ),
+  '/contact': <Contact />,
+  '/profile': (
+    <ProtectedRoute requireRoles={["admin", "principal", "teacher", "user"]}>
+      <Profile />
+    </ProtectedRoute>
+  ),
+  '/portfolio': <Portfolio />,
+  '/parent': <ParentPortal />,
+  '/admin': (
+    <ProtectedRoute requireRoles={["admin", "principal", "teacher"]}>
+      <Admin />
+    </ProtectedRoute>
+  ),
+  '/teacher': (
+    <ProtectedRoute requireRoles={["admin", "principal", "teacher"]}>
+      <TeacherPortal />
+    </ProtectedRoute>
+  ),
+  '/notifications': (
+    <ProtectedRoute requireRoles={["admin", "principal"]}>
+      <NotificationDemo />
+    </ProtectedRoute>
+  ),
+};
+
+// This component wraps our routes with a keep-alive cache so pages remain
+// mounted (and preserve scroll) when the user navigates between them.
 function AnimatedRoutes() {
   const location = useLocation();
+  const path = location.pathname;
+  const isKeepAlive = KEEP_ALIVE_PATHS.has(path) && path in keepAliveElements;
+
+  const [visited, setVisited] = useState<string[]>(() => (isKeepAlive ? [path] : []));
+  const scrollPositions = useRef<Record<string, number>>({});
+  const prevPathRef = useRef<string>(path);
+
+  // Save the outgoing path's scroll position BEFORE the DOM swaps, then
+  // restore the incoming path's saved scroll position synchronously so the
+  // user never sees a flash of scroll-to-top or a reload-style jump.
+  useLayoutEffect(() => {
+    const previous = prevPathRef.current;
+    if (previous !== path) {
+      if (KEEP_ALIVE_PATHS.has(previous)) {
+        scrollPositions.current[previous] = window.scrollY;
+      }
+      prevPathRef.current = path;
+    }
+
+    if (isKeepAlive && !visited.includes(path)) {
+      setVisited((prev) => (prev.includes(path) ? prev : [...prev, path]));
+    }
+
+    if (isKeepAlive) {
+      const saved = scrollPositions.current[path] ?? 0;
+      // Two rAFs: first waits for the hidden -> visible swap to paint, second
+      // guarantees layout is settled before we restore the scroll offset.
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => window.scrollTo(0, saved));
+      });
+    }
+  }, [path, isKeepAlive, visited]);
 
   return (
     <Suspense fallback={<RouteFallback />}>
-      <div
-        key={location.pathname}
-        className="route-mount"
-      >
+      {/* Keep-alive cache: every visited cacheable route stays mounted;
+          only the active one is visible. */}
+      {visited.map((cachedPath) => {
+        const active = cachedPath === path;
+        return (
+          <div
+            key={cachedPath}
+            hidden={!active}
+            aria-hidden={!active}
+            style={active ? undefined : { display: 'none' }}
+            className={active ? 'route-mount' : undefined}
+          >
+            {keepAliveElements[cachedPath]}
+          </div>
+        );
+      })}
 
-        <Routes location={location}>
-
-            <Route path="/" element={<Index />} />
+      {/* Fall-through routes render only when the current path is not a
+          keep-alive path, so cached siblings above never render twice. */}
+      {!isKeepAlive && (
+        <div key={path} className="route-mount">
+          <Routes location={location}>
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
-            <Route path="/contact" element={<Contact />} />
             <Route path="/register" element={<Register />} />
-            <Route path="/portfolio" element={<Portfolio />} />
             <Route path="/attendance" element={
               <ProtectedRoute requireRoles={["admin", "principal", "teacher", "user"]}>
                 <Attendance />
@@ -196,37 +290,11 @@ function AnimatedRoutes() {
                 <Attendance />
               </ProtectedRoute>
             } />
-            <Route path="/admin" element={
-              <ProtectedRoute requireRoles={["admin", "principal", "teacher"]}>
-                <Admin />
-              </ProtectedRoute>
-            } />
-            <Route path="/teacher" element={
-              <ProtectedRoute requireRoles={["admin", "principal", "teacher"]}>
-                <TeacherPortal />
-              </ProtectedRoute>
-            } />
-            <Route path="/notifications" element={
-              <ProtectedRoute requireRoles={["admin", "principal"]}>
-                <NotificationDemo />
-              </ProtectedRoute>
-            } />
-            <Route path="/profile" element={
-              <ProtectedRoute requireRoles={["admin", "principal", "teacher", "user"]}>
-                <Profile />
-              </ProtectedRoute>
-            } />
-            <Route path="/features" element={
-              <ProtectedRoute requireRoles={["admin", "principal", "teacher", "user"]}>
-                <Features />
-              </ProtectedRoute>
-            } />
             <Route path="/gate" element={
               <ProtectedRoute requireRoles={["admin", "principal", "teacher"]}>
                 <GateMode />
               </ProtectedRoute>
             } />
-            <Route path="/parent" element={<ParentPortal />} />
             <Route path="/unsubscribe" element={<Unsubscribe />} />
             <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
             <Route path="/data" element={
@@ -240,11 +308,13 @@ function AnimatedRoutes() {
               </ProtectedRoute>
             } />
             <Route path="*" element={<NotFound />} />
-        </Routes>
-      </div>
+          </Routes>
+        </div>
+      )}
     </Suspense>
   );
 }
+
 
 function App() {
   const [mountNonCritical, setMountNonCritical] = useState(false);
