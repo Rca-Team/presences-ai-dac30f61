@@ -314,8 +314,9 @@ function App() {
     if (!mountNonCritical) return;
 
     const prefetchTimer = window.setTimeout(() => {
-      void import('./pages/Attendance').catch(() => undefined);
-      void import('./pages/GateMode').catch(() => undefined);
+      // Warm the most common route chunks so first tab click is instant.
+      warmCommonRoutes(['/attendance', '/register', '/profile', '/admin', '/gate']);
+
       void import('./components/gate/GateModeScanner').catch(() => undefined);
       void import('./components/attendance/FuturisticFaceScanner').catch(() => undefined);
 
@@ -330,21 +331,15 @@ function App() {
   }, [mountNonCritical]);
 
   useEffect(() => {
-    const splashSeen = sessionStorage.getItem('presence:splash-seen');
-    if (splashSeen) {
-      setShowSplash(false);
-    }
-  }, []);
-
-  useEffect(() => {
     if (!showSplash) return;
 
     const failSafeTimer = window.setTimeout(() => {
       setShowSplash(false);
-    }, 6000);
+    }, 4000);
 
     return () => window.clearTimeout(failSafeTimer);
   }, [showSplash]);
+
 
   const handleSplashComplete = () => {
     sessionStorage.setItem('presence:splash-seen', '1');
