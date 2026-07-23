@@ -172,8 +172,9 @@ export function PublicPortfolioView({ data, onUnlock }: { data: PortfolioData; o
       {/* Projects */}
       {data.projects.length > 0 && (
         <div>
-          <h2 className="mb-4 text-xl font-bold">Featured Projects</h2>
-          <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+          <h2 className="mb-3 md:mb-4 text-lg md:text-xl font-bold">Featured Projects</h2>
+          <div className="grid gap-4 sm:gap-5 sm:grid-cols-2 lg:grid-cols-3">
+
             {data.projects.map((p) => (
               <motion.article
                 key={p.id}
