@@ -363,6 +363,29 @@ const Index = () => {
           </section>
         ))}
 
+        {/* Full developer portfolio — profile, projects, gallery, achievements, skills, socials */}
+        <section id="developer-portfolio" className="pb-14">
+          <div className="mb-6 flex items-end justify-between gap-4">
+            <div>
+              <p className="inline-flex items-center gap-2 rounded-full bg-primary/15 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-primary">
+                <Sparkles className="h-3 w-3" /> Meet the Developer
+              </p>
+              <h2
+                className="mt-2 text-3xl font-black text-foreground md:text-4xl"
+                style={{ fontFamily: 'Sora, sans-serif' }}
+              >
+                {portfolio.name || 'Gaurav Raj'}
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground md:text-base">
+                {portfolio.role || 'Developer & Team Leader'}
+              </p>
+            </div>
+          </div>
+          <PublicPortfolioView data={portfolio} onUnlock={() => navigate('/portfolio')} />
+        </section>
+
+
+
         <section className="pb-10">
           <motion.div
             className="liquid-glass-surface relative overflow-hidden rounded-3xl p-8 md:p-14"
