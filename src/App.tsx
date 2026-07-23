@@ -40,7 +40,7 @@ import AppExperienceLayer from './components/AppExperienceLayer';
 import SplashAnimation from './components/SplashAnimation';
 import { areGateDetectionModelsLoaded, loadGateDetectionModels } from '@/services/face-recognition/ModelService';
 import NotificationPermissionGate from './components/NotificationPermissionGate';
-import { useIsMobile } from "./hooks/use-mobile";
+
 
 const queryClient = new QueryClient();
 
