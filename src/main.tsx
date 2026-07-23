@@ -192,18 +192,24 @@ const initApp = () => {
       </StrictMode>
     );
     
-    // Load face models after app is rendered
-    loadFaceModels()
-      .then(success => {
+    // Defer face model loading until the browser is idle so the first paint
+    // and route hydration aren't blocked by a ~7MB model download.
+    const scheduleModelLoad = () => {
+      loadFaceModels().then(success => {
         if (!success) {
-          setTimeout(() => {
-            toast.error('Failed to pre-load face recognition models. Some features may not work correctly.', {
-              duration: 6000,
-              id: 'face-models-error'
-            });
-          }, 1000);
+          toast.error('Failed to pre-load face recognition models. Some features may not work correctly.', {
+            duration: 6000,
+            id: 'face-models-error'
+          });
         }
       });
+    };
+    if ('requestIdleCallback' in window) {
+      (window as any).requestIdleCallback(scheduleModelLoad, { timeout: 4000 });
+    } else {
+      setTimeout(scheduleModelLoad, 2500);
+    }
+
   } catch (err) {
     console.error('Failed to initialize app:', err);
     const root = document.getElementById("root");
