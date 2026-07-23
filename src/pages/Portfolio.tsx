@@ -235,8 +235,9 @@ export function PublicPortfolioView({ data, onUnlock }: { data: PortfolioData; o
       {/* Members */}
       {data.members.length > 0 && (
         <div>
-          <h2 className="mb-4 text-xl font-bold">Team</h2>
-          <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+          <h2 className="mb-3 md:mb-4 text-lg md:text-xl font-bold">Team</h2>
+          <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+
             {data.members.map((m) => (
               <div key={m.id} className="rounded-2xl border bg-card/70 p-4 backdrop-blur">
                 <div className="flex items-center gap-3">
