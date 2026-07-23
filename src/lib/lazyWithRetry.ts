@@ -1,23 +1,26 @@
 import React from "react";
 
-const RETRY_KEY = "lazy-retry";
-
+// Retry a failed dynamic import once with a small delay before giving up.
+// We deliberately DO NOT call window.location.reload() here — a hard reload
+// on chunk errors causes reload loops when a stale service worker or CDN
+// keeps serving broken references. React's error boundary handles the
+// final failure gracefully instead.
 export function lazyWithRetry<T extends React.ComponentType<any>>(
   importer: () => Promise<{ default: T }>,
-  retryKey: string,
+  _retryKey: string,
 ) {
   return React.lazy(async () => {
     try {
       return await importer();
     } catch (error) {
-      const hasRetried = sessionStorage.getItem(`${RETRY_KEY}:${retryKey}`) === "1";
-
-      if (!hasRetried) {
-        sessionStorage.setItem(`${RETRY_KEY}:${retryKey}`, "1");
-        window.location.reload();
+      // One quick retry — handles transient network / chunk hiccups.
+      await new Promise((resolve) => setTimeout(resolve, 400));
+      try {
+        return await importer();
+      } catch (secondError) {
+        console.error("Lazy chunk failed to load after retry:", secondError);
+        throw secondError;
       }
-
-      throw error;
     }
   });
 }

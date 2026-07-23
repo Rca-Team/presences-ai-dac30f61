@@ -273,28 +273,32 @@ function App() {
 
   useEffect(() => {
     const onPreloadError = (event: Event) => {
+      // Let React's Suspense/ErrorBoundary handle it — no hard reload,
+      // no cache/SW nuking here (that caused reload loops).
+      const recoveryCount = Number(sessionStorage.getItem(chunkRecoveryKey) || "0");
+      if (recoveryCount >= 1) {
+        // Already attempted recovery this session; give up quietly.
+        return;
+      }
+      sessionStorage.setItem(chunkRecoveryKey, String(recoveryCount + 1));
+      // Prevent the default (which would surface a hard error overlay in dev).
       event.preventDefault();
-
-      const alreadyRecovered = sessionStorage.getItem(chunkRecoveryKey) === "1";
-      if (alreadyRecovered) return;
-
-      sessionStorage.setItem(chunkRecoveryKey, "1");
-
+      // Best-effort: unregister only stale app-shell SWs, do NOT reload.
       void (async () => {
         try {
           if ("serviceWorker" in navigator) {
-            const registrations = await navigator.serviceWorker.getRegistrations();
-            await Promise.all(registrations.map((registration) => registration.unregister()));
-          }
-
-          if ("caches" in window) {
-            const cacheKeys = await caches.keys();
-            await Promise.all(cacheKeys.map((cacheKey) => caches.delete(cacheKey)));
+            const regs = await navigator.serviceWorker.getRegistrations();
+            await Promise.all(
+              regs.map(async (r) => {
+                const script = r.active?.scriptURL || "";
+                if (script.includes("/sw.js") || script.includes("/service-worker.js")) {
+                  await r.unregister();
+                }
+              }),
+            );
           }
         } catch (err) {
           console.warn("Chunk recovery cleanup failed", err);
-        } finally {
-          window.location.reload();
         }
       })();
     };
@@ -303,9 +307,6 @@ function App() {
     return () => window.removeEventListener("vite:preloadError", onPreloadError);
   }, [chunkRecoveryKey]);
 
-  useEffect(() => {
-    sessionStorage.removeItem(chunkRecoveryKey);
-  }, [chunkRecoveryKey]);
 
   useEffect(() => {
     const schedule = window.setTimeout(() => setMountNonCritical(true), 350);
