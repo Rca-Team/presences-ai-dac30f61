@@ -40,6 +40,7 @@ import {
   portfolioUid,
 } from '@/hooks/usePortfolioData';
 import { ImageDropzone } from '@/components/portfolio/ImageDropzone';
+import { MemberAvatar } from '@/components/portfolio/MemberAvatar';
 import {
   DndContext,
   closestCenter,
