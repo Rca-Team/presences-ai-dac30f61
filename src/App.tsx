@@ -5,8 +5,10 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { Helmet, HelmetProvider } from "react-helmet-async";
-import { Skeleton } from "@/components/ui/skeleton";
 import { lazyWithRetry } from "@/lib/lazyWithRetry";
+import RouteFallback from "@/components/RouteFallback";
+import { warmCommonRoutes } from "@/lib/preloadRoute";
+
 
 const Index = lazyWithRetry(() => import("./pages/Index"), "index");
 const Register = lazyWithRetry(() => import("./pages/Register"), "register");
