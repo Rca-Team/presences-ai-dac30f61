@@ -1,45 +1,63 @@
-## Smart AI QR Scanner — Attendance Page
+## Smooth premium loading, PWA-aware splash, MacBook-style nav
 
-Upgrade `src/components/attendance/QRCodeScanner.tsx` so students can just flash their QR (phone screen OR printed ID card) at the camera and get marked instantly — from farther away, in low light, and even when several students show QRs at once.
+Four coordinated changes across app shell, splash, navbars, and route loading.
 
-### What changes for the user
-- **Grab-and-go**: Camera locks onto QR from ~30–80 cm, even small phone screens or printed ID cards.
-- **Multi-QR**: If two or three students show QRs in the same frame, all are queued and marked in sequence.
-- **Low-light aware**: Auto-brightness/contrast boost; torch auto-suggest when the frame is dark.
-- **Rear camera by default** for smart-board/kiosk use, with flip still available.
-- **Big success card + beep**, then keeps scanning automatically — no button taps needed.
+### 1. Kill the chunky "Skeleton" loading fallback → premium fade shell
+Current: `AnimatedRoutes` uses `<Suspense fallback={<Skeleton…>}>` — big grey blocks flash on every route.
 
-### Detection pipeline (technical)
+Change: replace with a near-invisible fade layer.
+- New `RouteFallback` component: transparent placeholder that fades in a subtle progress bar only after 180ms (avoids flash for cached chunks), then fades out on ready.
+- Route content itself gets a soft `opacity/translate-y` mount transition (150ms cubic-bezier) so pages feel like they "settle in" instead of pop.
+- No skeleton bars anywhere in `Suspense` fallbacks.
 
-```text
-video frame (60fps preview)
-   ↓  every ~50ms
-downscale to 720w  ─►  BarcodeDetector (native, multi-code)
-   │                      └─ found? → decode all, queue each
-   ↓ if empty
-center-ROI upscale (1.6x) ─► BarcodeDetector / jsQR
-   ↓ if empty (miss streak ≥ 3)
-adaptive: increase contrast + invert pass ─► jsQR
-```
+### 2. PWA launch: skip in-app splash when the OS already showed the manifest splash
+Current: `SplashAnimation` runs 2.2 s on every load, including PWA launches — users see manifest splash → then app splash → then site.
 
-- Keep existing 12–15 fps decode cadence; add multi-scale + inverted pass only on miss-streak to save CPU.
-- Use `detector.detect()` array output (native BarcodeDetector already returns multiple) — process every unique QR per frame instead of only the first.
-- Per-student cooldown map (already exists) prevents re-marking; extend TTL to 15 s and key on `user_id || employee_id`.
+Change in `src/App.tsx`:
+- Detect PWA/standalone launch: `matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone`.
+- Also detect same-tab returns (`sessionStorage` flag) so refreshes inside the app don't replay the splash.
+- If either is true → `showSplash = false` from the first render → straight to the site.
+- Web (non-installed) first-load still gets the branded splash but shortened to **1.1 s** with a snappier easing, so the site feels instant.
 
-### Camera & focus
-- Default `facingMode: 'environment'`.
-- Enable `focusMode: 'continuous'` + `exposureMode: 'continuous'` on stream track when supported (already partial — make it default-on).
-- Ambient-light heuristic: sample average luma every 2 s; if `< 60` show a subtle "Low light — tap ⚡ for torch" hint.
-- Physical ID cards benefit from the same pipeline; the inverted + high-contrast pass specifically improves printed/glossy QR recognition.
+Also add tiny manifest polish so the OS splash matches the site background (no white flash on Android): confirm `background_color` and `theme_color` in `public/manifest.json`, and add `<meta name="theme-color">` matching the current theme.
 
-### UI
-- Keep current premium frame; add:
-  - Multi-target overlay: draw a small check-badge over each detected QR's bounding box (from `detector.detect()` cornerPoints).
-  - Big success card (name + ID + time) that auto-dismisses in 1.2 s, then camera keeps scanning.
-  - Success beep + short vibration (already partly wired).
-- No manual "Start/Stop" needed in autostart mode; controls stay hidden when `hideManualControls`.
+### 3. MacBook-style sliding nav pill (both desktop & mobile)
+Desktop nav already uses `layoutId="navbar-active-pill"` inside `<LayoutGroup>` — good. Polish it:
+- Swap the spring for MacBook-dock feel: `{ type: 'spring', stiffness: 520, damping: 34, mass: 0.9 }`.
+- Add hover magnification on siblings (dock-style tiny scale-up on the item under cursor) using `whileHover={{ y: -1, scale: 1.04 }}`.
+- Ensure text color transition rides the same easing (no flicker).
 
-### Files touched
-- `src/components/attendance/QRCodeScanner.tsx` — detection loop, multi-QR handling, adaptive passes, ambient-light hint, success card, default camera.
+Mobile nav (`MobileNavBar.tsx`) currently pops the pill with `AnimatePresence`. Change to a true sliding pill:
+- Remove per-item `AnimatePresence` around the pill. Instead render one shared pill using `layoutId="mobile-nav-pill"` on the active item only, so framer-motion slides it horizontally between icons — same physics as desktop.
+- Keep icon bounce/glow dot, but drop the `y: [0,-3,0]` re-animate on route change so the slide reads clean.
+- Add subtle haptic-timed spring so the pill lands with the tap (`stiffness: 500, damping: 36`).
 
-No backend or schema changes. No other pages affected.
+Result: on tap/click, the pill glides from old tab to new tab in one motion — mac-dock/iPad-tab-bar feel — on both mobile and desktop.
+
+### 4. Preload route chunks so tab switches feel instant
+Currently every lazy route waits for its chunk on first click.
+
+Change: add link-hover / viewport prefetching.
+- New helper `src/lib/preloadRoute.ts` exposing a `preload(routeKey)` that triggers the same dynamic `import()` used by `lazyWithRetry` (share the promise so it's dedup'd).
+- Wire it into nav items:
+  - Desktop `Navbar.tsx` links: `onMouseEnter` + `onFocus` → `preload(item.path)`.
+  - Mobile `MobileNavBar.tsx` links: `onTouchStart` (fires ~100 ms before click) → `preload`.
+- On app idle after splash, `requestIdleCallback` warm-preloads the 4 most common routes for signed-in users: `/attendance`, `/register`, `/profile`, `/admin` (respecting role). Wrapped in `try` so it never blocks.
+- No behavior change if browser is offline or on Save-Data — skip via `navigator.connection.saveData`.
+
+### Technical details
+
+Files touched:
+- `src/App.tsx` — PWA/session splash gating, shortened splash duration, new `RouteFallback` in `<Suspense>`, idle warm-preload.
+- `src/components/SplashAnimation.tsx` — accept `duration` already; no structural change beyond default tuning.
+- `src/components/Navbar.tsx` — spring tuning, hover magnify, preload hooks.
+- `src/components/mobile/MobileNavBar.tsx` — refactor to single shared `layoutId` pill, remove `AnimatePresence` wrap, preload hooks, calmer icon anim.
+- `src/lib/preloadRoute.ts` — new small module keyed to the same imports as `lazyWithRetry`.
+- `public/manifest.json` / `index.html` — verify `background_color` + `theme-color` alignment.
+
+Non-goals:
+- Not adding a service worker or offline caching — outside the request.
+- Not changing route structure, auth, or bundling config.
+- Not touching page-level internal loading states (scanners, tables) — only route-level and shell animations.
+
+No backend / DB changes.
