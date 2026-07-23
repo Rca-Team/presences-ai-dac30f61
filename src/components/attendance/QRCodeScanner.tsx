@@ -713,10 +713,19 @@ const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
         {/* Hint */}
         <div className="absolute bottom-4 left-0 right-0 z-10 text-center px-6">
           <p className="text-sm sm:text-base font-medium text-white/90 drop-shadow">
-            Align QR code inside the frame
+            Show your QR — phone screen or ID card
           </p>
-          <p className="text-xs text-white/60 mt-0.5">Scanning continuously · no need to tap</p>
+          <p className="text-xs text-white/60 mt-0.5">Smart scan · multiple students supported · no tap needed</p>
+          {lowLight && torchSupported && !torchOn && (
+            <button
+              onClick={toggleTorch}
+              className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-yellow-400/90 text-slate-900 text-xs font-semibold shadow"
+            >
+              <Zap className="w-3 h-3" /> Low light — tap for flash
+            </button>
+          )}
         </div>
+
 
         {/* Success/Error Overlay */}
         <AnimatePresence>
