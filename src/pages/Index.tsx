@@ -153,6 +153,7 @@ const Index = () => {
     Gaurav: gauravPhoto,
     'Gaurav Raj': gauravPhoto,
     'Swami Anant Vyas': swamiAnantVyasPhoto.url,
+    'Jatin Dhama': jatinDhamaPhoto.url,
   };
 
   const creatorMembers = useMemo(
