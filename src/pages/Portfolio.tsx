@@ -132,9 +132,11 @@ export function PublicPortfolioView({ data, onUnlock }: { data: PortfolioData; o
                   <Instagram className="h-4 w-4" />
                 </a>
               )}
-              <Button size="sm" variant="outline" onClick={onUnlock}>
-                <Lock className="mr-1 h-3.5 w-3.5" /> Edit
-              </Button>
+              {onUnlock && (
+                <Button size="sm" variant="outline" onClick={onUnlock}>
+                  <Lock className="mr-1 h-3.5 w-3.5" /> Edit
+                </Button>
+              )}
             </div>
           </div>
 
