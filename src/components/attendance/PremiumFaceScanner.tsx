@@ -36,6 +36,8 @@ interface Track {
   stableCount: number;
   lastSeen: number;
   firstSeen: number;
+  processingStartedAt?: number;
+  attempts: number;
   state: 'tracking' | 'queued' | 'processing' | 'done' | 'unknown';
   recognizedName?: string;
   userId?: string;
@@ -167,15 +169,41 @@ const PremiumFaceScanner: React.FC = () => {
       const track = tracksRef.current.get(trackId);
       if (!track) { inFlightCountRef.current = Math.max(0, inFlightCountRef.current - 1); return; }
 
+      const releaseTrack = (nextState: Track['state']) => {
+        const t = tracksRef.current.get(trackId);
+        if (t) {
+          t.state = nextState;
+          t.processingStartedAt = undefined;
+          if (nextState === 'tracking') {
+            // allow another attempt with a fresh best-quality window
+            t.bestQuality = 0;
+            t.bestSnapshot = undefined;
+            t.firstSeen = Date.now();
+          }
+        }
+      };
+
       try {
-        const full = await faceapi
-          .detectSingleFace(snapshot, new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.5 }))
+        // Try snapshot first (sharper, isolated ROI). If that fails, fall back to
+        // the live video so we never get stuck on a bad crop.
+        let full = await faceapi
+          .detectSingleFace(snapshot, new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.4 }))
           .withFaceLandmarks()
           .withFaceDescriptor();
 
+        if (!full && videoRef.current && videoRef.current.readyState >= 2) {
+          full = await faceapi
+            .detectSingleFace(videoRef.current, new faceapi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.4 }))
+            .withFaceLandmarks()
+            .withFaceDescriptor();
+        }
+
         if (!full) {
           const t = tracksRef.current.get(trackId);
-          if (t) { t.state = 'tracking'; t.bestQuality = 0; t.bestSnapshot = undefined; t.firstSeen = Date.now(); }
+          const attempts = (t?.attempts ?? 0) + 1;
+          if (t) t.attempts = attempts;
+          // Give up after 3 failed attempts so we don't loop forever on a bad face
+          releaseTrack(attempts >= 3 ? 'unknown' : 'tracking');
           return;
         }
 
@@ -184,16 +212,17 @@ const PremiumFaceScanner: React.FC = () => {
         // Session dedup — same person recognized again in same session
         for (const e of sessionEmbedsRef.current) {
           if (dist(e, desc) < DEDUP_EMBED_DIST) {
-            const t = tracksRef.current.get(trackId);
-            if (t) t.state = 'done';
+            releaseTrack('done');
             return;
           }
         }
 
-        const result = await recognizeFace(desc);
+        const result = await Promise.race([
+          recognizeFace(desc),
+          new Promise<null>(resolve => setTimeout(() => resolve(null), 6000)),
+        ]);
         if (!result?.recognized || !result.employee) {
-          const t = tracksRef.current.get(trackId);
-          if (t) t.state = 'unknown';
+          releaseTrack('unknown');
           return;
         }
 
@@ -201,7 +230,8 @@ const PremiumFaceScanner: React.FC = () => {
         const lastAt = userCooldownRef.current.get(uid) ?? 0;
         if (Date.now() - lastAt < USER_COOLDOWN_MS) {
           const t = tracksRef.current.get(trackId);
-          if (t) { t.state = 'done'; t.userId = uid; t.recognizedName = result.employee.name; }
+          if (t) { t.userId = uid; t.recognizedName = result.employee.name; }
+          releaseTrack('done');
           return;
         }
         userCooldownRef.current.set(uid, Date.now());
@@ -223,7 +253,8 @@ const PremiumFaceScanner: React.FC = () => {
         };
 
         const t = tracksRef.current.get(trackId);
-        if (t) { t.state = 'done'; t.userId = uid; t.recognizedName = entry.name; }
+        if (t) { t.userId = uid; t.recognizedName = entry.name; }
+        releaseTrack('done');
 
         // Optimistic UI
         setCurrent(entry);
@@ -254,8 +285,7 @@ const PremiumFaceScanner: React.FC = () => {
         }, 1400);
       } catch (e) {
         console.error('recognition error', e);
-        const t = tracksRef.current.get(trackId);
-        if (t) t.state = 'tracking';
+        releaseTrack('tracking');
       } finally {
         inFlightCountRef.current = Math.max(0, inFlightCountRef.current - 1);
       }
@@ -347,6 +377,7 @@ const PremiumFaceScanner: React.FC = () => {
               stableCount: 1,
               lastSeen: nowMs,
               firstSeen: nowMs,
+              attempts: 0,
               state: 'tracking',
               bestQuality: 0,
             };
@@ -362,6 +393,19 @@ const PremiumFaceScanner: React.FC = () => {
               track.bestSnapshot = snap;
               track.bestBox = box;
             }
+          }
+        }
+
+        // Recover any track stuck in 'processing' for too long (e.g. worker crashed
+        // or the network timed out). Prevents the UI getting frozen on "Verifying…".
+        for (const t of tracksRef.current.values()) {
+          if (t.state === 'processing' && t.processingStartedAt && nowMs - t.processingStartedAt > 7000) {
+            t.state = 'tracking';
+            t.processingStartedAt = undefined;
+            t.bestQuality = 0;
+            t.bestSnapshot = undefined;
+            t.firstSeen = nowMs;
+            inFlightCountRef.current = Math.max(0, inFlightCountRef.current - 1);
           }
         }
 
@@ -393,6 +437,7 @@ const PremiumFaceScanner: React.FC = () => {
           if (inFlightCountRef.current >= MAX_CONCURRENT_RECOG) break;
           const snap = t.bestSnapshot!;
           t.state = 'processing';
+          t.processingStartedAt = nowMs;
           t.bestSnapshot = undefined; // release ref; the worker owns the canvas now
           inFlightCountRef.current += 1;
           void runRecognitionForTrack(t.id, snap);
