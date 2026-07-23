@@ -1053,7 +1053,7 @@ const StudentIDCardGenerator: React.FC<StudentIDCardGeneratorProps> = ({ student
     }
 
     setIsGenerating(true);
-    setPdfProgress({ stage: 'Rendering QR codes', done: 0, total: list.length, percent: 0 });
+    setPdfProgress({ stage: 'Rendering QR codes', done: 0, total: list.length });
 
     try {
       const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait', compress: true });
@@ -1113,7 +1113,7 @@ const StudentIDCardGenerator: React.FC<StudentIDCardGeneratorProps> = ({ student
         pdf.text(nameLine, cellX + CELL_W / 2, textY + 5, { align: 'center' });
 
         const pct = Math.round(((i + 1) / list.length) * 100);
-        setPdfProgress({ stage: 'Rendering QR codes', done: i + 1, total: list.length, percent: pct });
+        setPdfProgress({ stage: 'Rendering QR codes', done: i + 1, total: list.length });
         if ((i + 1) % 2 === 0) await new Promise(r => requestAnimationFrame(() => r(null)));
       }
 
