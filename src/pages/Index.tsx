@@ -360,7 +360,7 @@ const Index = () => {
         ))}
 
         {/* Full developer portfolio — profile, projects, gallery, achievements, skills, socials */}
-        <section id="developer-portfolio" className="pb-14">
+        <section id="developer-portfolio" className="pb-14 min-w-0">
           <div className="mb-6 flex items-end justify-between gap-4">
             <div>
               <p className="inline-flex items-center gap-2 rounded-full bg-primary/15 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-primary">
