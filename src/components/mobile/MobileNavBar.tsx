@@ -1,10 +1,11 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, LayoutGroup } from 'framer-motion';
 import { Home, UserPlus, Clock, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useHapticFeedback } from '@/hooks/useHapticFeedback';
+import { preloadRoute } from '@/lib/preloadRoute';
 
 const navItems = [
   { path: '/', icon: Home, label: 'Home', color: 'ios-blue' },
@@ -21,6 +22,7 @@ const MobileNavBar: React.FC = () => {
   if (!isMobile) return null;
 
   const isActive = (path: string) => location.pathname === path;
+  const activeItem = navItems.find((i) => isActive(i.path)) ?? navItems[0];
 
   return (
     <motion.nav
@@ -32,7 +34,7 @@ const MobileNavBar: React.FC = () => {
       {/* Outer frosted-glass shell */}
       <div
         className={cn(
-          "mx-3 mb-2 rounded-[28px] overflow-hidden",
+          "mx-3 mb-2 rounded-[28px] overflow-hidden relative",
           "border border-white/25 dark:border-white/10",
           "bg-white/45 dark:bg-black/35",
           "backdrop-blur-3xl backdrop-saturate-[1.8]",
@@ -41,95 +43,71 @@ const MobileNavBar: React.FC = () => {
         )}
       >
         {/* Subtle top-edge highlight */}
-        <div className="absolute inset-x-0 top-0 h-[0.5px] bg-gradient-to-r from-transparent via-white/60 dark:via-white/15 to-transparent" />
+        <div className="absolute inset-x-0 top-0 h-[0.5px] bg-gradient-to-r from-transparent via-white/60 dark:via-white/15 to-transparent pointer-events-none" />
 
-        <div className="flex items-center justify-around px-1 py-1.5">
-          {navItems.map((item, index) => {
-            const active = isActive(item.path);
-
-            return (
-              <Link
-                key={item.path}
-                to={item.path}
-                onClick={() => trigger('light')}
-                className="relative flex flex-col items-center justify-center flex-1 min-h-[56px]"
-              >
-                {/* Active pill background */}
-                <AnimatePresence mode="wait">
+        <LayoutGroup>
+          <div className="flex items-stretch justify-around px-1 py-1.5">
+            {navItems.map((item) => {
+              const active = isActive(item.path);
+              return (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  onClick={() => trigger('light')}
+                  onTouchStart={() => preloadRoute(item.path)}
+                  onMouseEnter={() => preloadRoute(item.path)}
+                  className="relative flex flex-col items-center justify-center flex-1 min-h-[56px]"
+                >
+                  {/* Shared sliding pill — one instance rides between active tabs */}
                   {active && (
                     <motion.div
-                      layoutId="glass-pill"
-                      initial={{ opacity: 0, scale: 0.85 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.85 }}
-                      transition={{ type: 'spring', stiffness: 420, damping: 32 }}
+                      layoutId="mobile-nav-pill"
                       className="absolute inset-x-2 inset-y-1 rounded-[20px]"
                       style={{
                         background: `linear-gradient(160deg, hsl(var(--${item.color}) / 0.22), hsl(var(--${item.color}) / 0.08))`,
                         boxShadow: `0 0 20px hsl(var(--${item.color}) / 0.2), inset 0 0.5px 0 rgba(255,255,255,0.3)`,
                         border: `0.5px solid hsl(var(--${item.color}) / 0.25)`,
                       }}
+                      transition={{ type: 'spring', stiffness: 520, damping: 36, mass: 0.9 }}
                     />
                   )}
-                </AnimatePresence>
 
-                {/* Icon + Label */}
-                <motion.div
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.08 + index * 0.04, type: 'spring', stiffness: 350, damping: 26 }}
-                  whileTap={{ scale: 0.8 }}
-                  className="relative z-10 flex flex-col items-center gap-0.5"
-                >
+                  {/* Icon + Label */}
                   <motion.div
-                    animate={
-                      active
-                        ? { y: [0, -3, 0], scale: [1, 1.15, 1] }
-                        : { y: 0, scale: 1 }
-                    }
-                    transition={{ duration: 0.35, ease: [0.34, 1.56, 0.64, 1] }}
+                    whileTap={{ scale: 0.88 }}
+                    transition={{ type: 'spring', stiffness: 400, damping: 26 }}
+                    className="relative z-10 flex flex-col items-center gap-0.5"
                   >
                     <item.icon
                       className={cn(
-                        "w-[22px] h-[22px] transition-all duration-300",
+                        "w-[22px] h-[22px]",
                         !active && "text-muted-foreground"
                       )}
                       strokeWidth={active ? 2.4 : 1.8}
-                      style={active ? { color: `hsl(var(--${item.color}))` } : undefined}
+                      style={{
+                        color: active ? `hsl(var(--${item.color}))` : undefined,
+                        transition: 'color 260ms cubic-bezier(0.4,0,0.2,1), stroke-width 260ms cubic-bezier(0.4,0,0.2,1)',
+                      }}
                     />
+
+                    <span
+                      className={cn(
+                        "text-[10px] font-semibold tracking-tight",
+                        !active && "text-muted-foreground/70"
+                      )}
+                      style={{
+                        color: active ? `hsl(var(--${activeItem.color}))` : undefined,
+                        transition: 'color 260ms cubic-bezier(0.4,0,0.2,1)',
+                      }}
+                    >
+                      {item.label}
+                    </span>
                   </motion.div>
-
-                  <span
-                    className={cn(
-                      "text-[10px] font-semibold tracking-tight transition-colors duration-300",
-                      !active && "text-muted-foreground/70"
-                    )}
-                    style={active ? { color: `hsl(var(--${item.color}))` } : undefined}
-                  >
-                    {item.label}
-                  </span>
-
-                  {/* Glow dot */}
-                  <AnimatePresence>
-                    {active && (
-                      <motion.span
-                        initial={{ scale: 0, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        exit={{ scale: 0, opacity: 0 }}
-                        transition={{ type: 'spring', stiffness: 500, damping: 25 }}
-                        className="w-[5px] h-[5px] rounded-full mt-0.5"
-                        style={{
-                          background: `hsl(var(--${item.color}))`,
-                          boxShadow: `0 0 8px 2px hsl(var(--${item.color}) / 0.5)`,
-                        }}
-                      />
-                    )}
-                  </AnimatePresence>
-                </motion.div>
-              </Link>
-            );
-          })}
-        </div>
+                </Link>
+              );
+            })}
+          </div>
+        </LayoutGroup>
       </div>
     </motion.nav>
   );
