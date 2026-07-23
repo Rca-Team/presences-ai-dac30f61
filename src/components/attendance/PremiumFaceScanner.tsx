@@ -219,7 +219,7 @@ const PremiumFaceScanner: React.FC = () => {
 
         const result = await Promise.race([
           recognizeFace(desc),
-          new Promise<null>(resolve => setTimeout(() => resolve(null), 6000)),
+          new Promise<null>(resolve => setTimeout(() => resolve(null), 3500)),
         ]);
         if (!result?.recognized || !result.employee) {
           releaseTrack('unknown');
