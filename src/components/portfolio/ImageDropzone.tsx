@@ -33,10 +33,6 @@ export function ImageDropzone({ value, onChange, label, aspect = 'square', class
         toast({ title: 'Not an image', description: 'Please drop an image file.', variant: 'destructive' });
         return;
       }
-      if (file.size > 8 * 1024 * 1024) {
-        toast({ title: 'Too big', description: 'Max 8 MB per image.', variant: 'destructive' });
-        return;
-      }
       setUploading(true);
       setProgress(10);
       try {
@@ -95,7 +91,7 @@ export function ImageDropzone({ value, onChange, label, aspect = 'square', class
           dragging
             ? 'border-primary bg-primary/10 scale-[1.01]'
             : 'border-border/60 bg-muted/30 hover:border-primary/50 hover:bg-muted/50',
-          'cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+          'cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary relative',
         )}
       >
         {value ? (
@@ -125,7 +121,7 @@ export function ImageDropzone({ value, onChange, label, aspect = 'square', class
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 text-center text-muted-foreground">
             <UploadCloud className="h-6 w-6" />
             <p className="text-xs font-medium">Drop, paste, or click to upload</p>
-            <p className="text-[10px] opacity-70">PNG · JPG · WEBP · max 8MB</p>
+            <p className="text-[10px] opacity-70">PNG · JPG · WEBP · no size limit</p>
           </div>
         )}
 
