@@ -1,54 +1,45 @@
-## Goal
-Make the teacher + timetable system work end-to-end for practical use, including promoting an already-registered student to teacher directly from the **Students** list.
+## Smart AI QR Scanner — Attendance Page
 
-## What I’ll build
-1. **Add “Make Teacher” action in Students list**
-   - Add a new action in `AdminFacesList` row menu.
-   - Open a manual assignment dialog to:
-     - choose class/section
-     - set teacher scope you requested (class teacher assignment, timetable assignment, substitutions, timetable view)
-   - Save assignment in the same data model used by teacher features.
+Upgrade `src/components/attendance/QRCodeScanner.tsx` so students can just flash their QR (phone screen OR printed ID card) at the camera and get marked instantly — from farther away, in low light, and even when several students show QRs at once.
 
-2. **Unify teacher identity and assignment logic (single source of truth)**
-   - Standardize on one teacher identity key across admin + teacher flows (avoid mixed `record_id` vs `user_id` behavior).
-   - Ensure promotion writes all required teacher links so the teacher appears immediately in:
-     - teacher dashboards
-     - timetable assignment pickers
-     - substitution flows
+### What changes for the user
+- **Grab-and-go**: Camera locks onto QR from ~30–80 cm, even small phone screens or printed ID cards.
+- **Multi-QR**: If two or three students show QRs in the same frame, all are queued and marked in sequence.
+- **Low-light aware**: Auto-brightness/contrast boost; torch auto-suggest when the frame is dark.
+- **Rear camera by default** for smart-board/kiosk use, with flip still available.
+- **Big success card + beep**, then keeps scanning automatically — no button taps needed.
 
-3. **Fix timetable data flow for real usage**
-   - Refactor `TimetableManager` so each slot is tied to the actual teacher user assignment used by teacher portal and substitutions.
-   - Keep per-class-section timetable usable even when testing only one class.
-   - Add validation to prevent invalid/empty slot assignment saves.
+### Detection pipeline (technical)
 
-4. **Fix teacher-specific capability behavior**
-   - Ensure the requested teacher capabilities map cleanly in UI + data:
-     - class teacher responsibility
-     - timetable visibility
-     - substitution handling
-   - Remove current mismatches where different screens expect different teacher fields/columns.
+```text
+video frame (60fps preview)
+   ↓  every ~50ms
+downscale to 720w  ─►  BarcodeDetector (native, multi-code)
+   │                      └─ found? → decode all, queue each
+   ↓ if empty
+center-ROI upscale (1.6x) ─► BarcodeDetector / jsQR
+   ↓ if empty (miss streak ≥ 3)
+adaptive: increase contrast + invert pass ─► jsQR
+```
 
-5. **Hardening for practical operation**
-   - Add defensive loading/error handling around role/teacher checks.
-   - Ensure role resolution and teacher route gating are consistent after promotion (no refresh hacks needed).
+- Keep existing 12–15 fps decode cadence; add multi-scale + inverted pass only on miss-streak to save CPU.
+- Use `detector.detect()` array output (native BarcodeDetector already returns multiple) — process every unique QR per frame instead of only the first.
+- Per-student cooldown map (already exists) prevents re-marking; extend TTL to 15 s and key on `user_id || employee_id`.
 
-## Files to update
-- `src/components/admin/AdminFacesList.tsx` (new “Make Teacher” UI/action)
-- `src/components/admin/TimetableManager.tsx` (teacher-slot assignment consistency)
-- `src/hooks/useUserRole.ts` (consistent teacher detection)
-- `src/pages/TeacherPortal.tsx` (assignment read consistency)
-- `src/components/admin/UserAccessManager.tsx` (shared teacher assignment contract)
-- `src/integrations/supabase/types.ts` usage touchpoints where type mismatches currently force inconsistent fields
+### Camera & focus
+- Default `facingMode: 'environment'`.
+- Enable `focusMode: 'continuous'` + `exposureMode: 'continuous'` on stream track when supported (already partial — make it default-on).
+- Ambient-light heuristic: sample average luma every 2 s; if `< 60` show a subtle "Low light — tap ⚡ for torch" hint.
+- Physical ID cards benefit from the same pipeline; the inverted + high-contrast pass specifically improves printed/glossy QR recognition.
 
-## Technical details
-- Existing code currently mixes multiple teacher/timetable contracts across screens:
-  - `TeacherPortal` reads `class_teachers` with `class/section/teacher_id`.
-  - `TimetableManager` assigns teachers from attendance records using record IDs.
-  - role/teacher checks rely on teacher permission records in other screens.
-- I’ll make these flows use one consistent assignment path so promotion from Students list immediately powers timetable + teacher behavior without manual extra steps.
+### UI
+- Keep current premium frame; add:
+  - Multi-target overlay: draw a small check-badge over each detected QR's bounding box (from `detector.detect()` cornerPoints).
+  - Big success card (name + ID + time) that auto-dismisses in 1.2 s, then camera keeps scanning.
+  - Success beep + short vibration (already partly wired).
+- No manual "Start/Stop" needed in autostart mode; controls stay hidden when `hideManualControls`.
 
-## Acceptance criteria
-- From **Admin → Students**, admin can promote a registered student to teacher in one flow.
-- Promoted teacher appears in teacher assignment lists and can be assigned timetable slots.
-- Teacher can open teacher features and see relevant timetable/substitution data.
-- No broken/empty teacher states caused by ID-field mismatches.
+### Files touched
+- `src/components/attendance/QRCodeScanner.tsx` — detection loop, multi-QR handling, adaptive passes, ambient-light hint, success card, default camera.
+
+No backend or schema changes. No other pages affected.
