@@ -64,12 +64,17 @@ const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
   const lastVideoTimeRef = useRef(-1);
   const missStreakRef = useRef(0);
   const nativeDetectorReadyRef = useRef(false);
+  const scanQueueRef = useRef<string[]>([]);
+  const queueSeenRef = useRef<Set<string>>(new Set());
+  const lastLumaCheckRef = useRef(0);
+  const [lowLight, setLowLight] = useState(false);
 
-  // Perf tuning: decode ~12-15 fps is plenty for QR and keeps the UI at 60fps preview.
-  const SCAN_FRAME_INTERVAL_MS = 70;
-  const CENTER_SCAN_RATIO = 0.7;
-  const DUPLICATE_SCAN_COOLDOWN_MS = 10_000;
-  const MAX_SCAN_WIDTH = 640;
+  // Perf tuning: decode ~20 fps decode with a 60fps preview. Cheap on modern devices.
+  const SCAN_FRAME_INTERVAL_MS = 50;
+  const CENTER_SCAN_RATIO = 0.78;
+  const DUPLICATE_SCAN_COOLDOWN_MS = 15_000;
+  const MAX_SCAN_WIDTH = 720;
+  
   
   const containerRef = useRef<HTMLDivElement>(null);
   const [isScanning, setIsScanning] = useState(false);
