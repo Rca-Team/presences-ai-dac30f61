@@ -1270,6 +1270,27 @@ const StudentIDCardGenerator: React.FC<StudentIDCardGeneratorProps> = ({ student
                   <Printer className="w-4 h-4 mr-2" />
                   Print
                 </Button>
+
+                <Button
+                  variant="outline"
+                  onClick={() => exportQRSheet(false)}
+                  disabled={isGenerating || students.length === 0}
+                  title="Download A4 PDF with 6 large QR codes (with ID number) per page"
+                >
+                  <FileText className="w-4 h-4 mr-2" />
+                  QR Sheet ({selectedIds.size > 0 ? selectedIds.size : students.length})
+                </Button>
+
+                <Button
+                  variant="secondary"
+                  onClick={() => exportQRSheet(true)}
+                  disabled={isGenerating || students.length === 0}
+                  title="Print 6 large QR codes per A4 page (QR + ID number only)"
+                >
+                  <Printer className="w-4 h-4 mr-2" />
+                  Print QR Sheet
+                </Button>
+
               </div>
 
               {pdfProgress && (
