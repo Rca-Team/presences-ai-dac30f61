@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import gauravPhoto from '@/assets/gaurav-photo.png';
 import swamiAnantVyasPhoto from '@/assets/swami-anant-vyas.png.asset.json';
+import jatinDhamaPhoto from '@/assets/jatin-dhama.jpg.asset.json';
 
 export const PORTFOLIO_KEY = 'gaurav_portfolio';
 export const PORTFOLIO_BUCKET = 'face-images';
@@ -110,13 +111,17 @@ export const DEFAULT_PORTFOLIO: PortfolioData = {
       id: uid(),
       name: 'Jatin Dhama',
       role: 'Team Member',
-      image: '',
+      image: jatinDhamaPhoto.url,
       bio: 'Contributes to system testing, execution support, and project coordination.',
       details: 'Supports feature QA and collaborative delivery.',
     },
   ],
   socials: { github: '', linkedin: '', twitter: '', instagram: '' },
 };
+
+const DEFAULT_MEMBER_IMAGE_BY_NAME = Object.fromEntries(
+  DEFAULT_PORTFOLIO.members.filter((m) => m.image).map((m) => [m.name, m.image]),
+);
 
 function migrate(raw: any): PortfolioData {
   const base = { ...DEFAULT_PORTFOLIO, ...(raw ?? {}) };
@@ -141,7 +146,7 @@ function migrate(raw: any): PortfolioData {
     role: m.role ?? '',
     bio: m.bio ?? '',
     details: m.details ?? '',
-    image: m.image ?? '',
+    image: m.image || DEFAULT_MEMBER_IMAGE_BY_NAME[m.name] || '',
   }));
   return base as PortfolioData;
 }
