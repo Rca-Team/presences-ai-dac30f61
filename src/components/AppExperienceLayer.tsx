@@ -1,15 +1,31 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Loader2, Sparkles, Wifi, WifiOff } from 'lucide-react';
-import { useLocation } from 'react-router-dom';
+import { Wifi, WifiOff } from 'lucide-react';
 
 const AppExperienceLayer = () => {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [showRestored, setShowRestored] = useState(false);
 
   useEffect(() => {
+    const onOffline = () => {
+      setIsOnline(false);
+      setShowRestored(false);
+    };
+    const onOnline = () => {
+      setIsOnline(true);
+      setShowRestored(true);
+      window.setTimeout(() => setShowRestored(false), 2800);
+    };
+    window.addEventListener('online', onOnline);
+    window.addEventListener('offline', onOffline);
+    return () => {
+      window.removeEventListener('online', onOnline);
+      window.removeEventListener('offline', onOffline);
+    };
+  }, []);
 
-
+  return (
+    <>
       <AnimatePresence>
         {!isOnline && (
           <motion.div
