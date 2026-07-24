@@ -211,6 +211,50 @@ const Profile = () => {
     }
   };
 
+  const sendHelloWorldTest = async () => {
+    if (!user || !formData.parent_phone) {
+      toast({
+        title: "No phone number",
+        description: "Please add a parent phone number in your profile first.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setTestWhatsAppLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('send-whatsapp', {
+        body: {
+          studentId: user.id,
+          textBody: `Hello World! 👋\n\nThis is a test WhatsApp message from Presence.\nIf you received this, your WhatsApp notifications are working correctly.`,
+        }
+      });
+
+      if (error) throw error;
+
+      if (data?.success) {
+        toast({
+          title: "WhatsApp sent ✅",
+          description: `Hello World test delivered. Message ID: ${data.messageId || 'ok'}`
+        });
+      } else {
+        toast({
+          title: "WhatsApp failed",
+          description: data?.error || "Unknown error",
+          variant: "destructive"
+        });
+      }
+    } catch (e: any) {
+      toast({
+        title: "Test failed",
+        description: e.message,
+        variant: "destructive"
+      });
+    } finally {
+      setTestWhatsAppLoading(false);
+    }
+  };
+
   const statsCards = [
     {
       title: 'Attendance',
