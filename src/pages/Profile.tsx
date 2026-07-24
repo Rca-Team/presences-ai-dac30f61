@@ -54,6 +54,7 @@ const Profile = () => {
     parent_phone: ''
   });
   const [testWhatsAppLoading, setTestWhatsAppLoading] = useState(false);
+  const [testPhone, setTestPhone] = useState('');
 
   useEffect(() => {
     fetchUserData();
@@ -212,10 +213,11 @@ const Profile = () => {
   };
 
   const sendHelloWorldTest = async () => {
-    if (!user || !formData.parent_phone) {
+    const phone = testPhone.trim() || formData.parent_phone;
+    if (!phone) {
       toast({
         title: "No phone number",
-        description: "Please add a parent phone number in your profile first.",
+        description: "Enter a phone number below or save a parent phone number in your profile first.",
         variant: "destructive"
       });
       return;
@@ -225,7 +227,7 @@ const Profile = () => {
     try {
       const { data, error } = await supabase.functions.invoke('send-whatsapp', {
         body: {
-          studentId: user.id,
+          phoneNumber: phone,
           textBody: `Hello World! 👋\n\nThis is a test WhatsApp message from Presence.\nIf you received this, your WhatsApp notifications are working correctly.`,
         }
       });
@@ -235,7 +237,7 @@ const Profile = () => {
       if (data?.success) {
         toast({
           title: "WhatsApp sent ✅",
-          description: `Hello World test delivered. Message ID: ${data.messageId || 'ok'}`
+          description: `Hello World test delivered to ${phone}. Message ID: ${data.messageId || 'ok'}`
         });
       } else {
         toast({
@@ -660,7 +662,7 @@ const Profile = () => {
                                 WhatsApp Test
                               </CardTitle>
                               <CardDescription className="mt-1 text-xs sm:text-sm">
-                                Send a Hello World message to your registered parent phone
+                                Send a Hello World message to any WhatsApp number
                               </CardDescription>
                             </div>
                             <Button
@@ -678,11 +680,24 @@ const Profile = () => {
                             </Button>
                           </div>
                         </CardHeader>
-                        <CardContent>
-                          <p className="text-xs sm:text-sm text-muted-foreground">
-                            Uses your saved parent phone number ({formData.parent_phone || "not set"}).
-                            Make sure the number includes the country code (e.g. +91...).
-                          </p>
+                        <CardContent className="space-y-3">
+                          <div>
+                            <Label htmlFor="test-phone" className="text-xs sm:text-sm">
+                              Phone number
+                            </Label>
+                            <Input
+                              id="test-phone"
+                              type="tel"
+                              value={testPhone}
+                              onChange={(e) => setTestPhone(e.target.value)}
+                              placeholder={formData.parent_phone || "+919876543210"}
+                              className="mt-1"
+                            />
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Leave blank to use your saved parent phone ({formData.parent_phone || "not set"}).
+                              Include country code.
+                            </p>
+                          </div>
                         </CardContent>
                       </Card>
                       
