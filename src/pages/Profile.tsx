@@ -647,6 +647,44 @@ const Profile = () => {
                     >
                       {/* Push Notification Settings */}
                       <PushNotificationSettings className="bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl border border-blue-100 dark:border-blue-900/50 shadow-xl" />
+
+                      {/* WhatsApp Test */}
+                      <Card className="bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl border border-blue-100 dark:border-blue-900/50 shadow-xl">
+                        <CardHeader className="pb-4">
+                          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+                            <div>
+                              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center">
+                                  <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                                </div>
+                                WhatsApp Test
+                              </CardTitle>
+                              <CardDescription className="mt-1 text-xs sm:text-sm">
+                                Send a Hello World message to your registered parent phone
+                              </CardDescription>
+                            </div>
+                            <Button
+                              onClick={sendHelloWorldTest}
+                              disabled={testWhatsAppLoading}
+                              size="sm"
+                              className="bg-gradient-to-r from-green-500 to-emerald-500 text-white"
+                            >
+                              {testWhatsAppLoading ? (
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              ) : (
+                                <MessageSquare className="h-4 w-4 mr-2" />
+                              )}
+                              Send Hello World
+                            </Button>
+                          </div>
+                        </CardHeader>
+                        <CardContent>
+                          <p className="text-xs sm:text-sm text-muted-foreground">
+                            Uses your saved parent phone number ({formData.parent_phone || "not set"}).
+                            Make sure the number includes the country code (e.g. +91...).
+                          </p>
+                        </CardContent>
+                      </Card>
                       
                       {/* Notification History */}
                       <Card className="bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl border border-blue-100 dark:border-blue-900/50 shadow-xl">
