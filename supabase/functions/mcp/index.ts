@@ -2,9 +2,6 @@
 // To take ownership, delete this banner line; the plugin then leaves the file alone.
 // supabase function: mcp
 // Bundled from src/lib/mcp/index.ts by @lovable.dev/mcp-js.
-// <define:import.meta.env>
-var define_import_meta_env_default = { MODE: "production", BASE_URL: "/", DEV: false, PROD: true, SSR: false };
-
 // src/lib/mcp/index.ts
 import { auth, defineMcp } from "npm:@lovable.dev/mcp-js@0.20.0";
 
@@ -158,12 +155,12 @@ var list_recent_gate_entries_default = defineTool2({
 
 // src/lib/mcp/index.ts
 var projectRefFromUrl = (() => {
-  const url = define_import_meta_env_default.VITE_SUPABASE_URL;
+  const url = "https://mhiqslfnycfkalfqnkco.supabase.co";
   if (!url) return null;
   const match = url.match(/^https:\/\/([^.]+)\.supabase\.co/i);
   return match?.[1] || null;
 })();
-var projectRef = define_import_meta_env_default.VITE_SUPABASE_PROJECT_ID ?? projectRefFromUrl ?? "eiahucigcvsnuvviajqt";
+var projectRef = "mhiqslfnycfkalfqnkco";
 var mcp_default = defineMcp({
   name: "presences-mcp",
   title: "Presences MCP",
