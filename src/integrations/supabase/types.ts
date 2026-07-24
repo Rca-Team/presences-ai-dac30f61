@@ -14,199 +14,164 @@ export type Database = {
   }
   public: {
     Tables: {
-      attendance_points: {
+      ai_insights: {
         Row: {
-          awarded_at: string
+          content: string | null
           created_at: string
           id: string
-          metadata: Json
-          points: number
-          reason: string | null
-          student_id: string | null
-          updated_at: string
+          insight_type: string | null
+          metadata: Json | null
+          score: number | null
+          title: string | null
           user_id: string | null
         }
         Insert: {
-          awarded_at?: string
+          content?: string | null
           created_at?: string
           id?: string
-          metadata?: Json
-          points?: number
-          reason?: string | null
-          student_id?: string | null
-          updated_at?: string
+          insight_type?: string | null
+          metadata?: Json | null
+          score?: number | null
+          title?: string | null
           user_id?: string | null
         }
         Update: {
-          awarded_at?: string
+          content?: string | null
           created_at?: string
           id?: string
-          metadata?: Json
-          points?: number
+          insight_type?: string | null
+          metadata?: Json | null
+          score?: number | null
+          title?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      attendance_points: {
+        Row: {
+          created_at: string
+          id: string
+          metadata: Json | null
+          points: number | null
+          reason: string | null
+          student_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          points?: number | null
           reason?: string | null
           student_id?: string | null
-          updated_at?: string
-          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          points?: number | null
+          reason?: string | null
+          student_id?: string | null
         }
         Relationships: []
       }
       attendance_predictions: {
         Row: {
-          confidence: number | null
           created_at: string
-          factors: Json | null
           id: string
-          metadata: Json
-          predicted_date: string | null
-          predicted_status: string | null
+          metadata: Json | null
+          notification_sent: boolean | null
+          probability: number | null
+          risk_level: string | null
           student_id: string | null
-          updated_at: string
-          user_id: string | null
         }
         Insert: {
-          confidence?: number | null
           created_at?: string
-          factors?: Json | null
           id?: string
-          metadata?: Json
-          predicted_date?: string | null
-          predicted_status?: string | null
+          metadata?: Json | null
+          notification_sent?: boolean | null
+          probability?: number | null
+          risk_level?: string | null
           student_id?: string | null
-          updated_at?: string
-          user_id?: string | null
         }
         Update: {
-          confidence?: number | null
           created_at?: string
-          factors?: Json | null
           id?: string
-          metadata?: Json
-          predicted_date?: string | null
-          predicted_status?: string | null
+          metadata?: Json | null
+          notification_sent?: boolean | null
+          probability?: number | null
+          risk_level?: string | null
           student_id?: string | null
-          updated_at?: string
-          user_id?: string | null
         }
         Relationships: []
       }
       attendance_records: {
         Row: {
-          capture_mode: string | null
           category: string | null
           class: string | null
+          confidence: number | null
           confidence_score: number | null
           created_at: string
+          date: string
           device_info: Json | null
-          face_descriptor: Json | null
           id: string
           image_url: string | null
-          metadata: Json
-          roll_number: string | null
+          location: string | null
+          metadata: Json | null
+          method: string | null
+          notes: string | null
+          period_key: string | null
           section: string | null
-          source: string | null
           status: string | null
-          student_id: string | null
-          student_name: string | null
+          subject: string | null
           timestamp: string
           updated_at: string
           user_id: string | null
         }
         Insert: {
-          capture_mode?: string | null
           category?: string | null
           class?: string | null
+          confidence?: number | null
           confidence_score?: number | null
           created_at?: string
+          date?: string
           device_info?: Json | null
-          face_descriptor?: Json | null
           id?: string
           image_url?: string | null
-          metadata?: Json
-          roll_number?: string | null
+          location?: string | null
+          metadata?: Json | null
+          method?: string | null
+          notes?: string | null
+          period_key?: string | null
           section?: string | null
-          source?: string | null
           status?: string | null
-          student_id?: string | null
-          student_name?: string | null
+          subject?: string | null
           timestamp?: string
           updated_at?: string
           user_id?: string | null
         }
         Update: {
-          capture_mode?: string | null
           category?: string | null
           class?: string | null
+          confidence?: number | null
           confidence_score?: number | null
           created_at?: string
+          date?: string
           device_info?: Json | null
-          face_descriptor?: Json | null
           id?: string
           image_url?: string | null
-          metadata?: Json
-          roll_number?: string | null
+          location?: string | null
+          metadata?: Json | null
+          method?: string | null
+          notes?: string | null
+          period_key?: string | null
           section?: string | null
-          source?: string | null
           status?: string | null
-          student_id?: string | null
-          student_name?: string | null
+          subject?: string | null
           timestamp?: string
           updated_at?: string
           user_id?: string | null
         }
         Relationships: []
-      }
-      attendance_session_events: {
-        Row: {
-          confidence_score: number | null
-          created_at: string
-          id: string
-          idempotency_key: string
-          metadata: Json
-          recognized_at: string
-          recorded_by: string | null
-          session_id: string
-          source: string
-          status: Database["public"]["Enums"]["attendance_event_status"]
-          student_id: string
-          updated_at: string
-        }
-        Insert: {
-          confidence_score?: number | null
-          created_at?: string
-          id?: string
-          idempotency_key: string
-          metadata?: Json
-          recognized_at?: string
-          recorded_by?: string | null
-          session_id: string
-          source?: string
-          status?: Database["public"]["Enums"]["attendance_event_status"]
-          student_id: string
-          updated_at?: string
-        }
-        Update: {
-          confidence_score?: number | null
-          created_at?: string
-          id?: string
-          idempotency_key?: string
-          metadata?: Json
-          recognized_at?: string
-          recorded_by?: string | null
-          session_id?: string
-          source?: string
-          status?: Database["public"]["Enums"]["attendance_event_status"]
-          student_id?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "attendance_session_events_session_id_fkey"
-            columns: ["session_id"]
-            isOneToOne: false
-            referencedRelation: "class_sessions"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       attendance_settings: {
         Row: {
@@ -232,207 +197,225 @@ export type Database = {
         }
         Relationships: []
       }
+      badges: {
+        Row: {
+          created_at: string
+          criteria: Json | null
+          description: string | null
+          icon: string | null
+          id: string
+          name: string | null
+        }
+        Insert: {
+          created_at?: string
+          criteria?: Json | null
+          description?: string | null
+          icon?: string | null
+          id?: string
+          name?: string | null
+        }
+        Update: {
+          created_at?: string
+          criteria?: Json | null
+          description?: string | null
+          icon?: string | null
+          id?: string
+          name?: string | null
+        }
+        Relationships: []
+      }
+      bus_events: {
+        Row: {
+          bus_id: string | null
+          created_at: string
+          event_type: string | null
+          id: string
+          location: string | null
+          metadata: Json | null
+        }
+        Insert: {
+          bus_id?: string | null
+          created_at?: string
+          event_type?: string | null
+          id?: string
+          location?: string | null
+          metadata?: Json | null
+        }
+        Update: {
+          bus_id?: string | null
+          created_at?: string
+          event_type?: string | null
+          id?: string
+          location?: string | null
+          metadata?: Json | null
+        }
+        Relationships: []
+      }
+      buses: {
+        Row: {
+          bus_number: string | null
+          capacity: number | null
+          created_at: string
+          driver_name: string | null
+          driver_phone: string | null
+          id: string
+          metadata: Json | null
+          route_name: string | null
+        }
+        Insert: {
+          bus_number?: string | null
+          capacity?: number | null
+          created_at?: string
+          driver_name?: string | null
+          driver_phone?: string | null
+          id?: string
+          metadata?: Json | null
+          route_name?: string | null
+        }
+        Update: {
+          bus_number?: string | null
+          capacity?: number | null
+          created_at?: string
+          driver_name?: string | null
+          driver_phone?: string | null
+          id?: string
+          metadata?: Json | null
+          route_name?: string | null
+        }
+        Relationships: []
+      }
+      campus_zones: {
+        Row: {
+          created_at: string
+          id: string
+          metadata: Json | null
+          name: string | null
+          zone_type: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          name?: string | null
+          zone_type?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          name?: string | null
+          zone_type?: string | null
+        }
+        Relationships: []
+      }
+      circulars: {
+        Row: {
+          circular_type: string | null
+          content: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          is_urgent: boolean | null
+          metadata: Json | null
+          sent_at: string | null
+          title: string | null
+        }
+        Insert: {
+          circular_type?: string | null
+          content?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_urgent?: boolean | null
+          metadata?: Json | null
+          sent_at?: string | null
+          title?: string | null
+        }
+        Update: {
+          circular_type?: string | null
+          content?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_urgent?: boolean | null
+          metadata?: Json | null
+          sent_at?: string | null
+          title?: string | null
+        }
+        Relationships: []
+      }
       class_leaderboard: {
         Row: {
           class: string | null
           created_at: string
           id: string
-          metadata: Json
-          rank: number | null
-          score: number
+          metadata: Json | null
+          month_year: string | null
           section: string | null
-          student_id: string | null
-          student_name: string | null
+          total_points: number | null
           updated_at: string
         }
         Insert: {
           class?: string | null
           created_at?: string
           id?: string
-          metadata?: Json
-          rank?: number | null
-          score?: number
+          metadata?: Json | null
+          month_year?: string | null
           section?: string | null
-          student_id?: string | null
-          student_name?: string | null
+          total_points?: number | null
           updated_at?: string
         }
         Update: {
           class?: string | null
           created_at?: string
           id?: string
-          metadata?: Json
-          rank?: number | null
-          score?: number
+          metadata?: Json | null
+          month_year?: string | null
           section?: string | null
-          student_id?: string | null
-          student_name?: string | null
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      class_sessions: {
-        Row: {
-          class: string
-          created_at: string
-          ended_at: string | null
-          id: string
-          is_active: boolean
-          metadata: Json
-          school_day: string
-          section: string
-          started_at: string
-          started_by: string | null
-          subject: string | null
-          updated_at: string
-        }
-        Insert: {
-          class: string
-          created_at?: string
-          ended_at?: string | null
-          id?: string
-          is_active?: boolean
-          metadata?: Json
-          school_day?: string
-          section: string
-          started_at?: string
-          started_by?: string | null
-          subject?: string | null
-          updated_at?: string
-        }
-        Update: {
-          class?: string
-          created_at?: string
-          ended_at?: string | null
-          id?: string
-          is_active?: boolean
-          metadata?: Json
-          school_day?: string
-          section?: string
-          started_at?: string
-          started_by?: string | null
-          subject?: string | null
+          total_points?: number | null
           updated_at?: string
         }
         Relationships: []
       }
       class_teachers: {
         Row: {
-          class: string
+          category: string | null
+          class: string | null
           created_at: string
           id: string
-          metadata: Json
-          section: string
+          metadata: Json | null
+          role: string | null
+          section: string | null
+          teacher_email: string | null
           teacher_id: string | null
           teacher_name: string | null
           updated_at: string
         }
         Insert: {
-          class: string
+          category?: string | null
+          class?: string | null
           created_at?: string
           id?: string
-          metadata?: Json
-          section: string
+          metadata?: Json | null
+          role?: string | null
+          section?: string | null
+          teacher_email?: string | null
           teacher_id?: string | null
           teacher_name?: string | null
           updated_at?: string
         }
         Update: {
-          class?: string
+          category?: string | null
+          class?: string | null
           created_at?: string
           id?: string
-          metadata?: Json
-          section?: string
+          metadata?: Json | null
+          role?: string | null
+          section?: string | null
+          teacher_email?: string | null
           teacher_id?: string | null
           teacher_name?: string | null
           updated_at?: string
-        }
-        Relationships: []
-      }
-      email_send_log: {
-        Row: {
-          created_at: string
-          error_message: string | null
-          id: string
-          message_id: string | null
-          metadata: Json | null
-          recipient_email: string
-          status: string
-          template_name: string
-        }
-        Insert: {
-          created_at?: string
-          error_message?: string | null
-          id?: string
-          message_id?: string | null
-          metadata?: Json | null
-          recipient_email: string
-          status: string
-          template_name: string
-        }
-        Update: {
-          created_at?: string
-          error_message?: string | null
-          id?: string
-          message_id?: string | null
-          metadata?: Json | null
-          recipient_email?: string
-          status?: string
-          template_name?: string
-        }
-        Relationships: []
-      }
-      email_send_state: {
-        Row: {
-          auth_email_ttl_minutes: number
-          batch_size: number
-          id: number
-          retry_after_until: string | null
-          send_delay_ms: number
-          transactional_email_ttl_minutes: number
-          updated_at: string
-        }
-        Insert: {
-          auth_email_ttl_minutes?: number
-          batch_size?: number
-          id?: number
-          retry_after_until?: string | null
-          send_delay_ms?: number
-          transactional_email_ttl_minutes?: number
-          updated_at?: string
-        }
-        Update: {
-          auth_email_ttl_minutes?: number
-          batch_size?: number
-          id?: number
-          retry_after_until?: string | null
-          send_delay_ms?: number
-          transactional_email_ttl_minutes?: number
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      email_unsubscribe_tokens: {
-        Row: {
-          created_at: string
-          email: string
-          id: string
-          token: string
-          used_at: string | null
-        }
-        Insert: {
-          created_at?: string
-          email: string
-          id?: string
-          token: string
-          used_at?: string | null
-        }
-        Update: {
-          created_at?: string
-          email?: string
-          id?: string
-          token?: string
-          used_at?: string | null
         }
         Relationships: []
       }
@@ -440,45 +423,36 @@ export type Database = {
         Row: {
           created_at: string
           description: string | null
-          event_type: string
+          event_type: string | null
           id: string
-          metadata: Json
-          resolved_at: string | null
-          resolved_by: string | null
+          metadata: Json | null
           severity: string | null
           status: string | null
           title: string | null
-          triggered_at: string
           triggered_by: string | null
           updated_at: string
         }
         Insert: {
           created_at?: string
           description?: string | null
-          event_type: string
+          event_type?: string | null
           id?: string
-          metadata?: Json
-          resolved_at?: string | null
-          resolved_by?: string | null
+          metadata?: Json | null
           severity?: string | null
           status?: string | null
           title?: string | null
-          triggered_at?: string
           triggered_by?: string | null
           updated_at?: string
         }
         Update: {
           created_at?: string
           description?: string | null
-          event_type?: string
+          event_type?: string | null
           id?: string
-          metadata?: Json
-          resolved_at?: string | null
-          resolved_by?: string | null
+          metadata?: Json | null
           severity?: string | null
           status?: string | null
           title?: string | null
-          triggered_at?: string
           triggered_by?: string | null
           updated_at?: string
         }
@@ -486,95 +460,62 @@ export type Database = {
       }
       emotion_events: {
         Row: {
-          arousal_score: number | null
-          captured_at: string
-          confidence_score: number | null
+          confidence: number | null
           created_at: string
-          emotion_label: string
+          emotion: string | null
           id: string
-          metadata: Json
-          source: string
-          student_id: string | null
-          updated_at: string
+          metadata: Json | null
           user_id: string | null
-          valence_score: number | null
         }
         Insert: {
-          arousal_score?: number | null
-          captured_at?: string
-          confidence_score?: number | null
+          confidence?: number | null
           created_at?: string
-          emotion_label: string
+          emotion?: string | null
           id?: string
-          metadata?: Json
-          source?: string
-          student_id?: string | null
-          updated_at?: string
+          metadata?: Json | null
           user_id?: string | null
-          valence_score?: number | null
         }
         Update: {
-          arousal_score?: number | null
-          captured_at?: string
-          confidence_score?: number | null
+          confidence?: number | null
           created_at?: string
-          emotion_label?: string
+          emotion?: string | null
           id?: string
-          metadata?: Json
-          source?: string
-          student_id?: string | null
-          updated_at?: string
+          metadata?: Json | null
           user_id?: string | null
-          valence_score?: number | null
         }
         Relationships: []
       }
       face_descriptors: {
         Row: {
-          class: string | null
           created_at: string
           descriptor: Json | null
+          descriptors: Json | null
           id: string
           image_url: string | null
-          is_active: boolean
-          label: string | null
-          metadata: Json
-          quality_score: number | null
-          section: string | null
-          student_id: string | null
-          student_name: string | null
+          metadata: Json | null
+          quality: number | null
           updated_at: string
           user_id: string | null
         }
         Insert: {
-          class?: string | null
           created_at?: string
           descriptor?: Json | null
+          descriptors?: Json | null
           id?: string
           image_url?: string | null
-          is_active?: boolean
-          label?: string | null
-          metadata?: Json
-          quality_score?: number | null
-          section?: string | null
-          student_id?: string | null
-          student_name?: string | null
+          metadata?: Json | null
+          quality?: number | null
           updated_at?: string
           user_id?: string | null
         }
         Update: {
-          class?: string | null
           created_at?: string
           descriptor?: Json | null
+          descriptors?: Json | null
           id?: string
           image_url?: string | null
-          is_active?: boolean
-          label?: string | null
-          metadata?: Json
-          quality_score?: number | null
-          section?: string | null
-          student_id?: string | null
-          student_name?: string | null
+          metadata?: Json | null
+          quality?: number | null
           updated_at?: string
           user_id?: string | null
         }
@@ -585,58 +526,46 @@ export type Database = {
           class: string | null
           confidence_score: number | null
           created_at: string
-          device_info: Json | null
           entry_time: string
-          exit_time: string | null
           gate_name: string | null
           gate_session_id: string | null
           id: string
-          is_recognized: boolean
-          metadata: Json
+          is_recognized: boolean | null
+          metadata: Json | null
           section: string | null
           snapshot_url: string | null
           student_id: string | null
           student_name: string | null
-          updated_at: string
-          user_id: string | null
         }
         Insert: {
           class?: string | null
           confidence_score?: number | null
           created_at?: string
-          device_info?: Json | null
           entry_time?: string
-          exit_time?: string | null
           gate_name?: string | null
           gate_session_id?: string | null
           id?: string
-          is_recognized?: boolean
-          metadata?: Json
+          is_recognized?: boolean | null
+          metadata?: Json | null
           section?: string | null
           snapshot_url?: string | null
           student_id?: string | null
           student_name?: string | null
-          updated_at?: string
-          user_id?: string | null
         }
         Update: {
           class?: string | null
           confidence_score?: number | null
           created_at?: string
-          device_info?: Json | null
           entry_time?: string
-          exit_time?: string | null
           gate_name?: string | null
           gate_session_id?: string | null
           id?: string
-          is_recognized?: boolean
-          metadata?: Json
+          is_recognized?: boolean | null
+          metadata?: Json | null
           section?: string | null
           snapshot_url?: string | null
           student_id?: string | null
           student_name?: string | null
-          updated_at?: string
-          user_id?: string | null
         }
         Relationships: []
       }
@@ -645,85 +574,296 @@ export type Database = {
           created_at: string
           device_info: Json | null
           ended_at: string | null
-          gate_name: string
+          gate_name: string | null
           id: string
-          metadata: Json
-          started_at: string
+          metadata: Json | null
           started_by: string | null
-          total_entries: number
-          unknown_entries: number
           updated_at: string
         }
         Insert: {
           created_at?: string
           device_info?: Json | null
           ended_at?: string | null
-          gate_name: string
+          gate_name?: string | null
           id?: string
-          metadata?: Json
-          started_at?: string
+          metadata?: Json | null
           started_by?: string | null
-          total_entries?: number
-          unknown_entries?: number
           updated_at?: string
         }
         Update: {
           created_at?: string
           device_info?: Json | null
           ended_at?: string | null
-          gate_name?: string
+          gate_name?: string | null
           id?: string
-          metadata?: Json
-          started_at?: string
+          metadata?: Json | null
           started_by?: string | null
-          total_entries?: number
-          unknown_entries?: number
           updated_at?: string
         }
         Relationships: []
       }
+      gv_camera_zones: {
+        Row: {
+          camera_id: string
+          created_at: string
+          id: string
+          polygon: Json
+          zone_key: string
+        }
+        Insert: {
+          camera_id: string
+          created_at?: string
+          id?: string
+          polygon?: Json
+          zone_key: string
+        }
+        Update: {
+          camera_id?: string
+          created_at?: string
+          id?: string
+          polygon?: Json
+          zone_key?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gv_camera_zones_camera_id_fkey"
+            columns: ["camera_id"]
+            isOneToOne: false
+            referencedRelation: "gv_cameras"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gv_cameras: {
+        Row: {
+          bridge_token_hash: string | null
+          class_key: string | null
+          created_at: string
+          id: string
+          last_seen_at: string | null
+          location_kind: string
+          name: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          bridge_token_hash?: string | null
+          class_key?: string | null
+          created_at?: string
+          id?: string
+          last_seen_at?: string | null
+          location_kind?: string
+          name: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          bridge_token_hash?: string | null
+          class_key?: string | null
+          created_at?: string
+          id?: string
+          last_seen_at?: string | null
+          location_kind?: string
+          name?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      gv_class_sessions: {
+        Row: {
+          class_key: string
+          created_at: string
+          day_key: string
+          id: string
+          meta: Json | null
+          period_key: string
+          student_count_peak: number
+          students_left_after: number
+          students_left_during: number
+          teacher_confirmed: boolean
+          teacher_entered_at: string | null
+          teacher_exited_at: string | null
+          teacher_scheduled: string | null
+          updated_at: string
+        }
+        Insert: {
+          class_key: string
+          created_at?: string
+          day_key?: string
+          id?: string
+          meta?: Json | null
+          period_key: string
+          student_count_peak?: number
+          students_left_after?: number
+          students_left_during?: number
+          teacher_confirmed?: boolean
+          teacher_entered_at?: string | null
+          teacher_exited_at?: string | null
+          teacher_scheduled?: string | null
+          updated_at?: string
+        }
+        Update: {
+          class_key?: string
+          created_at?: string
+          day_key?: string
+          id?: string
+          meta?: Json | null
+          period_key?: string
+          student_count_peak?: number
+          students_left_after?: number
+          students_left_during?: number
+          teacher_confirmed?: boolean
+          teacher_entered_at?: string | null
+          teacher_exited_at?: string | null
+          teacher_scheduled?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      gv_events: {
+        Row: {
+          camera_id: string
+          class_key: string | null
+          event_type: string
+          id: string
+          meta: Json | null
+          occurred_at: string
+          period_key: string | null
+          subject_id: string | null
+          subject_name: string | null
+          subject_type: string
+          track_id: string | null
+          zone: string | null
+        }
+        Insert: {
+          camera_id: string
+          class_key?: string | null
+          event_type: string
+          id?: string
+          meta?: Json | null
+          occurred_at?: string
+          period_key?: string | null
+          subject_id?: string | null
+          subject_name?: string | null
+          subject_type?: string
+          track_id?: string | null
+          zone?: string | null
+        }
+        Update: {
+          camera_id?: string
+          class_key?: string | null
+          event_type?: string
+          id?: string
+          meta?: Json | null
+          occurred_at?: string
+          period_key?: string | null
+          subject_id?: string | null
+          subject_name?: string | null
+          subject_type?: string
+          track_id?: string | null
+          zone?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gv_events_camera_id_fkey"
+            columns: ["camera_id"]
+            isOneToOne: false
+            referencedRelation: "gv_cameras"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gv_events_track_id_fkey"
+            columns: ["track_id"]
+            isOneToOne: false
+            referencedRelation: "gv_tracks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gv_tracks: {
+        Row: {
+          appearance_sig: Json | null
+          camera_id: string
+          confidence: number | null
+          day_key: string
+          ended_at: string | null
+          id: string
+          last_zone: string | null
+          local_track_id: string
+          started_at: string
+          subject_id: string | null
+          subject_name: string | null
+          subject_type: string
+        }
+        Insert: {
+          appearance_sig?: Json | null
+          camera_id: string
+          confidence?: number | null
+          day_key?: string
+          ended_at?: string | null
+          id?: string
+          last_zone?: string | null
+          local_track_id: string
+          started_at?: string
+          subject_id?: string | null
+          subject_name?: string | null
+          subject_type?: string
+        }
+        Update: {
+          appearance_sig?: Json | null
+          camera_id?: string
+          confidence?: number | null
+          day_key?: string
+          ended_at?: string | null
+          id?: string
+          last_zone?: string | null
+          local_track_id?: string
+          started_at?: string
+          subject_id?: string | null
+          subject_name?: string | null
+          subject_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gv_tracks_camera_id_fkey"
+            columns: ["camera_id"]
+            isOneToOne: false
+            referencedRelation: "gv_cameras"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       late_entries: {
         Row: {
-          approved_by: string | null
-          class: string | null
           created_at: string
           entry_time: string
           id: string
-          metadata: Json
+          metadata: Json | null
           reason: string | null
-          section: string | null
+          reason_detail: string | null
           student_id: string | null
           student_name: string | null
-          updated_at: string
-          user_id: string | null
         }
         Insert: {
-          approved_by?: string | null
-          class?: string | null
           created_at?: string
           entry_time?: string
           id?: string
-          metadata?: Json
+          metadata?: Json | null
           reason?: string | null
-          section?: string | null
+          reason_detail?: string | null
           student_id?: string | null
           student_name?: string | null
-          updated_at?: string
-          user_id?: string | null
         }
         Update: {
-          approved_by?: string | null
-          class?: string | null
           created_at?: string
           entry_time?: string
           id?: string
-          metadata?: Json
+          metadata?: Json | null
           reason?: string | null
-          section?: string | null
+          reason_detail?: string | null
           student_id?: string | null
           student_name?: string | null
-          updated_at?: string
-          user_id?: string | null
         }
         Relationships: []
       }
@@ -731,37 +871,34 @@ export type Database = {
         Row: {
           channel: string | null
           created_at: string
-          event_type: string | null
           id: string
-          metadata: Json
-          payload: Json | null
-          sent_at: string | null
+          message: string | null
+          metadata: Json | null
+          recipient: string | null
           status: string | null
-          updated_at: string
+          subject: string | null
           user_id: string | null
         }
         Insert: {
           channel?: string | null
           created_at?: string
-          event_type?: string | null
           id?: string
-          metadata?: Json
-          payload?: Json | null
-          sent_at?: string | null
+          message?: string | null
+          metadata?: Json | null
+          recipient?: string | null
           status?: string | null
-          updated_at?: string
+          subject?: string | null
           user_id?: string | null
         }
         Update: {
           channel?: string | null
           created_at?: string
-          event_type?: string | null
           id?: string
-          metadata?: Json
-          payload?: Json | null
-          sent_at?: string | null
+          message?: string | null
+          metadata?: Json | null
+          recipient?: string | null
           status?: string | null
-          updated_at?: string
+          subject?: string | null
           user_id?: string | null
         }
         Relationships: []
@@ -770,261 +907,294 @@ export type Database = {
         Row: {
           created_at: string
           id: string
-          is_read: boolean
+          is_read: boolean | null
           message: string | null
-          metadata: Json
-          read_at: string | null
+          metadata: Json | null
           title: string | null
           type: string | null
-          updated_at: string
           user_id: string | null
         }
         Insert: {
           created_at?: string
           id?: string
-          is_read?: boolean
+          is_read?: boolean | null
           message?: string | null
-          metadata?: Json
-          read_at?: string | null
+          metadata?: Json | null
           title?: string | null
           type?: string | null
-          updated_at?: string
           user_id?: string | null
         }
         Update: {
           created_at?: string
           id?: string
-          is_read?: boolean
+          is_read?: boolean | null
           message?: string | null
-          metadata?: Json
-          read_at?: string | null
+          metadata?: Json | null
           title?: string | null
           type?: string | null
-          updated_at?: string
           user_id?: string | null
         }
         Relationships: []
       }
       period_timings: {
         Row: {
-          class: string | null
+          category: string | null
           created_at: string
-          end_time: string
+          end_time: string | null
           id: string
-          metadata: Json
-          period_name: string
-          section: string | null
-          start_time: string
+          metadata: Json | null
+          period_key: string | null
+          period_name: string | null
+          period_number: number | null
+          start_time: string | null
           updated_at: string
         }
         Insert: {
-          class?: string | null
+          category?: string | null
           created_at?: string
-          end_time: string
+          end_time?: string | null
           id?: string
-          metadata?: Json
-          period_name: string
-          section?: string | null
-          start_time: string
+          metadata?: Json | null
+          period_key?: string | null
+          period_name?: string | null
+          period_number?: number | null
+          start_time?: string | null
           updated_at?: string
         }
         Update: {
-          class?: string | null
+          category?: string | null
           created_at?: string
-          end_time?: string
+          end_time?: string | null
           id?: string
-          metadata?: Json
-          period_name?: string
-          section?: string | null
-          start_time?: string
+          metadata?: Json | null
+          period_key?: string | null
+          period_name?: string | null
+          period_number?: number | null
+          start_time?: string | null
           updated_at?: string
         }
         Relationships: []
       }
       profiles: {
         Row: {
+          address: string | null
+          admission_number: string | null
           avatar_url: string | null
+          blood_group: string | null
+          bus_route: string | null
+          category: string | null
           class: string | null
           created_at: string
+          date_of_birth: string | null
           display_name: string | null
           email: string | null
+          employee_id: string | null
+          father_name: string | null
           full_name: string | null
+          gender: string | null
+          house: string | null
           id: string
-          metadata: Json
+          metadata: Json | null
+          mother_name: string | null
           parent_email: string | null
           parent_name: string | null
+          parent_phone: string | null
           phone: string | null
+          photo_url: string | null
           role: string | null
+          roll_number: string | null
           section: string | null
           updated_at: string
-          user_id: string
-          username: string | null
+          user_id: string | null
         }
         Insert: {
+          address?: string | null
+          admission_number?: string | null
           avatar_url?: string | null
+          blood_group?: string | null
+          bus_route?: string | null
+          category?: string | null
           class?: string | null
           created_at?: string
+          date_of_birth?: string | null
           display_name?: string | null
           email?: string | null
+          employee_id?: string | null
+          father_name?: string | null
           full_name?: string | null
+          gender?: string | null
+          house?: string | null
           id?: string
-          metadata?: Json
+          metadata?: Json | null
+          mother_name?: string | null
           parent_email?: string | null
           parent_name?: string | null
+          parent_phone?: string | null
           phone?: string | null
+          photo_url?: string | null
           role?: string | null
+          roll_number?: string | null
           section?: string | null
           updated_at?: string
-          user_id: string
-          username?: string | null
+          user_id?: string | null
         }
         Update: {
+          address?: string | null
+          admission_number?: string | null
           avatar_url?: string | null
+          blood_group?: string | null
+          bus_route?: string | null
+          category?: string | null
           class?: string | null
           created_at?: string
+          date_of_birth?: string | null
           display_name?: string | null
           email?: string | null
+          employee_id?: string | null
+          father_name?: string | null
           full_name?: string | null
+          gender?: string | null
+          house?: string | null
           id?: string
-          metadata?: Json
+          metadata?: Json | null
+          mother_name?: string | null
           parent_email?: string | null
           parent_name?: string | null
+          parent_phone?: string | null
           phone?: string | null
+          photo_url?: string | null
           role?: string | null
+          roll_number?: string | null
           section?: string | null
           updated_at?: string
-          user_id?: string
-          username?: string | null
-        }
-        Relationships: []
-      }
-      push_subscriptions: {
-        Row: {
-          created_at: string
-          endpoint: string
-          id: string
-          keys_auth: string
-          keys_p256dh: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          endpoint: string
-          id?: string
-          keys_auth: string
-          keys_p256dh: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          endpoint?: string
-          id?: string
-          keys_auth?: string
-          keys_p256dh?: string
-          updated_at?: string
-          user_id?: string
+          user_id?: string | null
         }
         Relationships: []
       }
       school_gates: {
         Row: {
           created_at: string
-          gate_type: string
+          detection_box: Json | null
+          gate_type: string | null
           id: string
-          is_active: boolean
-          metadata: Json
-          name: string
+          is_active: boolean | null
+          metadata: Json | null
+          name: string | null
           updated_at: string
         }
         Insert: {
           created_at?: string
-          gate_type?: string
+          detection_box?: Json | null
+          gate_type?: string | null
           id?: string
-          is_active?: boolean
-          metadata?: Json
-          name: string
+          is_active?: boolean | null
+          metadata?: Json | null
+          name?: string | null
           updated_at?: string
         }
         Update: {
           created_at?: string
-          gate_type?: string
+          detection_box?: Json | null
+          gate_type?: string | null
           id?: string
-          is_active?: boolean
-          metadata?: Json
-          name?: string
+          is_active?: boolean | null
+          metadata?: Json | null
+          name?: string | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      school_holidays: {
+        Row: {
+          created_at: string
+          holiday_date: string | null
+          holiday_type: string | null
+          id: string
+          metadata: Json | null
+          name: string | null
+          name_hindi: string | null
+        }
+        Insert: {
+          created_at?: string
+          holiday_date?: string | null
+          holiday_type?: string | null
+          id?: string
+          metadata?: Json | null
+          name?: string | null
+          name_hindi?: string | null
+        }
+        Update: {
+          created_at?: string
+          holiday_date?: string | null
+          holiday_type?: string | null
+          id?: string
+          metadata?: Json | null
+          name?: string | null
+          name_hindi?: string | null
         }
         Relationships: []
       }
       student_badges: {
         Row: {
-          awarded_at: string
-          badge_name: string | null
-          badge_type: string | null
+          badge_id: string | null
           created_at: string
           id: string
-          metadata: Json
+          month_year: string | null
           student_id: string | null
-          updated_at: string
-          user_id: string | null
         }
         Insert: {
-          awarded_at?: string
-          badge_name?: string | null
-          badge_type?: string | null
+          badge_id?: string | null
           created_at?: string
           id?: string
-          metadata?: Json
+          month_year?: string | null
           student_id?: string | null
-          updated_at?: string
-          user_id?: string | null
         }
         Update: {
-          awarded_at?: string
-          badge_name?: string | null
-          badge_type?: string | null
+          badge_id?: string | null
           created_at?: string
           id?: string
-          metadata?: Json
+          month_year?: string | null
           student_id?: string | null
-          updated_at?: string
-          user_id?: string | null
         }
         Relationships: []
       }
       subjects: {
         Row: {
+          category: string | null
           class: string | null
-          code: string | null
+          color: string | null
           created_at: string
           id: string
-          metadata: Json
+          metadata: Json | null
           name: string
           section: string | null
+          short_name: string | null
           teacher_id: string | null
           updated_at: string
         }
         Insert: {
+          category?: string | null
           class?: string | null
-          code?: string | null
+          color?: string | null
           created_at?: string
           id?: string
-          metadata?: Json
+          metadata?: Json | null
           name: string
           section?: string | null
+          short_name?: string | null
           teacher_id?: string | null
           updated_at?: string
         }
         Update: {
+          category?: string | null
           class?: string | null
-          code?: string | null
+          color?: string | null
           created_at?: string
           id?: string
-          metadata?: Json
+          metadata?: Json | null
           name?: string
           section?: string | null
+          short_name?: string | null
           teacher_id?: string | null
           updated_at?: string
         }
@@ -1034,11 +1204,12 @@ export type Database = {
         Row: {
           class: string | null
           created_at: string
-          date: string
+          date: string | null
           id: string
-          metadata: Json
-          notes: string | null
+          metadata: Json | null
           original_teacher_id: string | null
+          period_key: string | null
+          reason: string | null
           section: string | null
           status: string | null
           subject: string | null
@@ -1048,11 +1219,12 @@ export type Database = {
         Insert: {
           class?: string | null
           created_at?: string
-          date?: string
+          date?: string | null
           id?: string
-          metadata?: Json
-          notes?: string | null
+          metadata?: Json | null
           original_teacher_id?: string | null
+          period_key?: string | null
+          reason?: string | null
           section?: string | null
           status?: string | null
           subject?: string | null
@@ -1062,11 +1234,12 @@ export type Database = {
         Update: {
           class?: string | null
           created_at?: string
-          date?: string
+          date?: string | null
           id?: string
-          metadata?: Json
-          notes?: string | null
+          metadata?: Json | null
           original_teacher_id?: string | null
+          period_key?: string | null
+          reason?: string | null
           section?: string | null
           status?: string | null
           subject?: string | null
@@ -1075,150 +1248,222 @@ export type Database = {
         }
         Relationships: []
       }
-      suppressed_emails: {
+      teacher_permissions: {
         Row: {
+          can_edit_timetable: boolean | null
+          can_export_reports: boolean | null
+          can_take_attendance: boolean | null
+          category: string | null
+          class: string | null
           created_at: string
-          email: string
           id: string
           metadata: Json | null
-          reason: string
+          section: string | null
+          teacher_id: string | null
+          user_id: string | null
         }
         Insert: {
+          can_edit_timetable?: boolean | null
+          can_export_reports?: boolean | null
+          can_take_attendance?: boolean | null
+          category?: string | null
+          class?: string | null
           created_at?: string
-          email: string
           id?: string
           metadata?: Json | null
-          reason: string
+          section?: string | null
+          teacher_id?: string | null
+          user_id?: string | null
         }
         Update: {
+          can_edit_timetable?: boolean | null
+          can_export_reports?: boolean | null
+          can_take_attendance?: boolean | null
+          category?: string | null
+          class?: string | null
           created_at?: string
-          email?: string
           id?: string
           metadata?: Json | null
-          reason?: string
+          section?: string | null
+          teacher_id?: string | null
+          user_id?: string | null
         }
         Relationships: []
       }
-      teacher_permissions: {
+      timetable: {
         Row: {
+          category: string | null
+          class: string | null
           created_at: string
+          day_key: string | null
+          day_of_week: string | null
+          end_time: string | null
           id: string
-          is_enabled: boolean
-          metadata: Json
-          permission_key: string
-          teacher_id: string
+          metadata: Json | null
+          period_key: string | null
+          period_number: number | null
+          room: string | null
+          section: string | null
+          start_time: string | null
+          subject: string | null
+          subject_id: string | null
+          teacher_id: string | null
+          teacher_name: string | null
           updated_at: string
         }
         Insert: {
+          category?: string | null
+          class?: string | null
           created_at?: string
+          day_key?: string | null
+          day_of_week?: string | null
+          end_time?: string | null
           id?: string
-          is_enabled?: boolean
-          metadata?: Json
-          permission_key: string
-          teacher_id: string
+          metadata?: Json | null
+          period_key?: string | null
+          period_number?: number | null
+          room?: string | null
+          section?: string | null
+          start_time?: string | null
+          subject?: string | null
+          subject_id?: string | null
+          teacher_id?: string | null
+          teacher_name?: string | null
           updated_at?: string
         }
         Update: {
+          category?: string | null
+          class?: string | null
           created_at?: string
+          day_key?: string | null
+          day_of_week?: string | null
+          end_time?: string | null
           id?: string
-          is_enabled?: boolean
-          metadata?: Json
-          permission_key?: string
-          teacher_id?: string
+          metadata?: Json | null
+          period_key?: string | null
+          period_number?: number | null
+          room?: string | null
+          section?: string | null
+          start_time?: string | null
+          subject?: string | null
+          subject_id?: string | null
+          teacher_id?: string | null
+          teacher_name?: string | null
           updated_at?: string
         }
         Relationships: []
       }
       user_roles: {
         Row: {
+          created_at: string
           id: string
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Insert: {
+          created_at?: string
           id?: string
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Update: {
+          created_at?: string
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
         }
         Relationships: []
       }
+      visitors: {
+        Row: {
+          check_in_time: string | null
+          check_out_time: string | null
+          created_at: string
+          host_name: string | null
+          id: string
+          metadata: Json | null
+          name: string | null
+          phone: string | null
+          photo_url: string | null
+          purpose: string | null
+        }
+        Insert: {
+          check_in_time?: string | null
+          check_out_time?: string | null
+          created_at?: string
+          host_name?: string | null
+          id?: string
+          metadata?: Json | null
+          name?: string | null
+          phone?: string | null
+          photo_url?: string | null
+          purpose?: string | null
+        }
+        Update: {
+          check_in_time?: string | null
+          check_out_time?: string | null
+          created_at?: string
+          host_name?: string | null
+          id?: string
+          metadata?: Json | null
+          name?: string | null
+          phone?: string | null
+          photo_url?: string | null
+          purpose?: string | null
+        }
+        Relationships: []
+      }
       wellness_scores: {
         Row: {
           created_at: string
+          factors: Json | null
           id: string
-          measured_at: string
-          metadata: Json
-          mood: string | null
+          metadata: Json | null
           score: number | null
           student_id: string | null
-          updated_at: string
-          user_id: string | null
         }
         Insert: {
           created_at?: string
+          factors?: Json | null
           id?: string
-          measured_at?: string
-          metadata?: Json
-          mood?: string | null
+          metadata?: Json | null
           score?: number | null
           student_id?: string | null
-          updated_at?: string
-          user_id?: string | null
         }
         Update: {
           created_at?: string
+          factors?: Json | null
           id?: string
-          measured_at?: string
-          metadata?: Json
-          mood?: string | null
+          metadata?: Json | null
           score?: number | null
           student_id?: string | null
-          updated_at?: string
-          user_id?: string | null
         }
         Relationships: []
       }
       zone_entries: {
         Row: {
-          action: string | null
           created_at: string
+          entry_type: string | null
           id: string
-          metadata: Json
-          occurred_at: string
-          student_id: string | null
-          student_name: string | null
-          updated_at: string
+          metadata: Json | null
           user_id: string | null
-          zone_name: string | null
+          zone_id: string | null
         }
         Insert: {
-          action?: string | null
           created_at?: string
+          entry_type?: string | null
           id?: string
-          metadata?: Json
-          occurred_at?: string
-          student_id?: string | null
-          student_name?: string | null
-          updated_at?: string
+          metadata?: Json | null
           user_id?: string | null
-          zone_name?: string | null
+          zone_id?: string | null
         }
         Update: {
-          action?: string | null
           created_at?: string
+          entry_type?: string | null
           id?: string
-          metadata?: Json
-          occurred_at?: string
-          student_id?: string | null
-          student_name?: string | null
-          updated_at?: string
+          metadata?: Json | null
           user_id?: string | null
-          zone_name?: string | null
+          zone_id?: string | null
         }
         Relationships: []
       }
@@ -1227,89 +1472,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      delete_email: {
-        Args: { message_id: number; queue_name: string }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
         Returns: boolean
-      }
-      enqueue_email: {
-        Args: { payload: Json; queue_name: string }
-        Returns: number
-      }
-      get_all_auth_users: {
-        Args: never
-        Returns: {
-          created_at: string
-          email: string
-          last_sign_in_at: string
-          user_id: string
-        }[]
-      }
-      list_public_tables: {
-        Args: never
-        Returns: {
-          table_name: string
-        }[]
-      }
-      move_to_dlq: {
-        Args: {
-          dlq_name: string
-          message_id: number
-          payload: Json
-          source_queue: string
-        }
-        Returns: number
-      }
-      read_email_batch: {
-        Args: { batch_size: number; queue_name: string; vt: number }
-        Returns: {
-          message: Json
-          msg_id: number
-          read_ct: number
-        }[]
-      }
-      upsert_class_attendance_event: {
-        Args: {
-          p_confidence_score?: number
-          p_idempotency_key?: string
-          p_metadata?: Json
-          p_session_id: string
-          p_source?: string
-          p_status: Database["public"]["Enums"]["attendance_event_status"]
-          p_student_id: string
-        }
-        Returns: {
-          confidence_score: number | null
-          created_at: string
-          id: string
-          idempotency_key: string
-          metadata: Json
-          recognized_at: string
-          recorded_by: string | null
-          session_id: string
-          source: string
-          status: Database["public"]["Enums"]["attendance_event_status"]
-          student_id: string
-          updated_at: string
-        }
-        SetofOptions: {
-          from: "*"
-          to: "attendance_session_events"
-          isOneToOne: true
-          isSetofReturn: false
-        }
       }
     }
     Enums: {
-      app_role: "admin" | "principal" | "teacher" | "user" | "parent"
-      attendance_event_status:
-        | "detected"
-        | "verified"
-        | "corrected"
-        | "present"
-        | "late"
-        | "absent"
-        | "excused"
-        | "unauthorized"
+      app_role: "admin" | "principal" | "teacher" | "user" | "staff" | "parent"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1437,17 +1609,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "principal", "teacher", "user", "parent"],
-      attendance_event_status: [
-        "detected",
-        "verified",
-        "corrected",
-        "present",
-        "late",
-        "absent",
-        "excused",
-        "unauthorized",
-      ],
+      app_role: ["admin", "principal", "teacher", "user", "staff", "parent"],
     },
   },
 } as const
