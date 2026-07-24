@@ -27,7 +27,7 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
   };
 }
 
-export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   global: { fetch: createSupabaseFetch(SUPABASE_PUBLISHABLE_KEY) },
   auth: {
     storage: typeof window !== 'undefined' ? localStorage : undefined,
