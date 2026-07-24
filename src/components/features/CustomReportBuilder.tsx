@@ -21,7 +21,7 @@ import {
   Save,
   Trash2
 } from 'lucide-react';
-import { supabase } from '@/lib/db';
+import { supabase } from '@/integrations/supabase/client';
 import { format, subDays } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import {

@@ -6,7 +6,7 @@ import Scan3DCapture from '@/components/register/Scan3DCapture';
 import { loadRegistrationModels } from '@/services/face-recognition/OptimizedRegistrationService';
 import { uploadFaceImage } from '@/services/face-recognition/RegistrationService';
 import { storeFaceSample } from '@/services/face-recognition/ProgressiveTrainingService';
-import { supabase } from '@/lib/db';
+import { supabase } from '@/integrations/supabase/client';
 import { descriptorToString } from '@/services/face-recognition/ModelService';
 import { Sparkles, Loader2, ScanFace } from 'lucide-react';
 

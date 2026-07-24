@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/lib/db';
+import { supabase } from '@/integrations/supabase/client';
 import { Search, User, UserCheck, UserX, Calendar, MoreVertical, Phone, Filter, ArrowUpDown, Clock, CheckCircle2, XCircle, SortAsc, SortDesc, Trash2, BellRing, X, BrainCircuit } from 'lucide-react';
 import NotificationService from './NotificationService';
 import ExistingUserContactPopup from './ExistingUserContactPopup';
@@ -254,7 +254,7 @@ const AdminFacesList: React.FC<AdminFacesListProps> = ({
               const di = (record.device_info as any) || {};
               const metadata = di.metadata || {};
               const name = metadata.name || di.name || 'Unknown';
-              const employeeId = (metadata.employee_id || di.employee_id || (record as any).student_id || record.id || '').toString().trim();
+              const employeeId = (metadata.employee_id || di.employee_id || record.student_id || record.id || '').toString().trim();
               const key = employeeId || record.user_id || record.id;
               const canonicalUserId = (record.user_id || '').toString().trim();
               if (!name || name === 'Unknown' || name === 'User') return null;

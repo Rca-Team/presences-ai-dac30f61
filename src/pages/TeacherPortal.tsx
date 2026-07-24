@@ -5,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Loader2, GraduationCap, Camera, DoorOpen, Calendar, RefreshCcw, LogOut, FileDown, CalendarCog, QrCode, Scan } from 'lucide-react';
-import { supabase } from '@/lib/db';
+import { supabase } from '@/integrations/supabase/client';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useToast } from '@/hooks/use-toast';
 import PageLayout from '@/components/layouts/PageLayout';

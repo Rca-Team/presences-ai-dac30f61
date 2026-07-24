@@ -1,5 +1,5 @@
 
-import { supabase } from '@/lib/db';
+import { supabase } from '@/integrations/supabase/client';
 import { uploadImage } from './StorageService';
 import { v4 as uuidv4 } from 'uuid';
 import { descriptorToString } from './ModelService';

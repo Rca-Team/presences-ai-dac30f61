@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { GradientCard } from '@/components/ui/gradient-card';
 import { ProgressRing } from '@/components/ui/progress-ring';
-import { supabase } from '@/lib/db';
+import { supabase } from '@/integrations/supabase/client';
 import { Users, UserCheck, AlertTriangle, UserX } from 'lucide-react';
 import { fetchUnifiedAttendanceStats, type UnifiedAttendanceStats } from '@/utils/attendanceStatsHelper';
 

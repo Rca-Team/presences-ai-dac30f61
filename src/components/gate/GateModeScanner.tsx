@@ -10,7 +10,7 @@ import { recordAttendance, recognizeFace } from '@/services/face-recognition/Rec
 import { usePhotoEnhancer } from '@/hooks/usePhotoEnhancer';
 import * as faceapi from 'face-api.js';
 import { v4 as uuidv4 } from 'uuid';
-import { supabase } from '@/lib/db';
+import { supabase } from '@/integrations/supabase/client';
 import DetectionBoxEditor from './DetectionBoxEditor';
 
 // ─── Constants (outside component — stable across renders) ─────────────────────

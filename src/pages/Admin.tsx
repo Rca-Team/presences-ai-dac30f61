@@ -45,9 +45,7 @@ import {
   CreditCard, Image, Download, RefreshCw, MessageSquareText, Mail, Siren, CalendarDays, DatabaseBackup, ScanLine } from
 'lucide-react';
 import TimetableManager from '@/components/admin/TimetableManager';
-import GateVisionDashboard from '@/components/admin/GateVisionDashboard';
-import { Radio } from 'lucide-react';
-import { supabase } from '@/lib/db';
+import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -256,8 +254,7 @@ const Admin = () => {
   { id: 'inbox', icon: Mail, label: 'Inbox', group: 'Management' },
   { id: 'emergency', icon: Siren, label: 'Emergency', group: 'Management' },
   { id: 'timetable', icon: CalendarDays, label: 'Timetable', group: 'Management' },
- { id: 'gate-vision', icon: Radio, label: 'Gate Vision 2.0', group: 'Management', badge: 'NEW' },
- { id: 'settings', icon: Settings, label: 'Settings', group: 'Management' }];
+  { id: 'settings', icon: Settings, label: 'Settings', group: 'Management' }];
 
 
   const groups = ['Overview', 'Registration', 'Management'];
@@ -370,12 +367,6 @@ const Admin = () => {
         return (
           <TabPanel>
             <TimetableManager />
-          </TabPanel>
-        );
-      case 'gate-vision':
-        return (
-          <TabPanel>
-            <GateVisionDashboard />
           </TabPanel>
         );
       case 'settings':

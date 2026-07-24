@@ -23,7 +23,7 @@ import {
   Zap,
   RefreshCw
 } from 'lucide-react';
-import { supabase, SUPABASE_URL } from '@/lib/db';
+import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
@@ -225,7 +225,7 @@ const TeacherDashboard: React.FC = () => {
           todayStatus: statusInfo?.status,
           todayTime: statusInfo?.time,
         };
-      }).filter((s) => s !== null && s.name !== 'Unknown') as unknown as StudentRecord[];
+      }).filter((s): s is StudentRecord => s !== null && s.name !== 'Unknown');
 
       setStudents(processedStudents);
 
@@ -496,7 +496,7 @@ const TeacherDashboard: React.FC = () => {
                               src={student.image_url?.startsWith('data:') 
                                 ? student.image_url 
                                 : student.image_url 
-                                  ? `${SUPABASE_URL}/storage/v1/object/public/face-images/${student.image_url}` 
+                                  ? `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/face-images/${student.image_url}` 
                                   : ''
                               } 
                               alt={student.name}

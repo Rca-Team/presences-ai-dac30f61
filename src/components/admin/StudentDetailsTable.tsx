@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/table';
 import { Search, Users, Phone, Heart, Bus, MapPin, User as UserIcon, IdCard, Download, Camera, Trash2, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/lib/db';
+import { supabase } from '@/integrations/supabase/client';
 import { CLASSES, SECTIONS, getCategoryLabel } from '@/constants/schoolConfig';
 import StudentIDCardGenerator from './StudentIDCardGenerator';
 import StudentCSVImporter from './StudentCSVImporter';

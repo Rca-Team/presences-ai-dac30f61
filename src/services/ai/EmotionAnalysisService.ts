@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/db';
+import { supabase } from '@/integrations/supabase/client';
 
 type EmotionLabel = 'focused' | 'happy' | 'calm' | 'neutral' | 'stressed' | 'tired';
 

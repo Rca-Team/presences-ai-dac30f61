@@ -11,7 +11,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Slider } from '@/components/ui/slider';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/lib/db';
+import { supabase } from '@/integrations/supabase/client';
 import { getCategoryLabel } from '@/constants/schoolConfig';
 import { pickPreferredPhotoCandidate, resolveStudentPhotoUrl } from '@/utils/studentPhotoResolver';
 import kvLogo from '@/assets/kv-logo.png';

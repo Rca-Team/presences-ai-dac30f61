@@ -15,7 +15,7 @@ import {
   Cell,
   Legend
 } from 'recharts';
-import { supabase } from '@/lib/db';
+import { supabase } from '@/integrations/supabase/client';
 
 // Color constants
 const COLORS = ['#0088FE', '#FF8042', '#FFBB28', '#00C49F', '#AAAAAA'];

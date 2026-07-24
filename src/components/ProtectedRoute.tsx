@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { supabase } from '@/lib/db';
+import { supabase } from '@/integrations/supabase/client';
 import NotificationPermissionGate from './NotificationPermissionGate';
 import { ShieldAlert } from 'lucide-react';
 import { hasTeacherAccess } from '@/utils/teacherAccess';
@@ -52,42 +52,24 @@ export function ProtectedRoute({ children, requireAdmin = false, requireRoles }:
     return required.includes(role);
   };
 
-  // Paths where the user did NOT ask to be on a protected page. If they sign
-  // out while viewing one of these, don't hijack them to /login.
-  const PUBLIC_PATHS = new Set<string>([
-    '/',
-    '/portfolio',
-    '/contact',
-    '/login',
-    '/signup',
-    '/unsubscribe',
-  ]);
-
   useEffect(() => {
-    let cancelled = false;
-
     const checkAuth = async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser();
-        if (cancelled) return;
-
+        
         if (!user) {
           setIsAuthenticated(false);
-          // Only redirect if this ProtectedRoute is the currently visible route.
-          if (!PUBLIC_PATHS.has(window.location.pathname)) {
-            navigate('/login', {
-              state: {
-                from: `${window.location.pathname}${window.location.search}${window.location.hash}`,
-              },
-            });
-          }
+          navigate('/login', {
+            state: {
+              from: `${location.pathname}${location.search}${location.hash}`,
+            },
+          });
           return;
         }
 
         setIsAuthenticated(true);
 
         const role = await resolveUserRole(user.id);
-        if (cancelled) return;
         setCurrentRole(role);
 
         const effectiveRequiredRoles = requireAdmin
@@ -97,48 +79,32 @@ export function ProtectedRoute({ children, requireAdmin = false, requireRoles }:
         setIsAuthorized(hasRequiredRole(role, effectiveRequiredRoles));
       } catch (error) {
         console.error('Auth check error:', error);
-        if (cancelled) return;
         setIsAuthenticated(false);
-        if (!PUBLIC_PATHS.has(window.location.pathname)) {
-          navigate('/login', {
-            state: {
-              from: `${window.location.pathname}${window.location.search}${window.location.hash}`,
-            },
-          });
-        }
+        navigate('/login', {
+          state: {
+            from: `${location.pathname}${location.search}${location.hash}`,
+          },
+        });
       } finally {
-        if (!cancelled) setLoading(false);
+        setLoading(false);
       }
     };
 
     checkAuth();
 
-    // Listen for auth changes. Because this component may stay mounted in a
-    // hidden keep-alive slot, only redirect to /login when the user is
-    // actually on a protected route right now — otherwise a sign-out from a
-    // public page (like '/' or '/portfolio') would bounce them to Login.
+    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_OUT' || !session) {
-        if (cancelled) return;
-        setIsAuthenticated(false);
-        if (!PUBLIC_PATHS.has(window.location.pathname)) {
-          navigate('/login', {
-            state: {
-              from: `${window.location.pathname}${window.location.search}${window.location.hash}`,
-            },
-          });
-        }
+        navigate('/login', {
+          state: {
+            from: `${location.pathname}${location.search}${location.hash}`,
+          },
+        });
       }
     });
 
-    return () => {
-      cancelled = true;
-      subscription.unsubscribe();
-    };
-    // Intentionally not depending on location.* — otherwise every navigation
-    // re-runs getUser() and role lookups across every mounted ProtectedRoute.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [navigate, requireAdmin, requireRoles]);
+    return () => subscription.unsubscribe();
+  }, [navigate, location.pathname, location.search, location.hash, requireAdmin, requireRoles]);
 
   if (loading) {
     return null;

@@ -13,7 +13,7 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/lib/db';
+import { supabase } from '@/integrations/supabase/client';
 import { ALL_CLASS_SECTIONS, getCategoryLabel } from '@/constants/schoolConfig';
 import { parseClassSection } from '@/utils/teacherAccess';
 

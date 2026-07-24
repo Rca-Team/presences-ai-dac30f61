@@ -6,7 +6,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Shield, User, GraduationCap, Eye, ClipboardCheck, Save, X } from 'lucide-react';
-import { supabase, SUPABASE_URL } from '@/lib/db';
+import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { CLASSES, SECTIONS, getCategoryLabel } from '@/constants/schoolConfig';
@@ -153,7 +153,7 @@ const TeacherPermissionsManager: React.FC = () => {
               <div key={teacher.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors">
                 <div className="flex items-center gap-3">
                   <Avatar className="h-10 w-10">
-                    <AvatarImage src={teacher.image_url?.startsWith('data:') ? teacher.image_url : teacher.image_url ? `${SUPABASE_URL}/storage/v1/object/public/face-images/${teacher.image_url}` : ''} alt={teacher.name} />
+                    <AvatarImage src={teacher.image_url?.startsWith('data:') ? teacher.image_url : teacher.image_url ? `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/face-images/${teacher.image_url}` : ''} alt={teacher.name} />
                     <AvatarFallback><User className="h-5 w-5" /></AvatarFallback>
                   </Avatar>
                   <div>

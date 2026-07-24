@@ -1,5 +1,5 @@
 
-import { supabase } from '@/lib/db';
+import { supabase } from '@/integrations/supabase/client';
 import { SetDatesFunction, AttendanceRecord } from './types';
 
 // Normalize status to consistent lowercase values

@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import ClassTeacherManager from './ClassTeacherManager';
 import FullTimetableManager from './TimetableManager';
-import { supabase, SUPABASE_URL } from '@/lib/db';
+import { supabase } from '@/integrations/supabase/client';
 import { pushNotificationService } from '@/services/PushNotificationService';
 import { useToast } from '@/hooks/use-toast';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
@@ -380,7 +380,7 @@ const CategoryBasedView: React.FC = () => {
                   <div className="flex items-center gap-3">
                     <Avatar className="h-12 w-12">
                       <AvatarImage 
-                        src={user.image_url?.startsWith('data:') ? user.image_url : user.image_url ? `${SUPABASE_URL}/storage/v1/object/public/face-images/${user.image_url}` : ''} 
+                        src={user.image_url?.startsWith('data:') ? user.image_url : user.image_url ? `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/face-images/${user.image_url}` : ''} 
                         alt={user.name}
                       />
                       <AvatarFallback><User className="h-6 w-6" /></AvatarFallback>

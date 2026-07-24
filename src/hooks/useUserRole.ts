@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/lib/db';
+import { supabase } from '@/integrations/supabase/client';
 import { hasTeacherAccess } from '@/utils/teacherAccess';
 
 export type UserRole = 'admin' | 'principal' | 'teacher' | 'user' | null;

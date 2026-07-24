@@ -1,5 +1,5 @@
 
-import { supabase } from '@/lib/db';
+import { supabase } from '@/integrations/supabase/client';
 
 /**
  * Uploads an image to Supabase Storage.

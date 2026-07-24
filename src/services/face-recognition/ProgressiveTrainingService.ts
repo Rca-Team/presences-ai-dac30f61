@@ -20,7 +20,7 @@
  *    Accepts both 128-dim (face-api.js) and 512-dim (future ArcFace) vectors.
  */
 
-import { supabase } from '@/lib/db';
+import { supabase } from '@/integrations/supabase/client';
 import { descriptorToString, stringToDescriptor } from './ModelService';
 import { uploadImage } from './StorageService';
 import { uploadAttendanceTrainingImage } from './TrainingDataStorageService';

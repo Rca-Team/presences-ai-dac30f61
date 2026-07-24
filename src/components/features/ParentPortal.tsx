@@ -19,7 +19,7 @@ import {
   Mail,
   GraduationCap
 } from 'lucide-react';
-import { supabase, SUPABASE_URL } from '@/lib/db';
+import { supabase } from '@/integrations/supabase/client';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isWeekend, subDays } from 'date-fns';
 import {
   LineChart,
@@ -249,7 +249,7 @@ const ParentPortal: React.FC<ParentPortalProps> = ({ parentEmail, parentPhone })
                 src={child.image_url.startsWith('data:') 
                   ? child.image_url 
                   : child.image_url 
-                    ? `${SUPABASE_URL}/storage/v1/object/public/face-images/${child.image_url}` 
+                    ? `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/face-images/${child.image_url}` 
                     : ''
                 } 
               />
@@ -274,7 +274,7 @@ const ParentPortal: React.FC<ParentPortalProps> = ({ parentEmail, parentPhone })
                     src={selectedChild.image_url.startsWith('data:') 
                       ? selectedChild.image_url 
                       : selectedChild.image_url 
-                        ? `${SUPABASE_URL}/storage/v1/object/public/face-images/${selectedChild.image_url}` 
+                        ? `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/face-images/${selectedChild.image_url}` 
                         : ''
                     } 
                   />

@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { supabase } from '@/lib/db';
+import { supabase } from '@/integrations/supabase/client';
 import { UserCheck, Clock, Percent, Users } from 'lucide-react';
 import { fetchUnifiedAttendanceStats, type UnifiedAttendanceStats } from '@/utils/attendanceStatsHelper';
 

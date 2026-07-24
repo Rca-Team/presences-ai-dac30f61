@@ -20,7 +20,7 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Card, CardContent } from '@/components/ui/card';
-import { supabase } from '@/lib/db';
+import { supabase } from '@/integrations/supabase/client';
 
 // Define form validation schema
 const formSchema = z.object({

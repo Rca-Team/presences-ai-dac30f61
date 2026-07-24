@@ -15,7 +15,7 @@ import {
   X,
   Check
 } from 'lucide-react';
-import { supabase, SUPABASE_URL } from '@/lib/db';
+import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
 import {
@@ -309,7 +309,7 @@ const RolePromoter: React.FC = () => {
                         src={user.image_url?.startsWith('data:') 
                           ? user.image_url 
                           : user.image_url 
-                            ? `${SUPABASE_URL}/storage/v1/object/public/face-images/${user.image_url}` 
+                            ? `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/face-images/${user.image_url}` 
                             : ''
                         } 
                         alt={user.name}
@@ -392,7 +392,7 @@ const RolePromoter: React.FC = () => {
                   src={selectedUser?.image_url?.startsWith('data:') 
                     ? selectedUser?.image_url 
                     : selectedUser?.image_url 
-                      ? `${SUPABASE_URL}/storage/v1/object/public/face-images/${selectedUser?.image_url}` 
+                      ? `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/face-images/${selectedUser?.image_url}` 
                       : ''
                   } 
                   alt={selectedUser?.name}

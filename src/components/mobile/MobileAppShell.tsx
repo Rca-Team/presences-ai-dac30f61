@@ -4,7 +4,7 @@ import { Home, ScanLine, UserPlus, ShieldCheck, UserCircle, LayoutDashboard } fr
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useUserRole } from "@/hooks/useUserRole";
-import { supabase } from "@/lib/db";
+import { supabase } from "@/integrations/supabase/client";
 import Logo from "@/components/Logo";
 
 type MobileAppShellProps = {

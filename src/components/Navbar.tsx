@@ -9,7 +9,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { Sun, Moon } from 'lucide-react';
 import { Toggle } from '@/components/ui/toggle';
 import { useTheme } from '@/hooks/use-theme';
-import { supabase } from '@/lib/db';
+import { supabase } from '@/integrations/supabase/client';
 import ProfileDropdown from './ProfileDropdown';
 import { useUserRole } from '@/hooks/useUserRole';
 

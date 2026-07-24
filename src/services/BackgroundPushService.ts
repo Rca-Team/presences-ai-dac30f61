@@ -4,7 +4,7 @@
  * Uses the backend edge function to deliver Web Push to all subscribers.
  */
 
-import { supabase } from '@/lib/db';
+import { supabase } from '@/integrations/supabase/client';
 
 export interface PushPayload {
   title: string;
