@@ -35,6 +35,38 @@ const NotificationSettings: React.FC = () => {
   const [tplPresent, setTplPresent] = useState('');
   const [tplLate, setTplLate] = useState('');
   const [tplAbsent, setTplAbsent] = useState('');
+  const [testPhone, setTestPhone] = useState('');
+  const [testing, setTesting] = useState(false);
+
+  const runTest = async () => {
+    if (!testPhone.trim()) {
+      toast({ title: 'Enter a phone number', description: 'Include country code, e.g. +919876543210', variant: 'destructive' });
+      return;
+    }
+    setTesting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('send-whatsapp', {
+        body: {
+          phoneNumber: testPhone.trim(),
+          studentName: 'Test Student',
+          parentName: 'Parent',
+          className: '10',
+          section: 'A',
+          status: 'present',
+        },
+      });
+      if (error) throw error;
+      if (data?.success) {
+        toast({ title: 'WhatsApp sent ✅', description: `Message ID: ${data.messageId || 'ok'}` });
+      } else {
+        toast({ title: 'WhatsApp failed', description: data?.error || 'Unknown error', variant: 'destructive' });
+      }
+    } catch (e: any) {
+      toast({ title: 'Test failed', description: e.message, variant: 'destructive' });
+    } finally {
+      setTesting(false);
+    }
+  };
 
   useEffect(() => {
     (async () => {
@@ -177,6 +209,31 @@ const NotificationSettings: React.FC = () => {
           <div><Label>Present</Label><Textarea rows={2} value={tplPresent} onChange={(e) => setTplPresent(e.target.value)} /></div>
           <div><Label>Late</Label><Textarea rows={2} value={tplLate} onChange={(e) => setTplLate(e.target.value)} /></div>
           <div><Label>Absent</Label><Textarea rows={2} value={tplAbsent} onChange={(e) => setTplAbsent(e.target.value)} /></div>
+        </CardContent>
+      </Card>
+
+      {/* Test services */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><MessageSquare className="h-5 w-5" /> Test services</CardTitle>
+          <CardDescription>
+            Send a live test WhatsApp message using the approved <code>attendance_notification</code> template.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-2 items-end">
+            <div>
+              <Label>Test phone (with country code)</Label>
+              <Input value={testPhone} onChange={(e) => setTestPhone(e.target.value)} placeholder="+919876543210" />
+            </div>
+            <Button variant="secondary" onClick={runTest} disabled={testing}>
+              {testing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <MessageSquare className="w-4 h-4 mr-2" />}
+              Send test WhatsApp
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Uses your saved WHATSAPP_ACCESS_TOKEN and WHATSAPP_PHONE_NUMBER_ID. Template must be approved in Meta Business Manager.
+          </p>
         </CardContent>
       </Card>
 
