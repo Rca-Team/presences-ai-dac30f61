@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { supabase } from '@/lib/db';
+import { supabase, SUPABASE_URL } from '@/lib/db';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -13,7 +13,7 @@ import {
   Zap
 } from 'lucide-react';
 
-const STORAGE_BASE_URL = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/face-images/`;
+const STORAGE_BASE_URL = `${SUPABASE_URL}/storage/v1/object/public/face-images/`;
 
 interface AttendanceRecord {
   id: string;
