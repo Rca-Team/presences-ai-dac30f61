@@ -29,7 +29,19 @@ interface EventPayload {
   subject_type?: 'student' | 'teacher' | 'unknown';
   subject_id?: string | null;
   subject_name?: string | null;
-  event_type: 'enter' | 'exit' | 'sit' | 'stand' | 'zone_change' | 'face_confirm';
+  event_type:
+    | 'enter'
+    | 'exit'
+    | 'sit'
+    | 'stand'
+    | 'zone_change'
+    | 'face_confirm'
+    | 'reid_relink'
+    | 'loitering'
+    | 'tailgating'
+    | 'crowd_density'
+    | 'teacher_activity'
+    | 'concurrent_exit_alert';
   zone?: string | null;
   meta?: Record<string, unknown> | null;
   occurred_at?: string;
