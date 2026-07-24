@@ -15,7 +15,7 @@ import {
   X,
   Check
 } from 'lucide-react';
-import { supabase } , SUPABASE_URL } from '@/lib/db';
+import { supabase, SUPABASE_URL } from '@/lib/db';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
 import {

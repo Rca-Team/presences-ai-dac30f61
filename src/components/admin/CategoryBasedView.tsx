@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import ClassTeacherManager from './ClassTeacherManager';
 import FullTimetableManager from './TimetableManager';
-import { supabase } , SUPABASE_URL } from '@/lib/db';
+import { supabase, SUPABASE_URL } from '@/lib/db';
 import { pushNotificationService } from '@/services/PushNotificationService';
 import { useToast } from '@/hooks/use-toast';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';

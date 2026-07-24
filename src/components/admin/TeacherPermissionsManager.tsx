@@ -6,7 +6,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Shield, User, GraduationCap, Eye, ClipboardCheck, Save, X } from 'lucide-react';
-import { supabase } , SUPABASE_URL } from '@/lib/db';
+import { supabase, SUPABASE_URL } from '@/lib/db';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { CLASSES, SECTIONS, getCategoryLabel } from '@/constants/schoolConfig';
