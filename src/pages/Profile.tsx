@@ -34,7 +34,9 @@ import {
   Settings,
   ChevronRight,
   RefreshCw,
-  Scan
+  Scan,
+  MessageSquare,
+  Loader2
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useQuery } from '@tanstack/react-query';
