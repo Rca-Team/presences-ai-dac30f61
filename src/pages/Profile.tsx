@@ -53,6 +53,7 @@ const Profile = () => {
     parent_email: '',
     parent_phone: ''
   });
+  const [testWhatsAppLoading, setTestWhatsAppLoading] = useState(false);
 
   useEffect(() => {
     fetchUserData();
