@@ -372,6 +372,12 @@ const Admin = () => {
             <TimetableManager />
           </TabPanel>
         );
+      case 'gate-vision':
+        return (
+          <TabPanel>
+            <GateVisionDashboard />
+          </TabPanel>
+        );
       case 'settings':
         return (
           <TabPanel className="space-y-6">
