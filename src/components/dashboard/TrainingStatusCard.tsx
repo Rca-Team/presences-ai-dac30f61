@@ -6,7 +6,7 @@ import { Progress } from '@/components/ui/progress';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Brain, CheckCircle2, AlertTriangle, RefreshCw, Sparkles } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/db';
 import { cn } from '@/lib/utils';
 import { getTrainingStats, getUsersWithTrainingSamples } from '@/services/face-recognition/ProgressiveTrainingService';
 

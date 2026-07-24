@@ -1,4 +1,4 @@
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/db';
 
 const FACE_BUCKET = 'face-images';
 const signedUrlCache = new Map<string, string>();

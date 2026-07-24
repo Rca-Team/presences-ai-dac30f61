@@ -18,7 +18,7 @@ import {
   GraduationCap, Plus, Trash2, Clock, BookOpen, Save, Loader2, CalendarClock,
   UserCheck, AlertTriangle, ChevronLeft, RefreshCw, Printer,
 } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/db';
 import FullTimetableManager from '@/components/admin/TimetableManager';
 import { useToast } from '@/hooks/use-toast';
 import { getCategoryLabel, ALL_CLASS_SECTIONS } from '@/constants/schoolConfig';

@@ -22,7 +22,7 @@ import {
   Volume2, Mic, Play, Square,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/db';
 import { useHapticFeedback } from '@/hooks/useHapticFeedback';
 import { emergencyAlarmService, type AlertType } from '@/services/EmergencyAlarmService';
 import { backgroundPushService } from '@/services/BackgroundPushService';

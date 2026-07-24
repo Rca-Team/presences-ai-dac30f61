@@ -19,7 +19,7 @@ import {
   Mail,
   GraduationCap
 } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/db';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isWeekend, subDays } from 'date-fns';
 import {
   LineChart,

@@ -4,7 +4,7 @@ import Webcam from 'react-webcam';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/db';
 import { getAttendanceCutoffTime, isPastCutoffTime } from '@/services/attendance/AttendanceSettingsService';
 import { recordAttendance } from '@/services/face-recognition/RecognitionService';
 import { sendAutoParentNotification } from '@/services/notification/AutoNotificationService';

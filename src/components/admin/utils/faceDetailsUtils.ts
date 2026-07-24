@@ -1,5 +1,5 @@
 
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/db';
 import { FaceInfo } from './types';
 
 // Fetch face details from Supabase

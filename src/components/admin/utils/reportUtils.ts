@@ -1,6 +1,6 @@
 import { format } from 'date-fns';
 import { FaceInfo, isDateInArray } from './attendanceUtils';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/db';
 import { isWorkingDayForSchool } from '@/utils/workingDays';
 
 interface ReportGenerationProps {

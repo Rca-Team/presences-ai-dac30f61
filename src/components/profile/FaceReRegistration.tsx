@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/db';
 import { loadRegistrationModels } from '@/services/face-recognition/OptimizedRegistrationService';
 import { storeFaceSample, getUserTrainingStats } from '@/services/face-recognition/ProgressiveTrainingService';
 import { descriptorToString } from '@/services/face-recognition/ModelService';

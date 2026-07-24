@@ -10,7 +10,7 @@ import {
   Tooltip,
   Legend
 } from 'recharts';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/db';
 
 // Color constants
 const STATUS_COLORS = ['#10B981', '#EF4444', '#F59E0B'];

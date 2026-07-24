@@ -3,7 +3,7 @@
  * Handles subscription, permission, and sending notifications for attendance alerts
  */
 
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/db';
 
 const VAPID_PUBLIC_KEY = 'BKsMAcPZ7odGu3RkFoa_TqwLYMQxk9ceH2ieu6FmEe466BDHlnA4gwHZsa9P0a0PQBruQU3COI_Rgat-pzSNVKg';
 

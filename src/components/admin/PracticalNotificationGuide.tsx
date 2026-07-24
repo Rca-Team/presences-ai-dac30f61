@@ -19,7 +19,7 @@ import {
   Loader2
 } from 'lucide-react';
 import NotificationService from './NotificationService';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/db';
 
 interface RealStudent {
   id: string;

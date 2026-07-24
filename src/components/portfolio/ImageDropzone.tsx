@@ -1,5 +1,5 @@
 import React, { useCallback, useRef, useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/db';
 import { PORTFOLIO_BUCKET, PORTFOLIO_PREFIX } from '@/hooks/usePortfolioData';
 import { UploadCloud, X, Loader2, ImagePlus, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
