@@ -109,6 +109,7 @@ export type Database = {
           category: string | null
           class: string | null
           confidence: number | null
+          confidence_score: number | null
           created_at: string
           date: string
           device_info: Json | null
@@ -130,6 +131,7 @@ export type Database = {
           category?: string | null
           class?: string | null
           confidence?: number | null
+          confidence_score?: number | null
           created_at?: string
           date?: string
           device_info?: Json | null
@@ -151,6 +153,7 @@ export type Database = {
           category?: string | null
           class?: string | null
           confidence?: number | null
+          confidence_score?: number | null
           created_at?: string
           date?: string
           device_info?: Json | null
