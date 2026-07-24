@@ -38,6 +38,238 @@ export type Database = {
         }
         Relationships: []
       }
+      gv_camera_zones: {
+        Row: {
+          camera_id: string
+          created_at: string
+          id: string
+          polygon: Json
+          zone_key: string
+        }
+        Insert: {
+          camera_id: string
+          created_at?: string
+          id?: string
+          polygon?: Json
+          zone_key: string
+        }
+        Update: {
+          camera_id?: string
+          created_at?: string
+          id?: string
+          polygon?: Json
+          zone_key?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gv_camera_zones_camera_id_fkey"
+            columns: ["camera_id"]
+            isOneToOne: false
+            referencedRelation: "gv_cameras"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gv_cameras: {
+        Row: {
+          bridge_token_hash: string | null
+          class_key: string | null
+          created_at: string
+          id: string
+          last_seen_at: string | null
+          location_kind: string
+          name: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          bridge_token_hash?: string | null
+          class_key?: string | null
+          created_at?: string
+          id?: string
+          last_seen_at?: string | null
+          location_kind?: string
+          name: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          bridge_token_hash?: string | null
+          class_key?: string | null
+          created_at?: string
+          id?: string
+          last_seen_at?: string | null
+          location_kind?: string
+          name?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      gv_class_sessions: {
+        Row: {
+          class_key: string
+          created_at: string
+          day_key: string
+          id: string
+          meta: Json | null
+          period_key: string
+          student_count_peak: number
+          students_left_after: number
+          students_left_during: number
+          teacher_confirmed: boolean
+          teacher_entered_at: string | null
+          teacher_exited_at: string | null
+          teacher_scheduled: string | null
+          updated_at: string
+        }
+        Insert: {
+          class_key: string
+          created_at?: string
+          day_key?: string
+          id?: string
+          meta?: Json | null
+          period_key: string
+          student_count_peak?: number
+          students_left_after?: number
+          students_left_during?: number
+          teacher_confirmed?: boolean
+          teacher_entered_at?: string | null
+          teacher_exited_at?: string | null
+          teacher_scheduled?: string | null
+          updated_at?: string
+        }
+        Update: {
+          class_key?: string
+          created_at?: string
+          day_key?: string
+          id?: string
+          meta?: Json | null
+          period_key?: string
+          student_count_peak?: number
+          students_left_after?: number
+          students_left_during?: number
+          teacher_confirmed?: boolean
+          teacher_entered_at?: string | null
+          teacher_exited_at?: string | null
+          teacher_scheduled?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      gv_events: {
+        Row: {
+          camera_id: string
+          class_key: string | null
+          event_type: string
+          id: string
+          meta: Json | null
+          occurred_at: string
+          period_key: string | null
+          subject_id: string | null
+          subject_name: string | null
+          subject_type: string
+          track_id: string | null
+          zone: string | null
+        }
+        Insert: {
+          camera_id: string
+          class_key?: string | null
+          event_type: string
+          id?: string
+          meta?: Json | null
+          occurred_at?: string
+          period_key?: string | null
+          subject_id?: string | null
+          subject_name?: string | null
+          subject_type?: string
+          track_id?: string | null
+          zone?: string | null
+        }
+        Update: {
+          camera_id?: string
+          class_key?: string | null
+          event_type?: string
+          id?: string
+          meta?: Json | null
+          occurred_at?: string
+          period_key?: string | null
+          subject_id?: string | null
+          subject_name?: string | null
+          subject_type?: string
+          track_id?: string | null
+          zone?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gv_events_camera_id_fkey"
+            columns: ["camera_id"]
+            isOneToOne: false
+            referencedRelation: "gv_cameras"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gv_events_track_id_fkey"
+            columns: ["track_id"]
+            isOneToOne: false
+            referencedRelation: "gv_tracks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gv_tracks: {
+        Row: {
+          appearance_sig: Json | null
+          camera_id: string
+          confidence: number | null
+          day_key: string
+          ended_at: string | null
+          id: string
+          last_zone: string | null
+          local_track_id: string
+          started_at: string
+          subject_id: string | null
+          subject_name: string | null
+          subject_type: string
+        }
+        Insert: {
+          appearance_sig?: Json | null
+          camera_id: string
+          confidence?: number | null
+          day_key?: string
+          ended_at?: string | null
+          id?: string
+          last_zone?: string | null
+          local_track_id: string
+          started_at?: string
+          subject_id?: string | null
+          subject_name?: string | null
+          subject_type?: string
+        }
+        Update: {
+          appearance_sig?: Json | null
+          camera_id?: string
+          confidence?: number | null
+          day_key?: string
+          ended_at?: string | null
+          id?: string
+          last_zone?: string | null
+          local_track_id?: string
+          started_at?: string
+          subject_id?: string | null
+          subject_name?: string | null
+          subject_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gv_tracks_camera_id_fkey"
+            columns: ["camera_id"]
+            isOneToOne: false
+            referencedRelation: "gv_cameras"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
