@@ -37,7 +37,8 @@ function statusNote(status: string): string {
 
 async function sendWhatsAppTemplate(
   phone: string,
-  vars: { parent: string; student: string; status: string; date: string; time: string; className: string; section: string; note: string; }
+  vars: { parent: string; student: string; status: string; date: string; time: string; className: string; section: string; note: string; },
+  textBody?: string
 ): Promise<{ success: boolean; messageId?: string; error?: string }> {
   const accessToken = Deno.env.get("WHATSAPP_ACCESS_TOKEN");
   const phoneNumberId = Deno.env.get("WHATSAPP_PHONE_NUMBER_ID");
@@ -51,37 +52,55 @@ async function sendWhatsAppTemplate(
     "Content-Type": "application/json",
   };
 
-  const templatePayload = {
-    messaging_product: "whatsapp",
-    to: phone,
-    type: "template",
-    template: {
-      name: TEMPLATE_NAME,
-      language: { code: TEMPLATE_LANG },
-      components: [
-        {
-          type: "body",
-          parameters: [
-            { type: "text", text: vars.parent },
-            { type: "text", text: vars.student },
-            { type: "text", text: vars.status },
-            { type: "text", text: vars.date },
-            { type: "text", text: vars.time },
-            { type: "text", text: vars.className },
-            { type: "text", text: vars.section },
-            { type: "text", text: vars.note },
-          ],
-        },
-      ],
-    },
-  };
-
   try {
+    // If an explicit text body is provided, send plain text directly (great for hello_world tests)
+    if (textBody) {
+      const textRes = await fetch(url, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          messaging_product: "whatsapp",
+          to: phone,
+          type: "text",
+          text: { body: textBody },
+        }),
+      });
+      const textData = await textRes.json().catch(() => ({} as any));
+      if (textRes.ok) return { success: true, messageId: textData?.messages?.[0]?.id };
+      return { success: false, error: textData?.error?.message || "WhatsApp text send failed" };
+    }
+
+    const templatePayload = {
+      messaging_product: "whatsapp",
+      to: phone,
+      type: "template",
+      template: {
+        name: TEMPLATE_NAME,
+        language: { code: TEMPLATE_LANG },
+        components: [
+          {
+            type: "body",
+            parameters: [
+              { type: "text", text: vars.parent },
+              { type: "text", text: vars.student },
+              { type: "text", text: vars.status },
+              { type: "text", text: vars.date },
+              { type: "text", text: vars.time },
+              { type: "text", text: vars.className },
+              { type: "text", text: vars.section },
+              { type: "text", text: vars.note },
+            ],
+          },
+        ],
+      },
+    };
+
     const res = await fetch(url, { method: "POST", headers, body: JSON.stringify(templatePayload) });
     const data = await res.json().catch(() => ({} as any));
     if (res.ok) return { success: true, messageId: data?.messages?.[0]?.id };
 
     // Fallback: try plain text (works only inside 24h session window)
+    const fallbackBody = `Hello ${vars.parent},\n\n${vars.student} has been marked ${vars.status} today.\n📅 ${vars.date} ⏰ ${vars.time}\n🏫 Class ${vars.className}-${vars.section}\n\n${vars.note}\n\n— Presence`;
     const textRes = await fetch(url, {
       method: "POST",
       headers,
@@ -89,7 +108,7 @@ async function sendWhatsAppTemplate(
         messaging_product: "whatsapp",
         to: phone,
         type: "text",
-        text: { body: `Hello ${vars.parent},\n\n${vars.student} has been marked ${vars.status} today.\n📅 ${vars.date} ⏰ ${vars.time}\n🏫 Class ${vars.className}-${vars.section}\n\n${vars.note}\n\n— Presence` },
+        text: { body: fallbackBody },
       }),
     });
     const textData = await textRes.json().catch(() => ({} as any));
