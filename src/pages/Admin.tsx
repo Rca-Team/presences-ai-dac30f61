@@ -256,7 +256,8 @@ const Admin = () => {
   { id: 'inbox', icon: Mail, label: 'Inbox', group: 'Management' },
   { id: 'emergency', icon: Siren, label: 'Emergency', group: 'Management' },
   { id: 'timetable', icon: CalendarDays, label: 'Timetable', group: 'Management' },
-  { id: 'settings', icon: Settings, label: 'Settings', group: 'Management' }];
+ { id: 'gate-vision', icon: Radio, label: 'Gate Vision 2.0', group: 'Management', badge: 'NEW' },
+ { id: 'settings', icon: Settings, label: 'Settings', group: 'Management' }];
 
 
   const groups = ['Overview', 'Registration', 'Management'];
