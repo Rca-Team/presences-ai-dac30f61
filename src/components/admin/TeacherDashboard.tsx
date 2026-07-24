@@ -225,7 +225,7 @@ const TeacherDashboard: React.FC = () => {
           todayStatus: statusInfo?.status,
           todayTime: statusInfo?.time,
         };
-      }).filter((s): s is StudentRecord => s !== null && s.name !== 'Unknown');
+      }).filter((s) => s !== null && s.name !== 'Unknown') as unknown as StudentRecord[];
 
       setStudents(processedStudents);
 
