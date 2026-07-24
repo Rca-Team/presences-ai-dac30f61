@@ -435,7 +435,9 @@ function App() {
                     <NotificationPermissionGate>
                       <MobileAppShell>
                         <SeoHead />
-                        <AnimatedRoutes />
+                        <ChunkErrorBoundary>
+                          <AnimatedRoutes />
+                        </ChunkErrorBoundary>
                       </MobileAppShell>
                       {mountNonCritical && (
                         <>
