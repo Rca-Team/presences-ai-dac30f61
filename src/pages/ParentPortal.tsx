@@ -27,7 +27,7 @@ import {
 import { Link } from 'react-router-dom';
 import { eachDayOfInterval, format, isSameDay, isToday, isWeekend, startOfMonth, subDays } from 'date-fns';
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { supabase } from '@/lib/db';
+import { supabase } , SUPABASE_URL } from '@/lib/db';
 import { useToast } from '@/hooks/use-toast';
 import Logo from '@/components/Logo';
 
@@ -82,7 +82,7 @@ interface AchievementEvent {
   at: string;
 }
 
-const STORAGE_URL = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/face-images/`;
+const STORAGE_URL = `${SUPABASE_URL}/storage/v1/object/public/face-images/`;
 
 export default function ParentPortalPage() {
   const { toast } = useToast();

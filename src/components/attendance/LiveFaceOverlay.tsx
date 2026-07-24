@@ -1,10 +1,11 @@
+import { SUPABASE_URL } from '@/lib/db';
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { User, CheckCircle, AlertCircle, HelpCircle } from 'lucide-react';
 
-const STORAGE_BASE_URL = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/face-images/`;
+const STORAGE_BASE_URL = `${SUPABASE_URL}/storage/v1/object/public/face-images/`;
 
 export interface RecognizedFaceData {
   id: string;

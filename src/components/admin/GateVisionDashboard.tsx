@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { supabase } from '@/lib/db';
+import { supabase } , SUPABASE_URL } from '@/lib/db';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -405,7 +405,7 @@ export default function GateVisionDashboard() {
               <div>
                 <div className="font-semibold mb-1">Ingest endpoint</div>
                 <code className="block bg-muted p-2 rounded text-xs break-all">
-                  POST {import.meta.env.VITE_SUPABASE_URL}/functions/v1/gv-ingest
+                  POST {SUPABASE_URL}/functions/v1/gv-ingest
                 </code>
                 <div className="text-xs text-muted-foreground mt-1">
                   Send header <code>x-bridge-secret: &lt;GV_INGEST_SECRET&gt;</code> (stored in

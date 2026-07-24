@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { supabase } from '@/lib/db';
+import { supabase } , SUPABASE_URL } from '@/lib/db';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -22,7 +22,7 @@ const Unsubscribe = () => {
       }
 
       try {
-        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+        const supabaseUrl = SUPABASE_URL as string;
         const supabaseAnonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
         const url = `${supabaseUrl}/functions/v1/handle-email-unsubscribe?token=${encodeURIComponent(token)}`;
 

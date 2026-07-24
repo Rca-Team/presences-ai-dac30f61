@@ -1,3 +1,4 @@
+import { SUPABASE_URL } from '@/lib/db';
 import React, { useRef, useState, useEffect } from 'react';
 import { useToast } from '@/components/ui/use-toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,7 +18,7 @@ interface ProcessedFace {
   imageUrl?: string;
 }
 
-const STORAGE_BASE_URL = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/face-images/`;
+const STORAGE_BASE_URL = `${SUPABASE_URL}/storage/v1/object/public/face-images/`;
 
 const MultipleFaceAttendanceCapture = () => {
   const { toast } = useToast();
