@@ -1,5 +1,11 @@
-ultralytics>=8.1
-opencv-python-headless>=4.8
-supervision>=0.18
+ultralytics>=8.3
+boxmot>=10.0.83
+insightface>=0.7.3
+onnxruntime-gpu>=1.17; platform_system != "Darwin"
+onnxruntime>=1.17; platform_system == "Darwin"
+opencv-python-headless>=4.9
 shapely>=2.0
+numpy>=1.26
 requests>=2.31
+torch>=2.2
+torchvision>=0.17
