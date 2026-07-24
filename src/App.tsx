@@ -42,6 +42,7 @@ import AppExperienceLayer from './components/AppExperienceLayer';
 import SplashAnimation from './components/SplashAnimation';
 import { areGateDetectionModelsLoaded, loadGateDetectionModels } from '@/services/face-recognition/ModelService';
 import NotificationPermissionGate from './components/NotificationPermissionGate';
+import ChunkErrorBoundary from './components/ChunkErrorBoundary';
 
 
 const queryClient = new QueryClient();
