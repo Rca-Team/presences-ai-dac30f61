@@ -6,7 +6,7 @@ import { Progress } from '@/components/ui/progress';
 import { Users, Camera, CheckCircle2, XCircle, Play, Square, RotateCcw } from 'lucide-react';
 import { loadModels, areModelsLoaded } from '@/services/face-recognition/ModelService';
 import { recognizeFace } from '@/services/face-recognition/RecognitionService';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/db';
 import * as faceapi from 'face-api.js';
 import { toast } from 'sonner';
 

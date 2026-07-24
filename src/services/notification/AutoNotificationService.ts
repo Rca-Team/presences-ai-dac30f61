@@ -1,4 +1,4 @@
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/db';
 import { backgroundPushService } from '@/services/BackgroundPushService';
 import { pushNotificationService } from '@/services/PushNotificationService';
 /**

@@ -47,7 +47,7 @@ import {
 import TimetableManager from '@/components/admin/TimetableManager';
 import GateVisionDashboard from '@/components/admin/GateVisionDashboard';
 import { Radio } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/db';
 import { useToast } from '@/hooks/use-toast';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useIsMobile } from '@/hooks/use-mobile';

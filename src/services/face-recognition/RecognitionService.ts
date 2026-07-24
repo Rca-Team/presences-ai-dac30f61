@@ -27,7 +27,7 @@
  *    0.45 → ~50 %, 0.55 → ~20 %.
  */
 
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/db';
 import { descriptorToString, stringToDescriptor } from './ModelService';
 import { getAttendanceCutoffTime } from '../attendance/AttendanceSettingsService';
 import { getAllTrainedDescriptors } from './ProgressiveTrainingService';

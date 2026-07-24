@@ -35,7 +35,7 @@ import {
   Mail,
   Zap
 } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/db';
 import { useToast } from '@/hooks/use-toast';
 import { CLASSES, SECTIONS } from '@/constants/schoolConfig';
 import { fetchTeacherCategories, saveTeacherCategories } from '@/utils/teacherAccess';

@@ -5,7 +5,7 @@
  * database on init and kept in memory only for the current session.
  */
 
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/db';
 
 // In-memory state (session only)
 let cacheInitialized = false;

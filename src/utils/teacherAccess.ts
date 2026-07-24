@@ -1,4 +1,4 @@
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/db';
 
 const CLASS_ACCESS_PREFIX = 'class_access:';
 

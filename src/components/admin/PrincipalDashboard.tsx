@@ -13,7 +13,7 @@ import {
   Wifi, WifiOff, CheckCircle2, UserX, RefreshCw,
   Zap, Search, Filter
 } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/db';
 import { useToast } from '@/hooks/use-toast';
 import { format, startOfMonth, eachDayOfInterval } from 'date-fns';
 import { useRealtimeAttendance } from '@/hooks/useRealtimeAttendance';

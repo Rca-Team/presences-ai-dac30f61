@@ -9,7 +9,7 @@ import { PasswordInput } from '@/components/ui/password-input';
 
 import Logo from '@/components/Logo';
 import { Lock, Mail, User, ShieldCheck, ArrowLeft, Scan, BookOpen, Shield, Bell } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/db';
 import { lovable } from '@/integrations/lovable/index';
 import { motion } from 'framer-motion';
 

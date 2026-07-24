@@ -1,5 +1,5 @@
 
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/db';
 import { processWeeklyData, processDepartmentData } from '@/utils/dashboardHelpers';
 import { isWorkingDayForSchool } from '@/utils/workingDays';
 

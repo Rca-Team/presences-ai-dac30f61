@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Clock, AlertTriangle } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { getCutoffTime, formatCutoffTime, isPastCutoffTime, getAttendanceCutoffTime } from '@/services/attendance/AttendanceSettingsService';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/db';
 
 const CutoffTimeDisplay = () => {
   const { data: cutoffTime, isLoading, refetch } = useQuery({

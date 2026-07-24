@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { useUserRole } from '@/hooks/useUserRole';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/db';
 import { DatabaseBackup, Upload, Trash2, ShieldAlert, Loader2, RotateCcw, History } from 'lucide-react';
 
 type BackupResponse = {

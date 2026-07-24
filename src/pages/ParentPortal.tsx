@@ -27,7 +27,7 @@ import {
 import { Link } from 'react-router-dom';
 import { eachDayOfInterval, format, isSameDay, isToday, isWeekend, startOfMonth, subDays } from 'date-fns';
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/db';
 import { useToast } from '@/hooks/use-toast';
 import Logo from '@/components/Logo';
 

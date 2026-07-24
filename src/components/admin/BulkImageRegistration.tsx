@@ -14,7 +14,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/db';
 import { loadOptimizedModels, getOptimizedFaceDescriptor } from '@/services/face-recognition/OptimizedModelService';
 import { 
   Upload, 

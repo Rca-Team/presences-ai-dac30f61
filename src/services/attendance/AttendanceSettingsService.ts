@@ -1,5 +1,5 @@
 
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/db';
 
 const CUTOFF_CACHE_TTL_MS = 60 * 1000;
 let cutoffTimeCache: { value: string; expiresAt: number } | null = null;

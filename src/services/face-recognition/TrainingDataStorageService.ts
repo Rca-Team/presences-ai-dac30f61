@@ -1,4 +1,4 @@
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/db';
 import { uploadImage } from './StorageService';
 
 type AttendanceCaptureMode = 'ai-scan' | 'qr-scan' | 'gate-mode' | string;
