@@ -251,7 +251,7 @@ export default function GateVisionMode() {
       <header className="sticky top-0 z-30 border-b border-border bg-card/80 backdrop-blur">
         <div className="max-w-7xl mx-auto flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-3">
-            <Link to="/gate-mode">
+            <Link to="/gate">
               <Button size="icon" variant="ghost"><ArrowLeft className="h-5 w-5" /></Button>
             </Link>
             <div>
