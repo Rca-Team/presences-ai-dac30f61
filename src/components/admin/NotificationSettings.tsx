@@ -35,6 +35,38 @@ const NotificationSettings: React.FC = () => {
   const [tplPresent, setTplPresent] = useState('');
   const [tplLate, setTplLate] = useState('');
   const [tplAbsent, setTplAbsent] = useState('');
+  const [testPhone, setTestPhone] = useState('');
+  const [testing, setTesting] = useState(false);
+
+  const runTest = async () => {
+    if (!testPhone.trim()) {
+      toast({ title: 'Enter a phone number', description: 'Include country code, e.g. +919876543210', variant: 'destructive' });
+      return;
+    }
+    setTesting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('send-whatsapp', {
+        body: {
+          phoneNumber: testPhone.trim(),
+          studentName: 'Test Student',
+          parentName: 'Parent',
+          className: '10',
+          section: 'A',
+          status: 'present',
+        },
+      });
+      if (error) throw error;
+      if (data?.success) {
+        toast({ title: 'WhatsApp sent ✅', description: `Message ID: ${data.messageId || 'ok'}` });
+      } else {
+        toast({ title: 'WhatsApp failed', description: data?.error || 'Unknown error', variant: 'destructive' });
+      }
+    } catch (e: any) {
+      toast({ title: 'Test failed', description: e.message, variant: 'destructive' });
+    } finally {
+      setTesting(false);
+    }
+  };
 
   useEffect(() => {
     (async () => {
