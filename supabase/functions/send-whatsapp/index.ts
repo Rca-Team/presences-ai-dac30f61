@@ -148,17 +148,21 @@ serve(async (req) => {
       });
     }
 
-    const { data: roleData } = await supabase
-      .from("user_roles").select("role").eq("user_id", user.id)
-      .in("role", ["admin", "principal", "teacher"]).maybeSingle();
-    if (!roleData) {
-      return new Response(JSON.stringify({ success: false, error: "Forbidden" }), {
-        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
     const body = await req.json();
     const { phoneNumber, studentId, studentName, status, textBody } = body;
+
+    // Only staff can send template-based attendance notifications.
+    // Simple text tests (e.g. hello_world from profile) are allowed for any authenticated user.
+    if (!textBody) {
+      const { data: roleData } = await supabase
+        .from("user_roles").select("role").eq("user_id", user.id)
+        .in("role", ["admin", "principal", "teacher"]).maybeSingle();
+      if (!roleData) {
+        return new Response(JSON.stringify({ success: false, error: "Forbidden" }), {
+          status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
     let { parentName, className, section } = body;
 
     let recipientPhone = phoneNumber;
