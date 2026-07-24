@@ -662,7 +662,7 @@ const Profile = () => {
                                 WhatsApp Test
                               </CardTitle>
                               <CardDescription className="mt-1 text-xs sm:text-sm">
-                                Send a Hello World message to your registered parent phone
+                                Send a Hello World message to any WhatsApp number
                               </CardDescription>
                             </div>
                             <Button
@@ -680,11 +680,24 @@ const Profile = () => {
                             </Button>
                           </div>
                         </CardHeader>
-                        <CardContent>
-                          <p className="text-xs sm:text-sm text-muted-foreground">
-                            Uses your saved parent phone number ({formData.parent_phone || "not set"}).
-                            Make sure the number includes the country code (e.g. +91...).
-                          </p>
+                        <CardContent className="space-y-3">
+                          <div>
+                            <Label htmlFor="test-phone" className="text-xs sm:text-sm">
+                              Phone number
+                            </Label>
+                            <Input
+                              id="test-phone"
+                              type="tel"
+                              value={testPhone}
+                              onChange={(e) => setTestPhone(e.target.value)}
+                              placeholder={formData.parent_phone || "+919876543210"}
+                              className="mt-1"
+                            />
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Leave blank to use your saved parent phone ({formData.parent_phone || "not set"}).
+                              Include country code.
+                            </p>
+                          </div>
                         </CardContent>
                       </Card>
                       
