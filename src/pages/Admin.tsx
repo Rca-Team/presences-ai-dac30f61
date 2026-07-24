@@ -45,6 +45,8 @@ import {
   CreditCard, Image, Download, RefreshCw, MessageSquareText, Mail, Siren, CalendarDays, DatabaseBackup, ScanLine } from
 'lucide-react';
 import TimetableManager from '@/components/admin/TimetableManager';
+import GateVisionDashboard from '@/components/admin/GateVisionDashboard';
+import { Radio } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useUserRole } from '@/hooks/useUserRole';
