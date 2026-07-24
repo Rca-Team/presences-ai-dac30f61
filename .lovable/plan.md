@@ -1,69 +1,85 @@
-## Goal
+# Gate Mode 2.0 — AI Vision Surveillance
 
-Turn the existing PIN-gated Portfolio page into a **full-stack, real-time, drag-and-drop editable** portfolio for Gaurav Raj — with premium project cards, replaceable DP, and a members section that also drives the DPs shown elsewhere on the site (Home team card, About Me).
+Turns Gate Mode into a persistent classroom + gate surveillance system. Faces recognize people; short-term body tracking keeps identifying them after they turn away (e.g. sitting on a bench). Every enter/exit event is logged and tied to the timetable.
 
-## Current state (verified)
+## Scope confirmed with you
 
-- `src/pages/Portfolio.tsx` exists — PIN `2022`, stores everything as a single JSON blob under `attendance_settings.value` where `key = 'gaurav_portfolio'`. Images today are just text URL fields (no uploads, no reordering).
-- `src/pages/Index.tsx` renders a hardcoded `creatorMembers` array (Gaurav, Swami Anant Vyas, Jatin Dhama) with static image imports.
-- `src/components/AboutMe.tsx` uses a hardcoded `/lovable-uploads/...png`.
-- No storage bucket exists yet for portfolio assets; `face-images` is unrelated and shouldn't be reused.
+- **Cameras**: RTSP/IP CCTV, 24/7. Browser cannot pull RTSP directly, so we design a Camera Bridge worker (Node/Python) that you host locally; the app treats each camera as a registered stream and receives frames + events over a secure channel.
+- **Re-ID**: short-term visual tracking (body appearance + motion) inside a single camera view. Cross-camera Re-ID is out of v1.
+- **Teacher inference**: timetable-first, upgraded to "confirmed" once the scheduled teacher's face is recognized during the period.
+- **Events logged**: teacher enter/exit, student enter/exit + seat zone (front/middle/back), students-leaving-during-class, concurrent-exit alerts.
 
-## What we'll build
+## Architecture
 
-### 1. Storage + data
-- New public storage bucket **`portfolio-assets`** for DP, cover, gallery, project shots, member DPs.
-- Keep the existing `attendance_settings` JSON-blob approach (no schema churn) but extend `PortfolioData` with:
-  - `members: { id, name, role, bio, image, order }[]`
-  - `projects` gains `order`, `tags[]`, `githubUrl`, `year`
-  - `socials: { github, linkedin, twitter, instagram }`
-
-### 2. Secured editor (`/portfolio` after PIN 2022) — rebuilt
-- Tabbed premium editor: **Profile · Projects · Members · Gallery · Socials**.
-- **Drag-and-drop image uploads** everywhere an image is needed (profile DP, cover, each project card, each member DP, gallery). Dropzone shows preview + progress; also supports click-to-pick and paste-from-clipboard. Files go to `portfolio-assets`, public URL saved back into the JSON.
-- **Reorder by drag** (dnd-kit) for projects, members, gallery, achievements, skills.
-- **Remove / replace DP** on every entity with a single hover action.
-- Auto-save (debounced) + explicit Save. Lock button to relock.
-
-### 3. Public portfolio view — premium
-- Hero with cover image, floating glass DP, name, role, tagline, socials.
-- **Projects grid**: premium liquid-glass cards, cover image with parallax hover, stack chips, external link + GitHub buttons, year badge.
-- Members strip with rounded DPs, name, role, bio-on-hover.
-- Achievements timeline, skills cloud, gallery masonry with lightbox.
-
-### 4. Fix members DP everywhere (single source of truth)
-- `src/pages/Index.tsx` `creatorMembers`: read from the same portfolio JSON on mount (with the current hardcoded array as fallback). Any DP replaced in the secured editor updates the Home team card in real-time.
-- `src/components/AboutMe.tsx`: bind DP + name + bio to portfolio JSON too.
-- Real-time: subscribe to `attendance_settings` changes via Supabase realtime so Home + About Me + Portfolio all update without reload.
-
-## Technical details
-
-**Bucket + RLS**
-```sql
--- new migration
-insert into storage.buckets (id, name, public) values ('portfolio-assets','portfolio-assets', true);
--- read: public; write: authenticated only (editor is PIN-gated in UI; we still require auth for storage writes)
-create policy "portfolio read" on storage.objects for select using (bucket_id='portfolio-assets');
-create policy "portfolio write" on storage.objects for insert to authenticated with check (bucket_id='portfolio-assets');
-create policy "portfolio update" on storage.objects for update to authenticated using (bucket_id='portfolio-assets');
-create policy "portfolio delete" on storage.objects for delete to authenticated using (bucket_id='portfolio-assets');
+```text
+ CCTV (RTSP) -> Camera Bridge worker (you host)
+                  |  decode frames, run detector + tracker locally
+                  |  run face recognition on best frames
+                  v
+             Lovable Cloud (Edge Function ingest)
+                  |  validates + writes tracks & events
+                  v
+             Postgres (cameras, tracks, events, presence)
+                  |  Realtime
+                  v
+             Admin "Gate Mode 2.0" dashboard (React)
 ```
-Bucket created via `supabase--storage_create_bucket`; policies via migration.
 
-**Files touched**
-- `src/pages/Portfolio.tsx` — split into `PortfolioView.tsx` (public) + `PortfolioEditor.tsx` (secured).
-- New `src/components/portfolio/`: `ImageDropzone.tsx`, `ProjectCard.tsx`, `MembersGrid.tsx`, `SortableList.tsx`, `useUploadPortfolioAsset.ts`, `usePortfolioData.ts` (shared fetch + realtime subscription).
-- `src/pages/Index.tsx` — swap hardcoded `creatorMembers` for `usePortfolioData().members`.
-- `src/components/AboutMe.tsx` — read DP + copy from portfolio data.
+The bridge does the heavy vision work (RTSP decode, YOLO person detection, ByteTrack/OC-SORT tracking, embeddings). The app owns identity, timetable logic, storage, dashboards, and alerts.
 
-**Libraries**
-- `@dnd-kit/core` + `@dnd-kit/sortable` for reorder + drop targets (dropzone works via native HTML5 drag events, no extra dep).
+## Data model (new tables)
 
-## Out of scope (ask if you want them)
-- Migrating the JSON blob to a proper `portfolio_content` table.
-- Public-facing contact form / email delivery.
-- SEO metadata per project (can add later).
+- `cameras` — name, location (`gate` / `classroom:6A` / `corridor` / `common`), class_id nullable, rtsp label (URL stored only in the bridge), status.
+- `camera_zones` — polygonal zones per camera: seat_front / seat_middle / seat_back / doorway. Editable from admin.
+- `vision_tracks` — one row per person-track within a single camera view: camera_id, track_id, started_at, ended_at, identified_student_id / identified_teacher_id (nullable until recognized), confidence, appearance signature (color histogram + body embedding hash), last_zone.
+- `vision_events` — camera_id, track_id nullable, subject_type (student/teacher/unknown), subject_id nullable, event_type (`enter`, `exit`, `sit`, `stand`, `zone_change`, `concurrent_exit_alert`), zone, class_id, period_id nullable, occurred_at.
+- `class_presence_sessions` — class_id, period_id, teacher_id (scheduled), teacher_confirmed boolean, teacher_entered_at, teacher_exited_at, student_count_peak, students_left_during_class integer.
+- All tables get RLS: admins full access, teachers scoped to their class, service role for the ingest function.
 
-## Confirm before I build
-1. Keep PIN `2022` as the sole gate to the editor, or also require an admin login?
-2. Members list — start with the current three (Gaurav, Swami Anant Vyas, Jatin Dhama) editable, or blank so you re-add them from the editor?
+## Camera Bridge worker (documented, not hosted in Lovable)
+
+We ship a `bridge/` reference implementation the user runs on any always-on machine (mini-PC, NVR box). It:
+
+1. Reads RTSP with ffmpeg/GStreamer.
+2. Runs person detection (YOLOv8n) + ByteTrack for stable track IDs across frames.
+3. On each track's best frame (largest, most frontal), runs the existing face recognition pipeline to bind `track_id -> student_id/teacher_id`.
+4. Keeps identifying the person via the track even after the face disappears (bench case). If the track breaks and re-appears within N seconds with matching appearance signature, it re-links.
+5. Emits enter/exit and zone events to the ingest edge function with the bridge API key.
+
+The bridge is optional-but-required for real CCTV; the app also accepts a "browser bridge" fallback (a tab on a laptop pointed at a USB camera) for demos.
+
+## Edge functions
+
+- `gate-vision-ingest` — receives events from bridges, validates the bridge API key (per-camera secret), writes tracks/events, updates `class_presence_sessions` (teacher_entered_at when scheduled teacher recognized, counters for exits during class).
+- `gate-vision-alerts` — server-side rule: if ≥3 exits from the same classroom within 60s, insert a `concurrent_exit_alert` event and mark it unread.
+- `gate-vision-timeline` — read API used by the dashboard to load a period's timeline efficiently.
+
+## Frontend (admin "Gate Mode 2.0" section)
+
+- **Cameras page**: register camera, assign to class, draw seat zones on a snapshot, generate bridge API key, view live status.
+- **Live wall**: per-class card showing scheduled teacher + confirmation state, current student count, seat-zone occupancy heat strip, active alerts.
+- **Timeline view**: per class + period, chronological list — "Teacher entered 09:02", "3 students exited between 09:34–09:35 (alert)", "Teacher exited 09:47", "5 students exited after teacher left".
+- **Person track drawer**: click a track to see when/where the person was seen across the day within each camera.
+
+Existing Gate Mode UI stays as the entry point; the new views live under a `Gate Mode 2.0` tab so nothing regresses.
+
+## Reliability + privacy
+
+- Bridge → cloud uses HTTPS + per-camera bearer token stored via `add_secret`.
+- No raw video frames stored server-side; only event rows and (optionally) low-res thumbnails on best-frame events, kept in a private storage bucket with signed URLs.
+- Retention: events default to 30 days, configurable.
+
+## Rollout
+
+1. Migration + RLS + grants for the 5 new tables.
+2. Ingest + alerts + timeline edge functions.
+3. Admin UI: Cameras page and Live wall.
+4. Timeline view + concurrent-exit alerts panel.
+5. Ship `bridge/` reference worker (README + docker-compose + sample config) so you can wire real CCTV.
+
+## Technical notes
+
+- Bridge language: Python (ultralytics + opencv + supervision) recommended; a Node variant is possible but slower.
+- Track IDs are per-camera and per-day; do not treat them as global.
+- Teacher confirmation runs only during the scheduled period window (from `timetable_slots`) to avoid mislabeling a teacher walking past.
+- Concurrent-exit threshold and retention are stored in `attendance_settings` so you can tune without a redeploy.
