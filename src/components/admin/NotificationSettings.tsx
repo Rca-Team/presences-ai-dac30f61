@@ -212,6 +212,31 @@ const NotificationSettings: React.FC = () => {
         </CardContent>
       </Card>
 
+      {/* Test services */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><MessageSquare className="h-5 w-5" /> Test services</CardTitle>
+          <CardDescription>
+            Send a live test WhatsApp message using the approved <code>attendance_notification</code> template.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-2 items-end">
+            <div>
+              <Label>Test phone (with country code)</Label>
+              <Input value={testPhone} onChange={(e) => setTestPhone(e.target.value)} placeholder="+919876543210" />
+            </div>
+            <Button variant="secondary" onClick={runTest} disabled={testing}>
+              {testing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <MessageSquare className="w-4 h-4 mr-2" />}
+              Send test WhatsApp
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Uses your saved WHATSAPP_ACCESS_TOKEN and WHATSAPP_PHONE_NUMBER_ID. Template must be approved in Meta Business Manager.
+          </p>
+        </CardContent>
+      </Card>
+
       <div className="flex justify-end">
         <Button onClick={save} disabled={saving}>
           {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
