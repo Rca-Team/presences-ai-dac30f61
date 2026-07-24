@@ -158,7 +158,7 @@ serve(async (req) => {
     }
 
     const body = await req.json();
-    const { phoneNumber, studentId, studentName, status } = body;
+    const { phoneNumber, studentId, studentName, status, textBody } = body;
     let { parentName, className, section } = body;
 
     let recipientPhone = phoneNumber;
@@ -199,12 +199,12 @@ serve(async (req) => {
       note: statusNote(status || "present"),
     };
 
-    const result = await sendWhatsAppTemplate(phone, vars);
+    const result = await sendWhatsAppTemplate(phone, vars, textBody);
 
     await supabase.from("notification_log").insert({
       recipient_phone: phone,
       recipient_id: studentId || null,
-      message_content: `[template:${TEMPLATE_NAME}] ${vars.student} — ${vars.status}`,
+      message_content: textBody || `[template:${TEMPLATE_NAME}] ${vars.student} — ${vars.status}`,
       notification_type: "whatsapp",
       language: "en",
       status: result.success ? "sent" : "failed",
