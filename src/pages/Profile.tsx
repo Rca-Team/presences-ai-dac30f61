@@ -213,10 +213,11 @@ const Profile = () => {
   };
 
   const sendHelloWorldTest = async () => {
-    if (!user || !formData.parent_phone) {
+    const phone = testPhone.trim() || formData.parent_phone;
+    if (!phone) {
       toast({
         title: "No phone number",
-        description: "Please add a parent phone number in your profile first.",
+        description: "Enter a phone number below or save a parent phone number in your profile first.",
         variant: "destructive"
       });
       return;
@@ -226,7 +227,7 @@ const Profile = () => {
     try {
       const { data, error } = await supabase.functions.invoke('send-whatsapp', {
         body: {
-          studentId: user.id,
+          phoneNumber: phone,
           textBody: `Hello World! 👋\n\nThis is a test WhatsApp message from Presence.\nIf you received this, your WhatsApp notifications are working correctly.`,
         }
       });
@@ -236,7 +237,7 @@ const Profile = () => {
       if (data?.success) {
         toast({
           title: "WhatsApp sent ✅",
-          description: `Hello World test delivered. Message ID: ${data.messageId || 'ok'}`
+          description: `Hello World test delivered to ${phone}. Message ID: ${data.messageId || 'ok'}`
         });
       } else {
         toast({
