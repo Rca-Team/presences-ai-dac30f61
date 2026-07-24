@@ -22,6 +22,7 @@ const NotificationDemo = lazyWithRetry(() => import('./pages/NotificationDemo'),
 const Profile = lazyWithRetry(() => import('./pages/Profile'), 'profile');
 const Features = lazyWithRetry(() => import('./pages/Features'), 'features');
 const GateMode = lazyWithRetry(() => import('./pages/GateMode'), 'gate-mode');
+const GateVisionMode = lazyWithRetry(() => import('./pages/GateVisionMode'), 'gate-vision-mode');
 const ParentPortal = lazyWithRetry(() => import('./pages/ParentPortal'), 'parent-portal');
 const Unsubscribe = lazyWithRetry(() => import('./pages/Unsubscribe'), 'unsubscribe');
 const DataBackup = lazyWithRetry(() => import('./pages/DataBackup'), 'data-backup');
@@ -293,6 +294,11 @@ function AnimatedRoutes() {
             <Route path="/gate" element={
               <ProtectedRoute requireRoles={["admin", "principal", "teacher"]}>
                 <GateMode />
+              </ProtectedRoute>
+            } />
+            <Route path="/gate/vision" element={
+              <ProtectedRoute requireRoles={["admin", "principal", "teacher"]}>
+                <GateVisionMode />
               </ProtectedRoute>
             } />
             <Route path="/unsubscribe" element={<Unsubscribe />} />

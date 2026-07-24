@@ -602,6 +602,12 @@ const GateMode = () => {
             <Wand2 className="h-3.5 w-3.5 mr-1" />
             <span className="hidden sm:inline">Enhance {aiEnhancerEnabled ? 'On' : 'Off'}</span>
           </Button>
+          <Link to="/gate/vision" className="hidden sm:inline-flex">
+            <Button variant="outline" size="sm" className="h-8 sm:h-9 text-xs px-2 sm:px-3 gap-1 border-primary/50 text-primary hover:bg-primary/10">
+              <Cctv className="h-3.5 w-3.5" />
+              Vision 2.0
+            </Button>
+          </Link>
           {!isMobile && (
             <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-9 sm:w-9" onClick={toggleFullscreen}>
               {isFullscreen ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
