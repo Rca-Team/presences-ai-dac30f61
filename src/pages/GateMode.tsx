@@ -278,7 +278,7 @@ const GateMode = () => {
         isRecognized: row.is_recognized,
         confidence:  row.confidence_score || 0,
         photoUrl:    row.snapshot_url || undefined,
-        time:        new Date(row.entry_time || row.created_at),
+        time:        new Date(row.entry_time || (row as any).created_at),
         className:   row.class || undefined,
         section:     row.section || undefined,
         periodKey:   (row.metadata as any)?.periodKey || undefined,
