@@ -44,15 +44,16 @@ const GateModeSetup = ({ onStart, onCancel, isStarting = false }: GateModeSetupP
   };
 
   useEffect(() => {
+    const fallback = [
+      { id: '1', name: 'Main Gate', gate_type: 'main' },
+      { id: '2', name: 'Back Gate', gate_type: 'back' },
+      { id: '3', name: 'Bus Gate', gate_type: 'bus' },
+    ];
+    setGates(fallback);
     supabase.from('school_gates').select('id, name, gate_type').eq('is_active', true)
-      .then(({ data }) => {
-        if (data?.length) setGates(data);
-        else setGates([
-          { id: '1', name: 'Main Gate', gate_type: 'main' },
-          { id: '2', name: 'Back Gate', gate_type: 'back' },
-          { id: '3', name: 'Bus Gate', gate_type: 'bus' },
-        ]);
-      });
+      .then(({ data, error }) => {
+        if (!error && data?.length) setGates(data);
+      }, (err) => { console.warn('[GateSetup] gates load failed:', err); });
   }, []);
 
   const { data: sessions, isLoading: sessionsLoading } = useQuery({

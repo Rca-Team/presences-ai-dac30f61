@@ -317,43 +317,61 @@ const GateMode = () => {
     } catch (e) { console.warn('[Gate] Could not resume active session:', e); return false; }
   }, [loadSessionEntries]);
 
-  // Bootstrap: fetch settings + stats, resume any active session
+  // Bootstrap: fetch settings + stats, resume any active session.
+  // Every step is guarded so a single failed query can never leave the
+  // page stuck on the loading skeleton.
   useEffect(() => {
     let statsInterval: any = null;
+    let cancelled = false;
+
+    const safe = async <T,>(fn: () => Promise<T>): Promise<T | null> => {
+      try { return await fn(); } catch (e) { console.warn('[Gate] bootstrap step failed:', e); return null; }
+    };
 
     (async () => {
       // Cutoff time
-      const { data: cutoffData } = await supabase
-        .from('attendance_settings').select('value').eq('key', 'cutoff_time').maybeSingle();
-      if (cutoffData?.value) {
-        const [h, m] = cutoffData.value.split(':').map(Number);
-        setCutoffHour(h || 9); setCutoffMinute(m || 0);
-      }
+      await safe(async () => {
+        const { data } = await supabase
+          .from('attendance_settings').select('value').eq('key', 'cutoff_time').maybeSingle();
+        if (data?.value) {
+          const [h, m] = String(data.value).split(':').map(Number);
+          setCutoffHour(h || 9); setCutoffMinute(m || 0);
+        }
+      });
 
       // Active period
-      const now        = new Date();
-      const nowMinutes = now.getHours() * 60 + now.getMinutes();
-      const { data: periods } = await supabase
-        .from('period_timings').select('period_name, start_time, end_time').order('start_time');
-      const current = (periods || []).find(p => {
-        const [sh, sm] = String(p.start_time || '00:00').split(':').map(Number);
-        const [eh, em] = String(p.end_time   || '23:59').split(':').map(Number);
-        return nowMinutes >= sh * 60 + sm && nowMinutes <= eh * 60 + em;
+      await safe(async () => {
+        const now        = new Date();
+        const nowMinutes = now.getHours() * 60 + now.getMinutes();
+        const { data: periods } = await supabase
+          .from('period_timings').select('period_name, start_time, end_time').order('start_time');
+        const current = (periods || []).find(p => {
+          const [sh, sm] = String(p.start_time || '00:00').split(':').map(Number);
+          const [eh, em] = String(p.end_time   || '23:59').split(':').map(Number);
+          return nowMinutes >= sh * 60 + sm && nowMinutes <= eh * 60 + em;
+        });
+        if (current?.period_name) {
+          setActivePeriodKey(`period-${now.toISOString().slice(0, 10)}-${current.period_name.replace(/\s+/g, '-').toLowerCase()}`);
+        }
       });
-      if (current?.period_name) {
-        setActivePeriodKey(`period-${now.toISOString().slice(0, 10)}-${current.period_name.replace(/\s+/g, '-').toLowerCase()}`);
-      }
 
-      await fetchGateStats();
+      await safe(() => fetchGateStats());
+      await safe(() => resumeActiveSession());
 
-      // Try to resume an active session from today
-      await resumeActiveSession();
+      if (cancelled) return;
+      statsInterval = setInterval(() => { void safe(() => fetchGateStats()); }, 15_000);
+      setIsBootstrapping(false);
+    })().catch((e) => {
+      console.warn('[Gate] bootstrap crashed, showing setup anyway:', e);
+      setIsBootstrapping(false);
+    });
 
-      statsInterval = setInterval(fetchGateStats, 15_000);
-      setTimeout(() => setIsBootstrapping(false), 350);
-    })();
+    // Safety net: never stay on the loading skeleton longer than 4s.
+    const fallbackTimer = setTimeout(() => setIsBootstrapping(false), 4000);
 
     return () => {
+      cancelled = true;
+      clearTimeout(fallbackTimer);
       if (statsInterval) clearInterval(statsInterval);
     };
   }, [fetchGateStats, resumeActiveSession]);
