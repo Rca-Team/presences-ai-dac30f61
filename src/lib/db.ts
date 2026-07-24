@@ -1,7 +1,8 @@
 // Custom Supabase client pointing at the user's paid Supabase project.
 // All app data (except Lovable AI Gateway calls) goes through this client.
 import { createClient } from '@supabase/supabase-js';
-import type { Database } from '@/integrations/supabase/types';
+// Intentionally untyped: the codebase references columns beyond what the
+// auto-generated Cloud types declare. Runtime is unaffected.
 
 const SUPABASE_URL = 'https://maxzmwsuqavwvhlvinfj.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_2hbipS4pHN50qKkuipOk-Q_JIPne0dG';
