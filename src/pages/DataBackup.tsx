@@ -184,14 +184,65 @@ async function runFullBackup(
   return backup;
 }
 
+export type RestoreReport = {
+  tablesRestored: number;
+  rowsRestored: number;
+  authUsersCreated: number;
+  authUsersSkipped: number;
+  skippedTables: string[];
+  errors: Array<{ scope: string; message: string }>;
+};
+
+function validateBackup(raw: unknown): FullBackup {
+  if (!raw || typeof raw !== 'object') throw new Error('Backup file is empty or invalid JSON.');
+  const b = raw as Partial<FullBackup>;
+  if (!b.tables || typeof b.tables !== 'object') {
+    throw new Error('Backup is missing the "tables" section.');
+  }
+  // Coerce optional fields so downstream code is safe
+  const safe: FullBackup = {
+    version: (b.version as any) || '2.0',
+    createdAt: b.createdAt || new Date().toISOString(),
+    manifest: b.manifest || { generatedAt: '', tables: [], authUsers: 0, restoreOrder: Object.keys(b.tables) },
+    tables: {},
+    authUsers: Array.isArray(b.authUsers) ? b.authUsers : [],
+  };
+  for (const [k, v] of Object.entries(b.tables)) {
+    if (Array.isArray(v)) safe.tables[k] = v;
+  }
+  return safe;
+}
+
 async function runFullRestore(
   backup: FullBackup,
   includeAuthUsers: boolean,
   onProgress: (p: Partial<Progress>) => void,
-): Promise<void> {
-  const restoreOrder = backup.manifest?.restoreOrder && backup.manifest.restoreOrder.length > 0
+): Promise<RestoreReport> {
+  const report: RestoreReport = {
+    tablesRestored: 0, rowsRestored: 0,
+    authUsersCreated: 0, authUsersSkipped: 0,
+    skippedTables: [], errors: [],
+  };
+
+  // Ask the server which tables it accepts so an old/foreign backup can't break the loop
+  let allowedTables: Set<string>;
+  try {
+    const manifest = await invokeAction<Manifest>({ action: 'list_public_tables' });
+    allowedTables = new Set(manifest.tables.map((t) => t.table));
+  } catch (e: any) {
+    throw new Error(`Cannot reach backup service: ${e?.message || 'unknown error'}`);
+  }
+
+  const restoreOrderRaw = backup.manifest?.restoreOrder?.length
     ? backup.manifest.restoreOrder
     : Object.keys(backup.tables || {});
+  const restoreOrder = restoreOrderRaw.filter((t) => {
+    if (!allowedTables.has(t)) {
+      report.skippedTables.push(t);
+      return false;
+    }
+    return true;
+  });
 
   const totalRows = restoreOrder.reduce((s, t) => s + ((backup.tables[t] as unknown[])?.length || 0), 0)
     + (includeAuthUsers ? (backup.authUsers?.length || 0) : 0);
@@ -210,7 +261,16 @@ async function runFullRestore(
         done, total: totalRows,
         pct: Math.min(98, Math.round((done / Math.max(1, totalRows)) * 100)),
       });
-      await invokeAction({ action: 'import_auth_users_chunk', users: slice });
+      try {
+        const res = await invokeAction<{ created: number; skipped: number }>({
+          action: 'import_auth_users_chunk',
+          users: slice,
+        });
+        report.authUsersCreated += res.created || 0;
+        report.authUsersSkipped += res.skipped || 0;
+      } catch (e: any) {
+        report.errors.push({ scope: 'auth.users', message: e?.message || 'chunk failed' });
+      }
       done += slice.length;
     }
   }
@@ -218,15 +278,19 @@ async function runFullRestore(
   for (const table of restoreOrder) {
     const rows = (backup.tables[table] as unknown[]) || [];
     if (rows.length === 0) continue;
+
     onProgress({
       currentTable: table,
       label: `Clearing ${table}...`,
       done, total: totalRows,
       pct: Math.min(98, Math.round((done / Math.max(1, totalRows)) * 100)),
     });
-    try { await invokeAction({ action: 'clear_table', table }); } catch (e) {
-      console.warn(`clear ${table} failed`, e);
+    try { await invokeAction({ action: 'clear_table', table }); } catch (e: any) {
+      // Non-fatal — upsert will still overwrite on id match
+      report.errors.push({ scope: `clear ${table}`, message: e?.message || 'clear failed' });
     }
+
+    let tableRowsInserted = 0;
     for (let i = 0; i < rows.length; i += CHUNK_SIZE) {
       const chunk = rows.slice(i, i + CHUNK_SIZE);
       onProgress({
@@ -235,9 +299,39 @@ async function runFullRestore(
         done, total: totalRows,
         pct: Math.min(98, Math.round((done / Math.max(1, totalRows)) * 100)),
       });
-      await invokeAction({ action: 'import_table_chunk', table, rows: chunk });
+      try {
+        await invokeAction({ action: 'import_table_chunk', table, rows: chunk });
+        tableRowsInserted += chunk.length;
+      } catch (e: any) {
+        // Retry once with a smaller batch to isolate a poison row / transient error
+        const smaller = 100;
+        let recovered = 0;
+        for (let j = 0; j < chunk.length; j += smaller) {
+          const mini = chunk.slice(j, j + smaller);
+          try {
+            await invokeAction({ action: 'import_table_chunk', table, rows: mini });
+            recovered += mini.length;
+          } catch (e2: any) {
+            report.errors.push({
+              scope: `${table} rows ${i + j}-${i + j + mini.length}`,
+              message: e2?.message || e?.message || 'chunk failed',
+            });
+          }
+        }
+        tableRowsInserted += recovered;
+      }
       done += chunk.length;
     }
+
+    if (tableRowsInserted > 0) {
+      report.tablesRestored += 1;
+      report.rowsRestored += tableRowsInserted;
+    }
+  }
+
+  onProgress({ phase: 'done', label: 'Restore complete', done: totalRows, total: totalRows, pct: 100 });
+  return report;
+}
   }
 
   onProgress({ phase: 'done', label: 'Restore complete', done: totalRows, total: totalRows, pct: 100 });
