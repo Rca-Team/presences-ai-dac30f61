@@ -31,12 +31,17 @@ type Manifest = {
   restoreOrder: string[];
 };
 
+type StorageFile = { path: string; contentType: string | null; base64: string };
+type StorageBucketInfo = { name: string; public: boolean; fileCount: number };
+
 type FullBackup = {
-  version: '2.0';
+  version: '2.1';
   createdAt: string;
   manifest: Manifest;
   tables: Record<string, unknown[]>;
   authUsers: Array<Record<string, unknown>>;
+  storage: Record<string, StorageFile[]>;
+  storageBuckets: StorageBucketInfo[];
 };
 
 type Progress = {
@@ -119,11 +124,13 @@ async function runFullBackup(
   const manifest = await invokeAction<Manifest>({ action: 'list_public_tables' });
   const totalRows = manifest.tables.reduce((s, t) => s + t.count, 0) + (includeAuthUsers ? manifest.authUsers : 0);
   const backup: FullBackup = {
-    version: '2.0',
+    version: '2.1',
     createdAt: new Date().toISOString(),
     manifest,
     tables: {},
     authUsers: [],
+    storage: {},
+    storageBuckets: [],
   };
 
   let done = 0;
@@ -180,6 +187,35 @@ async function runFullBackup(
     }
   }
 
+  // Storage buckets (all of them, all files) — captures face samples, uploads, etc.
+  try {
+    const bres = await invokeAction<{ buckets: StorageBucketInfo[] }>({ action: 'list_storage_buckets' });
+    backup.storageBuckets = bres.buckets || [];
+    for (const bucket of backup.storageBuckets) {
+      backup.storage[bucket.name] = [];
+      if (!bucket.fileCount) continue;
+      const listRes = await invokeAction<{ paths: string[] }>({ action: 'list_storage_files', bucket: bucket.name });
+      const paths = listRes.paths || [];
+      let i = 0;
+      for (const path of paths) {
+        i += 1;
+        onProgress({
+          currentTable: `storage:${bucket.name}`,
+          label: `Downloading ${bucket.name}/${path} (${i}/${paths.length})`,
+          done, total: totalRows, pct: Math.min(98, Math.round((done / Math.max(1, totalRows)) * 100)),
+        });
+        try {
+          const f = await invokeAction<StorageFile>({ action: 'download_storage_file', bucket: bucket.name, path });
+          backup.storage[bucket.name].push({ path: f.path, contentType: f.contentType, base64: f.base64 });
+        } catch (e) {
+          console.warn('storage download failed', bucket.name, path, e);
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('storage backup skipped', e);
+  }
+
   onProgress({ phase: 'done', label: 'Backup complete', done: totalRows, total: totalRows, pct: 100 });
   return backup;
 }
@@ -201,11 +237,13 @@ function validateBackup(raw: unknown): FullBackup {
   }
   // Coerce optional fields so downstream code is safe
   const safe: FullBackup = {
-    version: (b.version as any) || '2.0',
+    version: (b.version as any) || '2.1',
     createdAt: b.createdAt || new Date().toISOString(),
     manifest: b.manifest || { generatedAt: '', tables: [], authUsers: 0, restoreOrder: Object.keys(b.tables) },
     tables: {},
     authUsers: Array.isArray(b.authUsers) ? b.authUsers : [],
+    storage: (b as any).storage && typeof (b as any).storage === 'object' ? (b as any).storage : {},
+    storageBuckets: Array.isArray((b as any).storageBuckets) ? (b as any).storageBuckets : [],
   };
   for (const [k, v] of Object.entries(b.tables)) {
     if (Array.isArray(v)) safe.tables[k] = v;
@@ -326,6 +364,38 @@ async function runFullRestore(
     if (tableRowsInserted > 0) {
       report.tablesRestored += 1;
       report.rowsRestored += tableRowsInserted;
+    }
+  }
+
+  // Restore storage buckets & files
+  const storage = backup.storage || {};
+  for (const [bucket, files] of Object.entries(storage)) {
+    if (!files || files.length === 0) continue;
+    onProgress({
+      currentTable: `storage:${bucket}`,
+      label: `Clearing bucket ${bucket}...`,
+      done, total: totalRows, pct: Math.min(98, Math.round((done / Math.max(1, totalRows)) * 100)),
+    });
+    try { await invokeAction({ action: 'clear_storage_bucket', bucket }); } catch (e: any) {
+      report.errors.push({ scope: `clear bucket ${bucket}`, message: e?.message || 'clear failed' });
+    }
+    let i = 0;
+    for (const file of files) {
+      i += 1;
+      onProgress({
+        currentTable: `storage:${bucket}`,
+        label: `Uploading ${bucket}/${file.path} (${i}/${files.length})`,
+        done, total: totalRows, pct: Math.min(98, Math.round((done / Math.max(1, totalRows)) * 100)),
+      });
+      try {
+        await invokeAction({
+          action: 'upload_storage_file',
+          bucket, path: file.path,
+          base64: file.base64, contentType: file.contentType,
+        });
+      } catch (e: any) {
+        report.errors.push({ scope: `${bucket}/${file.path}`, message: e?.message || 'upload failed' });
+      }
     }
   }
 
