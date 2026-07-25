@@ -124,11 +124,13 @@ async function runFullBackup(
   const manifest = await invokeAction<Manifest>({ action: 'list_public_tables' });
   const totalRows = manifest.tables.reduce((s, t) => s + t.count, 0) + (includeAuthUsers ? manifest.authUsers : 0);
   const backup: FullBackup = {
-    version: '2.0',
+    version: '2.1',
     createdAt: new Date().toISOString(),
     manifest,
     tables: {},
     authUsers: [],
+    storage: {},
+    storageBuckets: [],
   };
 
   let done = 0;
