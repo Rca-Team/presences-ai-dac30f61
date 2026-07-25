@@ -223,6 +223,7 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({ selectedFaceId 
       class_name: selectedFace.class || '',
       section: selectedFace.section || '',
       roll_number: selectedFace.roll_number || '',
+      admission_number: selectedFace.admission_number || '',
       blood_group: selectedFace.blood_group || '',
       parent_name: selectedFace.parent_name || '',
       parent_phone: selectedFace.parent_phone || '',
