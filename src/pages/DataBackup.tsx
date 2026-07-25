@@ -332,10 +332,6 @@ async function runFullRestore(
   onProgress({ phase: 'done', label: 'Restore complete', done: totalRows, total: totalRows, pct: 100 });
   return report;
 }
-  }
-
-  onProgress({ phase: 'done', label: 'Restore complete', done: totalRows, total: totalRows, pct: 100 });
-}
 
 function backupToBlob(backup: FullBackup): Blob {
   return new Blob([JSON.stringify(backup)], { type: 'application/json' });
