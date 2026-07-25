@@ -49,6 +49,7 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({ selectedFaceId 
     class_name: '',
     section: '',
     roll_number: '',
+    admission_number: '',
     blood_group: '',
     parent_name: '',
     parent_phone: '',
@@ -222,6 +223,7 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({ selectedFaceId 
       class_name: selectedFace.class || '',
       section: selectedFace.section || '',
       roll_number: selectedFace.roll_number || '',
+      admission_number: selectedFace.admission_number || '',
       blood_group: selectedFace.blood_group || '',
       parent_name: selectedFace.parent_name || '',
       parent_phone: selectedFace.parent_phone || '',
@@ -291,6 +293,7 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({ selectedFaceId 
             class: classValue,
             section: sectionValue,
             roll_number: detailsForm.roll_number.trim(),
+            admission_number: detailsForm.admission_number.trim(),
             blood_group: detailsForm.blood_group.trim(),
             parent_name: detailsForm.parent_name.trim(),
             parent_phone: detailsForm.parent_phone.trim(),
@@ -337,6 +340,7 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({ selectedFaceId 
             display_name: studentName,
             class: detailsForm.class_name.trim() || null,
             section: detailsForm.section.trim().toUpperCase() || null,
+            admission_number: detailsForm.admission_number.trim() || null,
             parent_name: detailsForm.parent_name.trim(),
             parent_phone: detailsForm.parent_phone.trim(),
             parent_email: detailsForm.parent_email.trim(),
@@ -542,6 +546,15 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({ selectedFaceId 
               <div className="space-y-1.5">
                 <Label className="text-xs">Roll Number</Label>
                 <Input value={detailsForm.roll_number} onChange={(e) => setDetailsForm((p) => ({ ...p, roll_number: e.target.value }))} disabled={!editingDetails} />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Admission No</Label>
+                <Input
+                  value={detailsForm.admission_number}
+                  onChange={(e) => setDetailsForm((p) => ({ ...p, admission_number: e.target.value }))}
+                  disabled={!editingDetails}
+                  placeholder="e.g. ADM2024001"
+                />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">Blood Group</Label>
