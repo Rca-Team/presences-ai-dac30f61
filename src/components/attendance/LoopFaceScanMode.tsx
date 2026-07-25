@@ -3,13 +3,16 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Webcam from 'react-webcam';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { loadModels, areModelsLoaded } from '@/services/face-recognition/ModelService';
+import { recognizeFace, recordAttendance } from '@/services/face-recognition/RecognitionService';
 import * as faceapi from 'face-api.js';
 import {
-  Camera, Play, Pause, Send, Trash2, CheckCircle2, Loader2,
-  Users, Sparkles, Repeat, X,
+  Play, Pause, Send, Trash2, CheckCircle2, Loader2,
+  Users, Sparkles, Repeat, X, WifiOff, AlertTriangle,
 } from 'lucide-react';
 
 interface CapturedFace {
@@ -20,15 +23,22 @@ interface CapturedFace {
   quality: number;
 }
 
+type ItemStatus = 'marked' | 'already' | 'late' | 'unmatched' | 'low_conf' | 'error';
+interface ItemResult { clientId: string; status: ItemStatus; name?: string; confidence?: number }
+
 const QUEUE_KEY = 'loop-mode-queue-v1';
-const DETECT_MIN_SCORE = 0.55;         // baseline detector confidence
-const QUALITY_COMMIT = 0.62;           // combined quality required to commit
-const SAME_FACE_DIST = 0.42;           // dedupe within same session queue
-const CANDIDATE_MATCH_DIST = 0.45;     // same-face across frames while tracking
-const MIN_HOLD_MS = 380;               // must observe a face at least this long
-const MAX_HOLD_MS = 1100;              // commit even if still improving
-const IDLE_COMMIT_MS = 180;            // commit if we lose the face for this long
-const POST_CAPTURE_COOLDOWN_MS = 650;  // gap between commits to avoid spam
+const DETECT_MIN_SCORE = 0.55;
+const QUALITY_COMMIT = 0.62;
+const SAME_FACE_DIST = 0.42;
+const CANDIDATE_MATCH_DIST = 0.45;
+const MIN_HOLD_MS = 380;
+const MAX_HOLD_MS = 1100;
+const IDLE_COMMIT_MS = 180;
+const POST_CAPTURE_COOLDOWN_MS = 650;
+
+const AUTO_BATCH_SIZE = 5;
+const AUTO_FLUSH_MS = 4000;
+const LOCAL_MIN_CONFIDENCE = 0.65;
 
 const euclid = (a: Float32Array | number[], b: Float32Array | number[]) => {
   let s = 0;
@@ -37,7 +47,6 @@ const euclid = (a: Float32Array | number[], b: Float32Array | number[]) => {
   return Math.sqrt(s);
 };
 
-// Combined quality: detector score × size × frontality (nose centered between eyes)
 const computeQuality = (
   det: faceapi.WithFaceDescriptor<faceapi.WithFaceLandmarks<{ detection: faceapi.FaceDetection }>>,
   video: HTMLVideoElement,
@@ -53,14 +62,14 @@ const computeQuality = (
   const eyeDist = Math.max(1, Math.abs(reCx - leCx));
   const noseX = nose[3].x;
   const off = Math.abs(noseX - eyeMid) / eyeDist;
-  const frontality = Math.max(0, 1 - off * 2.2); // 0..1
+  const frontality = Math.max(0, 1 - off * 2.2);
   return score * (0.55 + 0.45 * sizeRatio) * (0.55 + 0.45 * frontality);
 };
 
 interface Candidate {
   descriptor: Float32Array;
   box: faceapi.Box;
-  quality: number;      // combined quality of best frame so far
+  quality: number;
   firstSeen: number;
   lastSeen: number;
   imageDataUrl: string;
@@ -74,6 +83,8 @@ const LoopFaceScanMode: React.FC = () => {
   const runningRef = useRef(false);
   const candidateRef = useRef<Candidate | null>(null);
   const queueRef = useRef<CapturedFace[]>([]);
+  const submittingRef = useRef(false);
+  const autoFlushTimerRef = useRef<number | null>(null);
 
   const [modelsReady, setModelsReady] = useState(false);
   const [running, setRunning] = useState(false);
@@ -81,12 +92,14 @@ const LoopFaceScanMode: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [flash, setFlash] = useState(false);
   const [lastResult, setLastResult] = useState<any>(null);
-  const [tracking, setTracking] = useState(false); // UI: currently accumulating a shot
+  const [tracking, setTracking] = useState(false);
+  const [autoProcess, setAutoProcess] = useState(true);
+  const [serverDown, setServerDown] = useState(false);
+  const [itemResults, setItemResults] = useState<Record<string, ItemResult>>({});
 
-  // keep ref in sync
   useEffect(() => { queueRef.current = queue; }, [queue]);
+  useEffect(() => { submittingRef.current = submitting; }, [submitting]);
 
-  // load persisted queue
   useEffect(() => {
     try {
       const raw = localStorage.getItem(QUEUE_KEY);
@@ -97,7 +110,6 @@ const LoopFaceScanMode: React.FC = () => {
     try { localStorage.setItem(QUEUE_KEY, JSON.stringify(queue)); } catch {}
   }, [queue]);
 
-  // load models
   useEffect(() => {
     (async () => {
       if (!areModelsLoaded()) await loadModels();
@@ -128,6 +140,155 @@ const LoopFaceScanMode: React.FC = () => {
     return c.toDataURL('image/jpeg', 0.85);
   }, []);
 
+  // ─── Local (client-side) fallback recognizer ───────────────────────────────
+  const processLocally = useCallback(async (items: CapturedFace[]) => {
+    const results: any[] = [];
+    let marked = 0, alreadyMarked = 0, unrecognized = 0, lowConf = 0;
+
+    for (const item of items) {
+      try {
+        const desc = new Float32Array(item.descriptor);
+        const rec = await recognizeFace(desc);
+        if (!rec.recognized || !rec.employee) {
+          unrecognized++;
+          results.push({ clientId: item.clientId, recognized: false, reason: 'no_match' });
+          continue;
+        }
+        const conf = rec.confidence ?? 0;
+        if (conf < LOCAL_MIN_CONFIDENCE) {
+          lowConf++;
+          unrecognized++;
+          results.push({ clientId: item.clientId, recognized: false, reason: 'low_confidence', confidence: conf });
+          continue;
+        }
+        const outcome = await recordAttendance(
+          rec.employee.id,
+          'present',
+          conf,
+          { source: 'loop-mode-local', metadata: { name: rec.employee.name } },
+          item.imageDataUrl,
+          'ai-scan',
+        );
+        if (outcome?.skipped) {
+          if (outcome.reason === 'already_marked') {
+            alreadyMarked++;
+            results.push({ clientId: item.clientId, recognized: true, alreadyMarked: true, name: rec.employee.name, confidence: conf });
+          } else {
+            lowConf++;
+            results.push({ clientId: item.clientId, recognized: false, reason: outcome.reason, confidence: conf });
+          }
+        } else {
+          marked++;
+          const status = outcome?.status || 'present';
+          results.push({ clientId: item.clientId, recognized: true, name: rec.employee.name, status, confidence: conf });
+        }
+      } catch (e: any) {
+        results.push({ clientId: item.clientId, recognized: false, reason: 'error', error: e?.message });
+      }
+    }
+    return {
+      ok: true,
+      summary: { total: items.length, marked, alreadyMarked, unrecognized, lowConf },
+      results,
+      via: 'local' as const,
+    };
+  }, []);
+
+  const applyResults = useCallback((results: any[]) => {
+    const map: Record<string, ItemResult> = {};
+    const toRemove = new Set<string>();
+    for (const r of results) {
+      let status: ItemStatus = 'error';
+      if (r.recognized && r.alreadyMarked) status = 'already';
+      else if (r.recognized && r.status === 'late') status = 'late';
+      else if (r.recognized) status = 'marked';
+      else if (r.reason === 'low_confidence') status = 'low_conf';
+      else if (r.reason === 'ambiguous' || r.reason === 'no_match') status = 'unmatched';
+      map[r.clientId] = { clientId: r.clientId, status, name: r.name, confidence: r.confidence };
+      if (status === 'marked' || status === 'already' || status === 'late') toRemove.add(r.clientId);
+    }
+    setItemResults(prev => ({ ...prev, ...map }));
+    // Remove successfully-processed items after a short delay so user sees the pill
+    setTimeout(() => {
+      setQueue(prev => prev.filter(q => !toRemove.has(q.clientId)));
+      setItemResults(prev => {
+        const next = { ...prev };
+        for (const id of toRemove) delete next[id];
+        return next;
+      });
+    }, 900);
+  }, []);
+
+  const submit = useCallback(async (opts: { silent?: boolean } = {}) => {
+    if (submittingRef.current) return;
+    const items = queueRef.current;
+    if (!items.length) return;
+    setSubmitting(true);
+    const wasRunning = runningRef.current;
+    try {
+      const payload = items.map(q => ({
+        clientId: q.clientId,
+        descriptor: q.descriptor,
+        capturedAt: q.capturedAt,
+      }));
+
+      let data: any = null;
+      let usedLocal = false;
+      try {
+        const { data: srvData, error } = await supabase.functions.invoke('batch-face-attendance', { body: { items: payload } });
+        if (error) throw error;
+        if (!srvData?.summary) throw new Error('Malformed server response');
+        data = srvData;
+        setServerDown(false);
+      } catch (edgeErr: any) {
+        console.warn('Edge function unavailable, falling back to local recognition:', edgeErr?.message || edgeErr);
+        setServerDown(true);
+        data = await processLocally(items);
+        usedLocal = true;
+      }
+
+      setLastResult(data);
+      if (Array.isArray(data?.results)) applyResults(data.results);
+
+      if (!opts.silent) {
+        const s = data.summary || {};
+        toast({
+          title: usedLocal ? 'Processed on-device' : 'Batch processed',
+          description: `${s.marked ?? 0} marked · ${s.alreadyMarked ?? 0} already · ${s.unrecognized ?? 0} unmatched${usedLocal ? ' (offline mode)' : ''}`,
+        });
+      }
+    } catch (e: any) {
+      toast({ title: 'Process failed', description: e?.message || 'Unknown error', variant: 'destructive' });
+    } finally {
+      setSubmitting(false);
+      if (wasRunning && !runningRef.current) {
+        // scanner was paused externally — leave it
+      }
+    }
+  }, [applyResults, processLocally, toast]);
+
+  const scheduleAutoFlush = useCallback(() => {
+    if (!autoProcess) return;
+    if (autoFlushTimerRef.current) window.clearTimeout(autoFlushTimerRef.current);
+    autoFlushTimerRef.current = window.setTimeout(() => {
+      if (!submittingRef.current && queueRef.current.length > 0) submit({ silent: true });
+    }, AUTO_FLUSH_MS);
+  }, [autoProcess, submit]);
+
+  // Auto-batch trigger when queue reaches threshold
+  useEffect(() => {
+    if (!autoProcess) return;
+    if (submitting) return;
+    if (queue.length >= AUTO_BATCH_SIZE) {
+      submit({ silent: true });
+    } else if (queue.length > 0) {
+      scheduleAutoFlush();
+    }
+    return () => {
+      if (autoFlushTimerRef.current) window.clearTimeout(autoFlushTimerRef.current);
+    };
+  }, [queue.length, autoProcess, submitting, submit, scheduleAutoFlush]);
+
   const commitCandidate = useCallback(() => {
     const cand = candidateRef.current;
     candidateRef.current = null;
@@ -135,7 +296,6 @@ const LoopFaceScanMode: React.FC = () => {
     if (!cand) return;
     if (cand.quality < QUALITY_COMMIT) return;
 
-    // dedupe against already-queued faces (unique per session)
     const dup = queueRef.current.some(q => euclid(cand.descriptor, q.descriptor) < SAME_FACE_DIST);
     if (dup) return;
 
@@ -176,17 +336,13 @@ const LoopFaceScanMode: React.FC = () => {
 
       if (det && det.detection.score >= DETECT_MIN_SCORE) {
         const q = computeQuality(det, video);
-
-        // skip immediately if this face is already in queue
         const alreadyQueued = queueRef.current.some(item => euclid(det.descriptor, item.descriptor) < SAME_FACE_DIST);
         if (alreadyQueued) {
           candidateRef.current = null;
           setTracking(false);
         } else {
           const isSame = cand && euclid(det.descriptor, cand.descriptor) < CANDIDATE_MATCH_DIST;
-
           if (!cand || !isSame) {
-            // new candidate — reset accumulator
             candidateRef.current = {
               descriptor: det.descriptor,
               box: det.detection.box,
@@ -206,20 +362,15 @@ const LoopFaceScanMode: React.FC = () => {
             }
             const held = now - cand.firstSeen;
             if (held >= MIN_HOLD_MS && cand.quality >= QUALITY_COMMIT) {
-              // commit if we've held long enough OR quality is already excellent
-              if (held >= MAX_HOLD_MS || cand.quality >= 0.85) {
-                commitCandidate();
-              }
+              if (held >= MAX_HOLD_MS || cand.quality >= 0.85) commitCandidate();
             }
           }
         }
       } else if (cand) {
-        // no face this frame — if we lost it for a bit, commit if good enough
         if (now - cand.lastSeen >= IDLE_COMMIT_MS) {
           if (cand.quality >= QUALITY_COMMIT && now - cand.firstSeen >= MIN_HOLD_MS) {
             commitCandidate();
           } else {
-            // discard weak candidate
             candidateRef.current = null;
             setTracking(false);
           }
@@ -229,7 +380,6 @@ const LoopFaceScanMode: React.FC = () => {
 
     rafRef.current = requestAnimationFrame(detectLoop);
   }, [captureFrom, commitCandidate]);
-
 
   const start = useCallback(() => {
     if (!modelsReady) {
@@ -242,49 +392,56 @@ const LoopFaceScanMode: React.FC = () => {
     rafRef.current = requestAnimationFrame(detectLoop);
   }, [detectLoop, modelsReady, toast]);
 
-  useEffect(() => () => { runningRef.current = false; if (rafRef.current) cancelAnimationFrame(rafRef.current); }, []);
+  useEffect(() => () => {
+    runningRef.current = false;
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    if (autoFlushTimerRef.current) window.clearTimeout(autoFlushTimerRef.current);
+  }, []);
 
   const removeItem = (id: string) => setQueue(q => q.filter(x => x.clientId !== id));
-  const clearAll = () => setQueue([]);
+  const clearAll = () => { setQueue([]); setItemResults({}); };
 
-  const submit = async () => {
+  const submitDetached = async () => {
     if (!queue.length) return;
-    setSubmitting(true);
-    // pause capture during submit (server continues even if we close)
-    const wasRunning = runningRef.current;
-    stop();
+    const snapshot = [...queue];
+    const payload = snapshot.map(q => ({ clientId: q.clientId, descriptor: q.descriptor, capturedAt: q.capturedAt }));
     try {
-      const items = queue.map(q => ({
-        clientId: q.clientId,
-        descriptor: q.descriptor,
-        capturedAt: q.capturedAt,
-      }));
-      const { data, error } = await supabase.functions.invoke('batch-face-attendance', {
-        body: { items },
-      });
-      if (error) throw error;
-      setLastResult(data);
-      toast({
-        title: 'Batch processed',
-        description: `${data?.summary?.marked ?? 0} marked · ${data?.summary?.alreadyMarked ?? 0} already · ${data?.summary?.unrecognized ?? 0} unmatched`,
-      });
+      const invocation = supabase.functions.invoke('batch-face-attendance', { body: { items: payload } });
+      // fire-and-forget with a short timeout to detect failure fast, then fall back locally
+      const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 4000));
+      Promise.race([invocation, timeout])
+        .then(() => { setServerDown(false); })
+        .catch(async () => {
+          setServerDown(true);
+          const data = await processLocally(snapshot);
+          setLastResult(data);
+          applyResults(data.results);
+        });
+      toast({ title: 'Sent to backend', description: 'Falls back to on-device if the server is unavailable.' });
       setQueue([]);
-    } catch (e: any) {
-      toast({ title: 'Submit failed', description: e?.message || 'Backend error', variant: 'destructive' });
-    } finally {
-      setSubmitting(false);
-      if (wasRunning) start();
+    } catch {
+      // shouldn't happen since we already handle rejection above
     }
   };
 
-  // fire-and-forget: user closes tab; server keeps processing
-  const submitDetached = async () => {
-    if (!queue.length) return;
-    const items = queue.map(q => ({ clientId: q.clientId, descriptor: q.descriptor, capturedAt: q.capturedAt }));
-    // send WITHOUT awaiting — edge function runs independently of the tab
-    supabase.functions.invoke('batch-face-attendance', { body: { items } }).catch(() => {});
-    toast({ title: 'Sent to backend', description: 'Processing will continue even if you close the app.' });
-    setQueue([]);
+  const statusBadge = (r?: ItemResult) => {
+    if (!r) return null;
+    const styles: Record<ItemStatus, string> = {
+      marked: 'bg-emerald-500 text-white',
+      late: 'bg-amber-500 text-white',
+      already: 'bg-slate-500 text-white',
+      unmatched: 'bg-rose-500 text-white',
+      low_conf: 'bg-orange-500 text-white',
+      error: 'bg-rose-600 text-white',
+    };
+    const label: Record<ItemStatus, string> = {
+      marked: '✓ Marked', late: '✓ Late', already: '• Already', unmatched: '✗ No match', low_conf: '⚠ Low', error: '! Error',
+    };
+    return (
+      <div className={`absolute top-1 left-1 text-[9px] font-semibold px-1.5 py-0.5 rounded-md ${styles[r.status]}`}>
+        {label[r.status]}
+      </div>
+    );
   };
 
   return (
@@ -300,7 +457,6 @@ const LoopFaceScanMode: React.FC = () => {
           className="w-full h-full object-cover"
         />
 
-        {/* Tracking ring */}
         {tracking && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <motion.div
@@ -313,7 +469,6 @@ const LoopFaceScanMode: React.FC = () => {
           </div>
         )}
 
-        {/* Face frame */}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <motion.div
             animate={{ scale: running ? [1, 1.03, 1] : 1 }}
@@ -323,7 +478,6 @@ const LoopFaceScanMode: React.FC = () => {
           />
         </div>
 
-        {/* Flash overlay */}
         <AnimatePresence>
           {flash && (
             <motion.div
@@ -334,25 +488,37 @@ const LoopFaceScanMode: React.FC = () => {
           )}
         </AnimatePresence>
 
-        {/* Top status */}
         <div className="absolute top-3 left-3 right-3 flex items-center justify-between">
           <Badge className="bg-black/60 text-white border-white/20 backdrop-blur">
             <Repeat className="w-3 h-3 mr-1" /> Loop Mode
           </Badge>
-          <Badge className="bg-black/60 text-white border-white/20 backdrop-blur">
-            <Users className="w-3 h-3 mr-1" /> {queue.length} captured
-          </Badge>
+          <div className="flex items-center gap-2">
+            {submitting && (
+              <Badge className="bg-black/60 text-white border-white/20 backdrop-blur">
+                <Loader2 className="w-3 h-3 mr-1 animate-spin" /> Processing
+              </Badge>
+            )}
+            <Badge className="bg-black/60 text-white border-white/20 backdrop-blur">
+              <Users className="w-3 h-3 mr-1" /> {queue.length} queued
+            </Badge>
+          </div>
         </div>
 
-        {/* Bottom cue */}
         <div className="absolute bottom-3 left-0 right-0 flex justify-center">
           <div className="px-3 py-1.5 rounded-full bg-black/60 text-white text-xs backdrop-blur">
             {running
-              ? 'Point at students one by one — auto-captures best shot'
+              ? (autoProcess ? 'Auto-marking as students appear — just point the camera' : 'Point at students — press Process when done')
               : 'Tap Start to begin capturing'}
           </div>
         </div>
       </div>
+
+      {serverDown && (
+        <div className="max-w-2xl mx-auto flex items-center gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300 px-3 py-2 text-xs">
+          <WifiOff className="w-4 h-4" />
+          Server unavailable — using on-device recognition. Attendance is still being marked.
+        </div>
+      )}
 
       {/* Controls */}
       <div className="flex flex-wrap items-center justify-center gap-2 max-w-2xl mx-auto">
@@ -366,7 +532,7 @@ const LoopFaceScanMode: React.FC = () => {
           </Button>
         )}
         <Button
-          onClick={submit}
+          onClick={() => submit()}
           disabled={!queue.length || submitting}
           size="lg"
           className="min-w-[160px] bg-gradient-to-r from-emerald-500 to-teal-500 text-white hover:opacity-90"
@@ -379,7 +545,7 @@ const LoopFaceScanMode: React.FC = () => {
           disabled={!queue.length || submitting}
           size="lg"
           variant="outline"
-          title="Send to backend and safely close the app; processing continues on the server"
+          title="Send in background — falls back to on-device if server is offline"
         >
           <Sparkles className="w-4 h-4 mr-1" /> Send & Close-Safe
         </Button>
@@ -388,44 +554,55 @@ const LoopFaceScanMode: React.FC = () => {
             <Trash2 className="w-4 h-4 mr-1" /> Clear
           </Button>
         )}
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border/60 bg-card/60">
+          <Switch id="auto-proc" checked={autoProcess} onCheckedChange={setAutoProcess} />
+          <Label htmlFor="auto-proc" className="text-xs cursor-pointer">Auto process</Label>
+        </div>
       </div>
 
       {/* Queue grid */}
       {queue.length > 0 && (
         <div className="max-w-2xl mx-auto">
-          <div className="text-xs text-muted-foreground mb-2 px-1">
-            Captured queue · saved locally, will be processed on server
+          <div className="text-xs text-muted-foreground mb-2 px-1 flex items-center gap-1">
+            {autoProcess ? (
+              <><Sparkles className="w-3 h-3" /> Auto-processing enabled — marks attendance as faces are captured</>
+            ) : (
+              <><AlertTriangle className="w-3 h-3" /> Manual mode — press Process to mark attendance</>
+            )}
           </div>
           <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
-            {queue.map(item => (
-              <motion.div
-                key={item.clientId}
-                initial={{ scale: 0.6, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.6, opacity: 0 }}
-                className="relative aspect-square rounded-xl overflow-hidden bg-muted border border-border/60"
-              >
-                <img src={item.imageDataUrl} alt="captured" className="w-full h-full object-cover" />
-                <button
-                  onClick={() => removeItem(item.clientId)}
-                  className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/70 text-white flex items-center justify-center"
+            <AnimatePresence>
+              {queue.map(item => (
+                <motion.div
+                  key={item.clientId}
+                  initial={{ scale: 0.6, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.6, opacity: 0 }}
+                  className="relative aspect-square rounded-xl overflow-hidden bg-muted border border-border/60"
                 >
-                  <X className="w-3 h-3" />
-                </button>
-                <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-[10px] px-1 py-0.5 text-center">
-                  {(item.quality * 100).toFixed(0)}%
-                </div>
-              </motion.div>
-            ))}
+                  <img src={item.imageDataUrl} alt="captured" className="w-full h-full object-cover" />
+                  {statusBadge(itemResults[item.clientId])}
+                  <button
+                    onClick={() => removeItem(item.clientId)}
+                    className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/70 text-white flex items-center justify-center"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                  <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-[10px] px-1 py-0.5 text-center">
+                    {(item.quality * 100).toFixed(0)}%
+                  </div>
+                </motion.div>
+              ))}
+            </AnimatePresence>
           </div>
         </div>
       )}
 
-      {/* Last result summary */}
       {lastResult?.summary && (
         <div className="max-w-2xl mx-auto rounded-xl border border-border/60 bg-card/70 backdrop-blur p-3 text-sm">
           <div className="flex items-center gap-2 font-medium">
             <CheckCircle2 className="w-4 h-4 text-emerald-500" /> Last batch
+            {lastResult.via === 'local' && <span className="text-xs text-amber-500">(on-device)</span>}
           </div>
           <div className="mt-1 text-xs text-muted-foreground">
             Total {lastResult.summary.total} · Marked {lastResult.summary.marked} · Already {lastResult.summary.alreadyMarked} · Unmatched {lastResult.summary.unrecognized}
