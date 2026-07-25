@@ -42,11 +42,14 @@ interface CapturedItem {
 }
 
 async function processBatch(supabase: any, items: CapturedItem[]) {
-  // Load descriptors and join names from profiles
+  // Group per-user across BOTH sources: face_descriptors table + legacy attendance_records registrations
+  const perUser = new Map<string, { userName: string; studentId: string | null; descs: Float32Array[] }>();
+
+  // --- Source 1: face_descriptors table (new path) ---
   const { data: rows, error } = await supabase
     .from('face_descriptors')
     .select('user_id, descriptor, descriptors');
-  if (error) throw new Error(`Failed to load face descriptors: ${error.message}`);
+  if (error) console.warn('face_descriptors load failed:', error.message);
 
   const userIds = Array.from(new Set((rows || []).map((r: any) => r.user_id).filter(Boolean)));
   const nameMap = new Map<string, { name: string }>();
@@ -60,10 +63,7 @@ async function processBatch(supabase: any, items: CapturedItem[]) {
     }
   }
 
-  // Group per-user
-  const perUser = new Map<string, { userName: string; studentId: string | null; descs: Float32Array[] }>();
   for (const r of rows || []) {
-    // support both single descriptor and array of descriptors
     const list: unknown[] = Array.isArray(r.descriptors) ? r.descriptors : (r.descriptor ? [r.descriptor] : []);
     for (const raw of list) {
       const d = parseStoredDescriptor(raw);
@@ -79,6 +79,36 @@ async function processBatch(supabase: any, items: CapturedItem[]) {
       perUser.get(key)!.descs.push(d);
     }
   }
+
+  // --- Source 2: legacy attendance_records registrations (old data path) ---
+  // Descriptors stored as string inside device_info.metadata.faceDescriptor
+  const { data: regRows, error: regErr } = await supabase
+    .from('attendance_records')
+    .select('id, user_id, device_info')
+    .eq('status', 'registered');
+  if (regErr) console.warn('legacy registrations load failed:', regErr.message);
+
+  for (const r of regRows || []) {
+    const di = r.device_info as any;
+    const meta = di?.metadata || {};
+    const rawDesc = meta.faceDescriptor ?? meta.face_descriptor ?? meta.descriptor;
+    const d = parseStoredDescriptor(rawDesc);
+    if (!d) continue;
+    // Use user_id when present, otherwise fall back to employee_id or the record id as a stable key
+    const key = r.user_id || meta.employee_id || r.id;
+    const displayName = meta.name || meta.full_name || 'Unknown';
+    if (!perUser.has(key)) {
+      perUser.set(key, {
+        userName: displayName,
+        studentId: meta.employee_id || null,
+        descs: [],
+      });
+    } else if (perUser.get(key)!.userName === 'Unknown' && displayName !== 'Unknown') {
+      perUser.get(key)!.userName = displayName;
+    }
+    perUser.get(key)!.descs.push(d);
+  }
+
 
 
   const results: any[] = [];
