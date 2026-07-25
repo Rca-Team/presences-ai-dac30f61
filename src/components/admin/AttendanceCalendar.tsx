@@ -548,6 +548,15 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({ selectedFaceId 
                 <Input value={detailsForm.roll_number} onChange={(e) => setDetailsForm((p) => ({ ...p, roll_number: e.target.value }))} disabled={!editingDetails} />
               </div>
               <div className="space-y-1.5">
+                <Label className="text-xs">Admission No</Label>
+                <Input
+                  value={detailsForm.admission_number}
+                  onChange={(e) => setDetailsForm((p) => ({ ...p, admission_number: e.target.value }))}
+                  disabled={!editingDetails}
+                  placeholder="e.g. ADM2024001"
+                />
+              </div>
+              <div className="space-y-1.5">
                 <Label className="text-xs">Blood Group</Label>
                 <Input value={detailsForm.blood_group} onChange={(e) => setDetailsForm((p) => ({ ...p, blood_group: e.target.value }))} disabled={!editingDetails} />
               </div>
