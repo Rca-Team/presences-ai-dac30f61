@@ -187,11 +187,38 @@ async function runFullBackup(
     }
   }
 
+  // Storage buckets (all of them, all files) — captures face samples, uploads, etc.
+  try {
+    const bres = await invokeAction<{ buckets: StorageBucketInfo[] }>({ action: 'list_storage_buckets' });
+    backup.storageBuckets = bres.buckets || [];
+    for (const bucket of backup.storageBuckets) {
+      backup.storage[bucket.name] = [];
+      if (!bucket.fileCount) continue;
+      const listRes = await invokeAction<{ paths: string[] }>({ action: 'list_storage_files', bucket: bucket.name });
+      const paths = listRes.paths || [];
+      let i = 0;
+      for (const path of paths) {
+        i += 1;
+        onProgress({
+          currentTable: `storage:${bucket.name}`,
+          label: `Downloading ${bucket.name}/${path} (${i}/${paths.length})`,
+          done, total: totalRows, pct: Math.min(98, Math.round((done / Math.max(1, totalRows)) * 100)),
+        });
+        try {
+          const f = await invokeAction<StorageFile>({ action: 'download_storage_file', bucket: bucket.name, path });
+          backup.storage[bucket.name].push({ path: f.path, contentType: f.contentType, base64: f.base64 });
+        } catch (e) {
+          console.warn('storage download failed', bucket.name, path, e);
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('storage backup skipped', e);
+  }
+
   onProgress({ phase: 'done', label: 'Backup complete', done: totalRows, total: totalRows, pct: 100 });
   return backup;
 }
-
-export type RestoreReport = {
   tablesRestored: number;
   rowsRestored: number;
   authUsersCreated: number;
