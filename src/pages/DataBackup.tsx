@@ -374,6 +374,28 @@ const DataBackup = ({ embedded = false }: { embedded?: boolean }) => {
     setProgress((prev) => ({ ...prev, ...patch }));
   }, []);
 
+  const showRestoreReport = useCallback((report: RestoreReport, label?: string) => {
+    const bits: string[] = [];
+    bits.push(`${report.rowsRestored.toLocaleString()} rows across ${report.tablesRestored} tables`);
+    if (report.authUsersCreated + report.authUsersSkipped > 0) {
+      bits.push(`${report.authUsersCreated} users created, ${report.authUsersSkipped} kept`);
+    }
+    if (report.skippedTables.length > 0) {
+      bits.push(`skipped: ${report.skippedTables.slice(0, 3).join(', ')}${report.skippedTables.length > 3 ? '…' : ''}`);
+    }
+    const hasErrors = report.errors.length > 0;
+    toast({
+      title: hasErrors ? 'Restore finished with warnings' : `Restore complete${label ? ` — ${label}` : ''}`,
+      description: `${bits.join(' · ')}${hasErrors ? ` · ${report.errors.length} issues (see console)` : ''}`,
+      variant: hasErrors ? 'default' : 'default',
+    });
+    if (hasErrors) {
+      console.group('Restore report');
+      for (const err of report.errors) console.warn(`[${err.scope}]`, err.message);
+      console.groupEnd();
+    }
+  }, [toast]);
+
   const refreshSnapshots = useCallback(async () => {
     try {
       const list = await listSnapshots();
