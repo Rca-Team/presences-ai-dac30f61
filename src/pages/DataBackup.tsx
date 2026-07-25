@@ -208,11 +208,13 @@ function validateBackup(raw: unknown): FullBackup {
   }
   // Coerce optional fields so downstream code is safe
   const safe: FullBackup = {
-    version: (b.version as any) || '2.0',
+    version: (b.version as any) || '2.1',
     createdAt: b.createdAt || new Date().toISOString(),
     manifest: b.manifest || { generatedAt: '', tables: [], authUsers: 0, restoreOrder: Object.keys(b.tables) },
     tables: {},
     authUsers: Array.isArray(b.authUsers) ? b.authUsers : [],
+    storage: (b as any).storage && typeof (b as any).storage === 'object' ? (b as any).storage : {},
+    storageBuckets: Array.isArray((b as any).storageBuckets) ? (b as any).storageBuckets : [],
   };
   for (const [k, v] of Object.entries(b.tables)) {
     if (Array.isArray(v)) safe.tables[k] = v;
