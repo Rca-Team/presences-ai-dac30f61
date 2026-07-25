@@ -8,6 +8,7 @@ import AttendanceInstructions from '@/components/attendance/AttendanceInstructio
 import AttendanceStats from '@/components/attendance/AttendanceStats';
 import FuturisticFaceScanner from '@/components/attendance/FuturisticFaceScanner';
 import QRCodeScanner from '@/components/attendance/QRCodeScanner';
+import LoopFaceScanMode from '@/components/attendance/LoopFaceScanMode';
 import LiveAttendanceFeed from '@/components/attendance/LiveAttendanceFeed';
 import QuickStatsPanel from '@/components/attendance/QuickStatsPanel';
 import VoiceCommands from '@/components/attendance/VoiceCommands';
@@ -31,7 +32,7 @@ const AttendanceLoadingSkeleton = ({ isMobile }: { isMobile: boolean }) => (
 const Attendance = () => {
   const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState('single');
-  const [attendanceMethod, setAttendanceMethod] = useState<'face' | 'qr'>('face');
+  const [attendanceMethod, setAttendanceMethod] = useState<'face' | 'qr' | 'loop'>('face');
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const { toast } = useToast();
   const isMobile = useIsMobile();
@@ -222,13 +223,18 @@ const Attendance = () => {
                     <div
                       className="p-3 sm:p-4 flex items-center gap-3"
                       style={{
-                        background: attendanceMethod === 'face'
-                          ? 'linear-gradient(135deg, hsl(var(--ios-blue)), hsl(var(--primary)))'
-                          : 'linear-gradient(135deg, hsl(var(--ios-purple)), hsl(var(--ios-pink)))',
+                        background:
+                          attendanceMethod === 'face'
+                            ? 'linear-gradient(135deg, hsl(var(--ios-blue)), hsl(var(--primary)))'
+                            : attendanceMethod === 'loop'
+                            ? 'linear-gradient(135deg, hsl(var(--ios-green)), hsl(var(--ios-blue)))'
+                            : 'linear-gradient(135deg, hsl(var(--ios-purple)), hsl(var(--ios-pink)))',
                       }}
                     >
                       <div className="w-9 h-9 rounded-xl sm:rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center flex-shrink-0">
                         {attendanceMethod === 'face' ? (
+                          <Scan className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                        ) : attendanceMethod === 'loop' ? (
                           <Scan className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                         ) : (
                           <QrCode className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
@@ -236,10 +242,18 @@ const Attendance = () => {
                       </div>
                       <div className="flex-1 min-w-0">
                         <h3 className="font-semibold text-white text-sm sm:text-base">
-                          {attendanceMethod === 'face' ? 'AI Powered Scanner' : 'QR Code Scanner'}
+                          {attendanceMethod === 'face'
+                            ? 'AI Powered Scanner'
+                            : attendanceMethod === 'loop'
+                            ? 'Loop Mode Scanner'
+                            : 'QR Code Scanner'}
                         </h3>
                         <p className="text-xs text-white/70 truncate">
-                          {attendanceMethod === 'face' ? 'Position your face in frame' : 'Scan your ID card QR code'}
+                          {attendanceMethod === 'face'
+                            ? 'Position your face in frame'
+                            : attendanceMethod === 'loop'
+                            ? 'Capture many students, process on server'
+                            : 'Scan your ID card QR code'}
                         </p>
                       </div>
                       <div className="flex items-center gap-1.5 flex-shrink-0">
@@ -258,6 +272,10 @@ const Attendance = () => {
                           <motion.div key="face" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }}>
                             <FuturisticFaceScanner />
                           </motion.div>
+                        ) : attendanceMethod === 'loop' ? (
+                          <motion.div key="loop" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+                            <LoopFaceScanMode />
+                          </motion.div>
                         ) : (
                           <motion.div key="qr" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
                             <QRCodeScanner autoStart={isQRKioskMode} hideManualControls={isQRKioskMode} />
@@ -265,6 +283,7 @@ const Attendance = () => {
                         )}
                       </AnimatePresence>
                     </div>
+
                   </div>
 
                   {/* Voice Commands */}
