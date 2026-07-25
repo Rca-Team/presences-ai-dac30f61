@@ -112,9 +112,32 @@ async function processBatch(supabase: any, items: CapturedItem[]) {
 
 
   const results: any[] = [];
-  const now = new Date();
-  const cutoff = new Date(); cutoff.setHours(9, 0, 0, 0);
-  const isLate = now > cutoff;
+
+  // Load configured cutoff (HH:MM) from attendance_settings; default 09:00
+  let cutoffTime = '09:00';
+  try {
+    const { data: cutoffRow } = await supabase
+      .from('attendance_settings')
+      .select('value')
+      .eq('key', 'cutoff_time')
+      .maybeSingle();
+    if (cutoffRow?.value && /^\d{1,2}:\d{2}/.test(cutoffRow.value)) cutoffTime = cutoffRow.value;
+  } catch (e) { console.warn('cutoff_time load failed', e); }
+  const [cH, cM] = cutoffTime.split(':').map(Number);
+
+  // Compare against the capture time in the school timezone (Asia/Kolkata).
+  // Using Intl avoids the UTC-vs-local pitfall of setHours() inside a Deno edge function.
+  const tz = 'Asia/Kolkata';
+  const nowInTz = (iso?: string) => {
+    const d = iso ? new Date(iso) : new Date();
+    const parts = new Intl.DateTimeFormat('en-GB', {
+      timeZone: tz, hour12: false, hour: '2-digit', minute: '2-digit',
+    }).formatToParts(d);
+    const h = Number(parts.find(p => p.type === 'hour')?.value ?? '0');
+    const m = Number(parts.find(p => p.type === 'minute')?.value ?? '0');
+    return h * 60 + m;
+  };
+  const cutoffMinutes = cH * 60 + cM;
 
   for (const item of items) {
     const query = new Float32Array(item.descriptor);
