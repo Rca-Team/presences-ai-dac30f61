@@ -8,6 +8,7 @@ import AttendanceInstructions from '@/components/attendance/AttendanceInstructio
 import AttendanceStats from '@/components/attendance/AttendanceStats';
 import FuturisticFaceScanner from '@/components/attendance/FuturisticFaceScanner';
 import QRCodeScanner from '@/components/attendance/QRCodeScanner';
+import LoopFaceScanMode from '@/components/attendance/LoopFaceScanMode';
 import LiveAttendanceFeed from '@/components/attendance/LiveAttendanceFeed';
 import QuickStatsPanel from '@/components/attendance/QuickStatsPanel';
 import VoiceCommands from '@/components/attendance/VoiceCommands';
