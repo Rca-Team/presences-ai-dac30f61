@@ -404,23 +404,35 @@ const LoopFaceScanMode: React.FC = () => {
   const submitDetached = async () => {
     if (!queue.length) return;
     const snapshot = [...queue];
+    const ids = new Set(snapshot.map(s => s.clientId));
     const payload = snapshot.map(q => ({ clientId: q.clientId, descriptor: q.descriptor, capturedAt: q.capturedAt }));
+    toast({ title: 'Submitting…', description: 'Falls back to on-device if the server is unavailable.' });
     try {
       const invocation = supabase.functions.invoke('batch-face-attendance', { body: { items: payload } });
-      // fire-and-forget with a short timeout to detect failure fast, then fall back locally
-      const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 4000));
-      Promise.race([invocation, timeout])
-        .then(() => { setServerDown(false); })
-        .catch(async () => {
-          setServerDown(true);
-          const data = await processLocally(snapshot);
-          setLastResult(data);
-          applyResults(data.results);
+      const timeout = new Promise<never>((_, rej) => setTimeout(() => rej(new Error('timeout')), 8000));
+      const res: any = await Promise.race([invocation, timeout]);
+      if (res?.error) throw res.error;
+      setServerDown(false);
+      if (res?.data?.results) applyResults(res.data.results);
+      // Only drop items that were actually processed by the server
+      setQueue(q => q.filter(x => !ids.has(x.clientId)));
+      toast({ title: 'Sent to backend', description: 'Attendance submitted successfully.' });
+    } catch (err) {
+      setServerDown(true);
+      try {
+        const data = await processLocally(snapshot);
+        setLastResult(data);
+        applyResults(data.results);
+        setQueue(q => q.filter(x => !ids.has(x.clientId)));
+        toast({ title: 'Processed on-device', description: 'Server unreachable — attendance marked locally.' });
+      } catch (e: any) {
+        // Keep the queue intact so the user can retry; persisted in localStorage.
+        toast({
+          title: 'Submission failed',
+          description: 'Kept your captures — please retry when connection is stable.',
+          variant: 'destructive' as any,
         });
-      toast({ title: 'Sent to backend', description: 'Falls back to on-device if the server is unavailable.' });
-      setQueue([]);
-    } catch {
-      // shouldn't happen since we already handle rejection above
+      }
     }
   };
 
