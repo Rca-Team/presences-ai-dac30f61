@@ -42,23 +42,44 @@ interface CapturedItem {
 }
 
 async function processBatch(supabase: any, items: CapturedItem[]) {
-  // Load all descriptors once
+  // Load descriptors and join names from profiles
   const { data: rows, error } = await supabase
     .from('face_descriptors')
-    .select('user_id, descriptor, student_name, student_id');
+    .select('user_id, descriptor, descriptors');
   if (error) throw new Error(`Failed to load face descriptors: ${error.message}`);
+
+  const userIds = Array.from(new Set((rows || []).map((r: any) => r.user_id).filter(Boolean)));
+  const nameMap = new Map<string, { name: string }>();
+  if (userIds.length) {
+    const { data: profs } = await supabase
+      .from('profiles')
+      .select('user_id, full_name, display_name, email')
+      .in('user_id', userIds);
+    for (const p of profs || []) {
+      nameMap.set(p.user_id, { name: p.full_name || p.display_name || p.email || 'Unknown' });
+    }
+  }
 
   // Group per-user
   const perUser = new Map<string, { userName: string; studentId: string | null; descs: Float32Array[] }>();
   for (const r of rows || []) {
-    const d = parseStoredDescriptor(r.descriptor);
-    if (!d) continue;
-    const key = r.user_id;
-    if (!perUser.has(key)) {
-      perUser.set(key, { userName: r.student_name || 'Unknown', studentId: r.student_id || null, descs: [] });
+    // support both single descriptor and array of descriptors
+    const list: unknown[] = Array.isArray(r.descriptors) ? r.descriptors : (r.descriptor ? [r.descriptor] : []);
+    for (const raw of list) {
+      const d = parseStoredDescriptor(raw);
+      if (!d) continue;
+      const key = r.user_id;
+      if (!perUser.has(key)) {
+        perUser.set(key, {
+          userName: nameMap.get(key)?.name || 'Unknown',
+          studentId: null,
+          descs: [],
+        });
+      }
+      perUser.get(key)!.descs.push(d);
     }
-    perUser.get(key)!.descs.push(d);
   }
+
 
   const results: any[] = [];
   const now = new Date();
