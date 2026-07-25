@@ -495,7 +495,8 @@ const DataBackup = ({ embedded = false }: { embedded?: boolean }) => {
       setProgress({ phase: 'preparing', label: 'Loading snapshot...', done: 0, total: 0, pct: 2 });
       const snap = await getSnapshot(id);
       if (!snap) throw new Error('Snapshot not found');
-      await runFullRestore(snap.backup as FullBackup, settings.includeAuthUsers, updateProgress);
+      const report = await runFullRestore(snap.backup as FullBackup, settings.includeAuthUsers, updateProgress);
+      showRestoreReport(report, snap.label);
       toast({ title: 'Restore complete', description: `Restored ${snap.label}` });
     } catch (e: any) {
       updateProgress({ phase: 'failed', label: e?.message || 'Restore failed', pct: 0 });
