@@ -31,12 +31,17 @@ type Manifest = {
   restoreOrder: string[];
 };
 
+type StorageFile = { path: string; contentType: string | null; base64: string };
+type StorageBucketInfo = { name: string; public: boolean; fileCount: number };
+
 type FullBackup = {
-  version: '2.0';
+  version: '2.1';
   createdAt: string;
   manifest: Manifest;
   tables: Record<string, unknown[]>;
   authUsers: Array<Record<string, unknown>>;
+  storage: Record<string, StorageFile[]>;
+  storageBuckets: StorageBucketInfo[];
 };
 
 type Progress = {
