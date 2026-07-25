@@ -219,6 +219,8 @@ async function runFullBackup(
   onProgress({ phase: 'done', label: 'Backup complete', done: totalRows, total: totalRows, pct: 100 });
   return backup;
 }
+
+export type RestoreReport = {
   tablesRestored: number;
   rowsRestored: number;
   authUsersCreated: number;
