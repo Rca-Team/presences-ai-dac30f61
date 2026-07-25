@@ -31,7 +31,7 @@ const AttendanceLoadingSkeleton = ({ isMobile }: { isMobile: boolean }) => (
 const Attendance = () => {
   const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState('single');
-  const [attendanceMethod, setAttendanceMethod] = useState<'face' | 'qr'>('face');
+  const [attendanceMethod, setAttendanceMethod] = useState<'face' | 'qr' | 'loop'>('face');
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const { toast } = useToast();
   const isMobile = useIsMobile();
