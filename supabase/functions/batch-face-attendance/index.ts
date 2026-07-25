@@ -192,7 +192,6 @@ async function processBatch(supabase: any, items: CapturedItem[]) {
 
     const nowIso = item.capturedAt || new Date().toISOString();
     const status = nowInTz(nowIso) > cutoffMinutes ? 'late' : 'present';
-    const nowIso = item.capturedAt || new Date().toISOString();
     const { error: insErr } = await supabase.from('attendance_records').insert({
       user_id: best.userId,
       status,
