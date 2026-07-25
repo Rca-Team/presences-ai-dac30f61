@@ -475,11 +475,12 @@ const DataBackup = ({ embedded = false }: { embedded?: boolean }) => {
       }
 
       const raw = await selectedFile.text();
-      const backup = JSON.parse(raw) as FullBackup;
-      if (!backup.tables) throw new Error('Invalid backup file (missing tables).');
+      let parsed: unknown;
+      try { parsed = JSON.parse(raw); } catch { throw new Error('File is not valid JSON.'); }
+      const backup = validateBackup(parsed);
 
-      await runFullRestore(backup, settings.includeAuthUsers, updateProgress);
-      toast({ title: 'Restore complete', description: 'Site data has been restored.' });
+      const report = await runFullRestore(backup, settings.includeAuthUsers, updateProgress);
+      showRestoreReport(report);
     } catch (e: any) {
       updateProgress({ phase: 'failed', label: e?.message || 'Restore failed', pct: 0 });
       toast({ title: 'Restore failed', description: e?.message || 'Unknown error', variant: 'destructive' });
