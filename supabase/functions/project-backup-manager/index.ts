@@ -98,6 +98,90 @@ const PREFERRED_BACKUP_TABLES = new Set<string>([
   ...DELETE_ORDER,
 ]);
 
+// Every public.* table we back up in the full-site pipeline
+const ALL_PUBLIC_TABLES = [
+  "profiles",
+  "user_roles",
+  "subjects",
+  "period_timings",
+  "class_teachers",
+  "teacher_permissions",
+  "timetable",
+  "substitutions",
+  "attendance_settings",
+  "attendance_records",
+  "attendance_points",
+  "attendance_predictions",
+  "class_leaderboard",
+  "badges",
+  "student_badges",
+  "wellness_scores",
+  "ai_insights",
+  "notifications",
+  "notification_log",
+  "circulars",
+  "school_holidays",
+  "school_gates",
+  "campus_zones",
+  "gate_entries",
+  "gate_sessions",
+  "late_entries",
+  "zone_entries",
+  "visitors",
+  "buses",
+  "bus_events",
+  "emergency_events",
+  "emotion_events",
+  "face_descriptors",
+  "gv_cameras",
+  "gv_camera_zones",
+  "gv_class_sessions",
+  "gv_tracks",
+  "gv_events",
+] as const;
+
+// Restore in an order that respects FKs — parents first
+const FULL_RESTORE_ORDER = [
+  "profiles",
+  "user_roles",
+  "subjects",
+  "period_timings",
+  "class_teachers",
+  "teacher_permissions",
+  "timetable",
+  "substitutions",
+  "attendance_settings",
+  "school_gates",
+  "campus_zones",
+  "buses",
+  "badges",
+  "gv_cameras",
+  "gv_camera_zones",
+  "attendance_records",
+  "attendance_points",
+  "attendance_predictions",
+  "class_leaderboard",
+  "student_badges",
+  "wellness_scores",
+  "ai_insights",
+  "notifications",
+  "notification_log",
+  "circulars",
+  "school_holidays",
+  "gate_entries",
+  "gate_sessions",
+  "late_entries",
+  "zone_entries",
+  "visitors",
+  "bus_events",
+  "emergency_events",
+  "emotion_events",
+  "face_descriptors",
+  "gv_class_sessions",
+  "gv_tracks",
+  "gv_events",
+] as const;
+
 function ensureWithinDeadline(deadlineMs: number, phase: string) {
   if (Date.now() > deadlineMs) {
     throw new Error(`Backup operation timed out during ${phase}. Please retry with a smaller dataset.`);
@@ -873,6 +957,174 @@ serve(async (req) => {
       return new Response(JSON.stringify(result), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ============ Chunked full-site backup API ============
+    if (action === "list_public_tables") {
+      const tables: Array<{ table: string; count: number }> = [];
+      for (const t of ALL_PUBLIC_TABLES) {
+        try {
+          const { count, error } = await withTimeout(
+            svc.from(t).select("*", { count: "exact", head: true }),
+            UPSTREAM_REQUEST_TIMEOUT_MS,
+            `count ${t}`,
+          );
+          if (!error) tables.push({ table: t, count: count ?? 0 });
+          else tables.push({ table: t, count: 0 });
+        } catch {
+          tables.push({ table: t, count: 0 });
+        }
+      }
+      let authUsers = 0;
+      try {
+        const { data } = await svc.auth.admin.listUsers({ page: 1, perPage: 1 });
+        authUsers = (data as any)?.total ?? (data?.users?.length ?? 0);
+      } catch {}
+      return new Response(
+        JSON.stringify({
+          generatedAt: new Date().toISOString(),
+          tables,
+          authUsers,
+          restoreOrder: FULL_RESTORE_ORDER,
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    if (action === "export_table_chunk") {
+      const table = String(payload?.table || "");
+      const offset = Math.max(0, Number(payload?.offset ?? 0));
+      const limit = Math.min(2000, Math.max(1, Number(payload?.limit ?? 500)));
+      if (!ALL_PUBLIC_TABLES.includes(table as any)) {
+        return new Response(JSON.stringify({ error: `Unknown table: ${table}` }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const { data, error } = await withTimeout(
+        svc.from(table).select("*").range(offset, offset + limit - 1),
+        UPSTREAM_REQUEST_TIMEOUT_MS,
+        `export ${table}`,
+      );
+      if (error) throw new Error(error.message);
+      return new Response(
+        JSON.stringify({ table, offset, limit, rows: data ?? [] }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    if (action === "export_auth_users_chunk") {
+      const page = Math.max(1, Number(payload?.page ?? 1));
+      const perPage = Math.min(1000, Math.max(1, Number(payload?.perPage ?? 500)));
+      const { data, error } = await withTimeout(
+        svc.auth.admin.listUsers({ page, perPage }),
+        UPSTREAM_REQUEST_TIMEOUT_MS,
+        "export auth users chunk",
+      );
+      if (error) throw new Error(error.message);
+      const users = (data?.users || []).map((u: any) => ({
+        id: u.id,
+        email: u.email,
+        phone: u.phone,
+        user_metadata: u.user_metadata,
+        app_metadata: u.app_metadata,
+        created_at: u.created_at,
+      }));
+      return new Response(
+        JSON.stringify({ page, perPage, users, total: (data as any)?.total ?? users.length }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    if (action === "clear_table") {
+      const table = String(payload?.table || "");
+      if (!ALL_PUBLIC_TABLES.includes(table as any)) {
+        return new Response(JSON.stringify({ error: `Unknown table: ${table}` }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const { error } = await withTimeout(
+        svc.from(table).delete().not("id", "is", null),
+        UPSTREAM_REQUEST_TIMEOUT_MS,
+        `clear ${table}`,
+      );
+      if (error) throw new Error(error.message);
+      return new Response(JSON.stringify({ ok: true, table }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (action === "import_table_chunk") {
+      const table = String(payload?.table || "");
+      const rows = Array.isArray(payload?.rows) ? payload.rows : [];
+      if (!ALL_PUBLIC_TABLES.includes(table as any)) {
+        return new Response(JSON.stringify({ error: `Unknown table: ${table}` }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (rows.length === 0) {
+        return new Response(JSON.stringify({ ok: true, inserted: 0 }), {
+          status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      // Try upsert on id; fall back to insert if the table has no id column
+      let inserted = 0;
+      const { error: upsertErr } = await withTimeout(
+        svc.from(table).upsert(rows, { onConflict: "id" }),
+        UPSTREAM_REQUEST_TIMEOUT_MS,
+        `import ${table}`,
+      );
+      if (upsertErr) {
+        const { error: insErr } = await withTimeout(
+          svc.from(table).insert(rows),
+          UPSTREAM_REQUEST_TIMEOUT_MS,
+          `import insert ${table}`,
+        );
+        if (insErr) throw new Error(`${table}: ${insErr.message}`);
+      }
+      inserted = rows.length;
+      return new Response(JSON.stringify({ ok: true, inserted, table }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (action === "import_auth_users_chunk") {
+      const users = Array.isArray(payload?.users) ? payload.users : [];
+      let created = 0;
+      let skipped = 0;
+      for (const u of users) {
+        const id = u?.id as string | undefined;
+        const email = (u?.email as string | undefined)?.trim();
+        if (!id || !email) { skipped++; continue; }
+        try {
+          const { data: existing } = await withTimeout(
+            svc.auth.admin.getUserById(id),
+            UPSTREAM_REQUEST_TIMEOUT_MS,
+            `auth lookup ${id}`,
+          );
+          if (existing?.user) { skipped++; continue; }
+          const tempPassword = crypto.randomUUID() + "Aa1!";
+          await withTimeout(
+            svc.auth.admin.createUser({
+              id,
+              email,
+              password: tempPassword,
+              email_confirm: true,
+              user_metadata: u.user_metadata || {},
+              app_metadata: u.app_metadata || {},
+              phone: u.phone || undefined,
+            }),
+            UPSTREAM_REQUEST_TIMEOUT_MS,
+            `auth create ${id}`,
+          );
+          created++;
+        } catch (e) {
+          console.error("auth import error:", (e as Error).message);
+          skipped++;
+        }
+      }
+      return new Response(JSON.stringify({ ok: true, created, skipped }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
