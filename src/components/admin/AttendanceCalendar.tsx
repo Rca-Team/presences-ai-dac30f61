@@ -340,6 +340,7 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({ selectedFaceId 
             display_name: studentName,
             class: detailsForm.class_name.trim() || null,
             section: detailsForm.section.trim().toUpperCase() || null,
+            admission_number: detailsForm.admission_number.trim() || null,
             parent_name: detailsForm.parent_name.trim(),
             parent_phone: detailsForm.parent_phone.trim(),
             parent_email: detailsForm.parent_email.trim(),
