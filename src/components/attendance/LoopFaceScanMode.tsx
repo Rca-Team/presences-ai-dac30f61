@@ -21,24 +21,59 @@ interface CapturedFace {
 }
 
 const QUEUE_KEY = 'loop-mode-queue-v1';
-const QUALITY_MIN = 0.72;              // detector confidence
-const SAME_FACE_DIST = 0.42;           // dedupe within same session
-const CAPTURE_COOLDOWN_MS = 900;       // gap after a capture before allowing next
+const DETECT_MIN_SCORE = 0.55;         // baseline detector confidence
+const QUALITY_COMMIT = 0.62;           // combined quality required to commit
+const SAME_FACE_DIST = 0.42;           // dedupe within same session queue
+const CANDIDATE_MATCH_DIST = 0.45;     // same-face across frames while tracking
+const MIN_HOLD_MS = 380;               // must observe a face at least this long
+const MAX_HOLD_MS = 1100;              // commit even if still improving
+const IDLE_COMMIT_MS = 180;            // commit if we lose the face for this long
+const POST_CAPTURE_COOLDOWN_MS = 650;  // gap between commits to avoid spam
 
-const euclid = (a: Float32Array, b: number[]) => {
+const euclid = (a: Float32Array | number[], b: Float32Array | number[]) => {
   let s = 0;
   const n = Math.min(a.length, b.length);
-  for (let i = 0; i < n; i++) { const d = a[i] - b[i]; s += d * d; }
+  for (let i = 0; i < n; i++) { const d = (a as any)[i] - (b as any)[i]; s += d * d; }
   return Math.sqrt(s);
 };
+
+// Combined quality: detector score × size × frontality (nose centered between eyes)
+const computeQuality = (
+  det: faceapi.WithFaceDescriptor<faceapi.WithFaceLandmarks<{ detection: faceapi.FaceDetection }>>,
+  video: HTMLVideoElement,
+): number => {
+  const box = det.detection.box;
+  const score = det.detection.score;
+  const sizeRatio = Math.min(1, box.width / Math.max(140, video.videoWidth * 0.22));
+  const lm = det.landmarks;
+  const le = lm.getLeftEye(), re = lm.getRightEye(), nose = lm.getNose();
+  const leCx = (le[0].x + le[3].x) / 2;
+  const reCx = (re[0].x + re[3].x) / 2;
+  const eyeMid = (leCx + reCx) / 2;
+  const eyeDist = Math.max(1, Math.abs(reCx - leCx));
+  const noseX = nose[3].x;
+  const off = Math.abs(noseX - eyeMid) / eyeDist;
+  const frontality = Math.max(0, 1 - off * 2.2); // 0..1
+  return score * (0.55 + 0.45 * sizeRatio) * (0.55 + 0.45 * frontality);
+};
+
+interface Candidate {
+  descriptor: Float32Array;
+  box: faceapi.Box;
+  quality: number;      // combined quality of best frame so far
+  firstSeen: number;
+  lastSeen: number;
+  imageDataUrl: string;
+}
 
 const LoopFaceScanMode: React.FC = () => {
   const { toast } = useToast();
   const webcamRef = useRef<Webcam>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
   const rafRef = useRef<number | null>(null);
   const lastCaptureRef = useRef<number>(0);
   const runningRef = useRef(false);
+  const candidateRef = useRef<Candidate | null>(null);
+  const queueRef = useRef<CapturedFace[]>([]);
 
   const [modelsReady, setModelsReady] = useState(false);
   const [running, setRunning] = useState(false);
@@ -46,6 +81,10 @@ const LoopFaceScanMode: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [flash, setFlash] = useState(false);
   const [lastResult, setLastResult] = useState<any>(null);
+  const [tracking, setTracking] = useState(false); // UI: currently accumulating a shot
+
+  // keep ref in sync
+  useEffect(() => { queueRef.current = queue; }, [queue]);
 
   // load persisted queue
   useEffect(() => {
@@ -69,12 +108,13 @@ const LoopFaceScanMode: React.FC = () => {
   const stop = useCallback(() => {
     runningRef.current = false;
     setRunning(false);
+    setTracking(false);
+    candidateRef.current = null;
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
     rafRef.current = null;
   }, []);
 
-  const captureFrom = useCallback(async (video: HTMLVideoElement, box: faceapi.Box) => {
-    // draw crop of face with padding
+  const captureFrom = useCallback((video: HTMLVideoElement, box: faceapi.Box) => {
     const pad = 0.35;
     const w = video.videoWidth, h = video.videoHeight;
     const cw = Math.min(w, box.width * (1 + pad * 2));
@@ -85,7 +125,32 @@ const LoopFaceScanMode: React.FC = () => {
     c.width = 320; c.height = 320;
     const ctx = c.getContext('2d')!;
     ctx.drawImage(video, cx, cy, cw, ch, 0, 0, 320, 320);
-    return c.toDataURL('image/jpeg', 0.82);
+    return c.toDataURL('image/jpeg', 0.85);
+  }, []);
+
+  const commitCandidate = useCallback(() => {
+    const cand = candidateRef.current;
+    candidateRef.current = null;
+    setTracking(false);
+    if (!cand) return;
+    if (cand.quality < QUALITY_COMMIT) return;
+
+    // dedupe against already-queued faces (unique per session)
+    const dup = queueRef.current.some(q => euclid(cand.descriptor, q.descriptor) < SAME_FACE_DIST);
+    if (dup) return;
+
+    const item: CapturedFace = {
+      clientId: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      descriptor: Array.from(cand.descriptor),
+      imageDataUrl: cand.imageDataUrl,
+      capturedAt: new Date().toISOString(),
+      quality: cand.quality,
+    };
+    setQueue(prev => [item, ...prev]);
+    lastCaptureRef.current = Date.now();
+    setFlash(true);
+    setTimeout(() => setFlash(false), 200);
+    try { (navigator as any).vibrate?.(30); } catch {}
   }, []);
 
   const detectLoop = useCallback(async () => {
@@ -96,37 +161,75 @@ const LoopFaceScanMode: React.FC = () => {
       return;
     }
 
-    try {
-      const det = await faceapi
-        .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.5 }))
-        .withFaceLandmarks()
-        .withFaceDescriptor();
+    const now = Date.now();
+    const inCooldown = now - lastCaptureRef.current < POST_CAPTURE_COOLDOWN_MS;
 
-      const now = Date.now();
-      if (det && det.detection.score >= QUALITY_MIN && now - lastCaptureRef.current > CAPTURE_COOLDOWN_MS) {
-        const descArr = Array.from(det.descriptor);
-        // dedupe within session
-        const dup = queue.some(q => euclid(det.descriptor, q.descriptor) < SAME_FACE_DIST);
-        if (!dup) {
-          const image = await captureFrom(video, det.detection.box);
-          const item: CapturedFace = {
-            clientId: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-            descriptor: descArr,
-            imageDataUrl: image,
-            capturedAt: new Date().toISOString(),
-            quality: det.detection.score,
-          };
-          setQueue(prev => [item, ...prev]);
-          lastCaptureRef.current = now;
-          setFlash(true);
-          setTimeout(() => setFlash(false), 220);
-          try { (navigator as any).vibrate?.(35); } catch {}
+    try {
+      const det = inCooldown
+        ? null
+        : await faceapi
+            .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: DETECT_MIN_SCORE }))
+            .withFaceLandmarks()
+            .withFaceDescriptor();
+
+      const cand = candidateRef.current;
+
+      if (det && det.detection.score >= DETECT_MIN_SCORE) {
+        const q = computeQuality(det, video);
+
+        // skip immediately if this face is already in queue
+        const alreadyQueued = queueRef.current.some(item => euclid(det.descriptor, item.descriptor) < SAME_FACE_DIST);
+        if (alreadyQueued) {
+          candidateRef.current = null;
+          setTracking(false);
+        } else {
+          const isSame = cand && euclid(det.descriptor, cand.descriptor) < CANDIDATE_MATCH_DIST;
+
+          if (!cand || !isSame) {
+            // new candidate — reset accumulator
+            candidateRef.current = {
+              descriptor: det.descriptor,
+              box: det.detection.box,
+              quality: q,
+              firstSeen: now,
+              lastSeen: now,
+              imageDataUrl: captureFrom(video, det.detection.box),
+            };
+            setTracking(true);
+          } else {
+            cand.lastSeen = now;
+            if (q > cand.quality) {
+              cand.quality = q;
+              cand.descriptor = det.descriptor;
+              cand.box = det.detection.box;
+              cand.imageDataUrl = captureFrom(video, det.detection.box);
+            }
+            const held = now - cand.firstSeen;
+            if (held >= MIN_HOLD_MS && cand.quality >= QUALITY_COMMIT) {
+              // commit if we've held long enough OR quality is already excellent
+              if (held >= MAX_HOLD_MS || cand.quality >= 0.85) {
+                commitCandidate();
+              }
+            }
+          }
+        }
+      } else if (cand) {
+        // no face this frame — if we lost it for a bit, commit if good enough
+        if (now - cand.lastSeen >= IDLE_COMMIT_MS) {
+          if (cand.quality >= QUALITY_COMMIT && now - cand.firstSeen >= MIN_HOLD_MS) {
+            commitCandidate();
+          } else {
+            // discard weak candidate
+            candidateRef.current = null;
+            setTracking(false);
+          }
         }
       }
     } catch {}
 
     rafRef.current = requestAnimationFrame(detectLoop);
-  }, [queue, captureFrom]);
+  }, [captureFrom, commitCandidate]);
+
 
   const start = useCallback(() => {
     if (!modelsReady) {
@@ -196,7 +299,19 @@ const LoopFaceScanMode: React.FC = () => {
           videoConstraints={{ facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 960 } }}
           className="w-full h-full object-cover"
         />
-        <canvas ref={canvasRef} className="absolute inset-0 pointer-events-none" />
+
+        {/* Tracking ring */}
+        {tracking && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0.4 }}
+              animate={{ scale: [0.95, 1.05, 0.95], opacity: [0.5, 0.9, 0.5] }}
+              transition={{ duration: 0.9, repeat: Infinity }}
+              className="w-60 h-76 sm:w-72 sm:h-88 rounded-[42%] border-[3px]"
+              style={{ borderColor: 'hsl(var(--ios-green))' }}
+            />
+          </div>
+        )}
 
         {/* Face frame */}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
