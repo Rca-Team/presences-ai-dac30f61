@@ -138,20 +138,24 @@ async function processBatch(supabase: any, items: CapturedItem[]) {
     }
 
     const status = isLate ? 'late' : 'present';
+    const nowIso = item.capturedAt || new Date().toISOString();
     const { error: insErr } = await supabase.from('attendance_records').insert({
       user_id: best.userId,
-      student_id: best.studentId,
-      student_name: best.userName,
       status,
-      timestamp: item.capturedAt || new Date().toISOString(),
-      face_descriptor: JSON.stringify(item.descriptor),
+      method: 'face',
+      confidence,
+      confidence_score: confidence,
+      timestamp: nowIso,
+      date: nowIso.slice(0, 10),
       device_info: {
         source: 'loop-mode',
         capture_mode: 'ai-scan',
         confidence,
-        metadata: { name: best.userName, employee_id: best.studentId },
+        metadata: { name: best.userName },
       },
+      metadata: { name: best.userName, source: 'loop-mode' },
     });
+
     if (insErr) {
       results.push({ clientId: item.clientId, recognized: true, name: best.userName, error: insErr.message });
     } else {
