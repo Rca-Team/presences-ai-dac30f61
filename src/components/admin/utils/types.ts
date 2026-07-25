@@ -8,6 +8,7 @@ export interface FaceInfo {
   class?: string;
   section?: string;
   employee_id: string;
+  admission_number?: string;
   department: string;
   position: string;
   image_url?: string;
