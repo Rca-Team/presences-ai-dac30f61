@@ -367,6 +367,38 @@ async function runFullRestore(
     }
   }
 
+  // Restore storage buckets & files
+  const storage = backup.storage || {};
+  for (const [bucket, files] of Object.entries(storage)) {
+    if (!files || files.length === 0) continue;
+    onProgress({
+      currentTable: `storage:${bucket}`,
+      label: `Clearing bucket ${bucket}...`,
+      done, total: totalRows, pct: Math.min(98, Math.round((done / Math.max(1, totalRows)) * 100)),
+    });
+    try { await invokeAction({ action: 'clear_storage_bucket', bucket }); } catch (e: any) {
+      report.errors.push({ scope: `clear bucket ${bucket}`, message: e?.message || 'clear failed' });
+    }
+    let i = 0;
+    for (const file of files) {
+      i += 1;
+      onProgress({
+        currentTable: `storage:${bucket}`,
+        label: `Uploading ${bucket}/${file.path} (${i}/${files.length})`,
+        done, total: totalRows, pct: Math.min(98, Math.round((done / Math.max(1, totalRows)) * 100)),
+      });
+      try {
+        await invokeAction({
+          action: 'upload_storage_file',
+          bucket, path: file.path,
+          base64: file.base64, contentType: file.contentType,
+        });
+      } catch (e: any) {
+        report.errors.push({ scope: `${bucket}/${file.path}`, message: e?.message || 'upload failed' });
+      }
+    }
+  }
+
   onProgress({ phase: 'done', label: 'Restore complete', done: totalRows, total: totalRows, pct: 100 });
   return report;
 }
