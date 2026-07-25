@@ -21,15 +21,40 @@ interface CapturedFace {
 }
 
 const QUEUE_KEY = 'loop-mode-queue-v1';
-const QUALITY_MIN = 0.72;              // detector confidence
-const SAME_FACE_DIST = 0.42;           // dedupe within same session
-const CAPTURE_COOLDOWN_MS = 900;       // gap after a capture before allowing next
+const DETECT_MIN_SCORE = 0.55;         // baseline detector confidence
+const QUALITY_COMMIT = 0.62;           // combined quality required to commit
+const SAME_FACE_DIST = 0.42;           // dedupe within same session queue
+const CANDIDATE_MATCH_DIST = 0.45;     // same-face across frames while tracking
+const MIN_HOLD_MS = 380;               // must observe a face at least this long
+const MAX_HOLD_MS = 1100;              // commit even if still improving
+const IDLE_COMMIT_MS = 180;            // commit if we lose the face for this long
+const POST_CAPTURE_COOLDOWN_MS = 650;  // gap between commits to avoid spam
 
-const euclid = (a: Float32Array, b: number[]) => {
+const euclid = (a: Float32Array | number[], b: Float32Array | number[]) => {
   let s = 0;
   const n = Math.min(a.length, b.length);
-  for (let i = 0; i < n; i++) { const d = a[i] - b[i]; s += d * d; }
+  for (let i = 0; i < n; i++) { const d = (a as any)[i] - (b as any)[i]; s += d * d; }
   return Math.sqrt(s);
+};
+
+// Combined quality: detector score × size × frontality (nose centered between eyes)
+const computeQuality = (
+  det: faceapi.WithFaceDescriptor<faceapi.WithFaceLandmarks<{ detection: faceapi.FaceDetection }>>,
+  video: HTMLVideoElement,
+): number => {
+  const box = det.detection.box;
+  const score = det.detection.score;
+  const sizeRatio = Math.min(1, box.width / Math.max(140, video.videoWidth * 0.22));
+  const lm = det.landmarks;
+  const le = lm.getLeftEye(), re = lm.getRightEye(), nose = lm.getNose();
+  const leCx = (le[0].x + le[3].x) / 2;
+  const reCx = (re[0].x + re[3].x) / 2;
+  const eyeMid = (leCx + reCx) / 2;
+  const eyeDist = Math.max(1, Math.abs(reCx - leCx));
+  const noseX = nose[3].x;
+  const off = Math.abs(noseX - eyeMid) / eyeDist;
+  const frontality = Math.max(0, 1 - off * 2.2); // 0..1
+  return score * (0.55 + 0.45 * sizeRatio) * (0.55 + 0.45 * frontality);
 };
 
 const LoopFaceScanMode: React.FC = () => {
