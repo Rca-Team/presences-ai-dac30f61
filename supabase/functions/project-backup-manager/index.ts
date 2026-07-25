@@ -1128,6 +1128,102 @@ serve(async (req) => {
       });
     }
 
+    // ============ Chunked storage backup API ============
+    if (action === "list_storage_buckets") {
+      const { data, error } = await withTimeout(
+        svc.storage.listBuckets(),
+        UPSTREAM_REQUEST_TIMEOUT_MS,
+        "list storage buckets",
+      );
+      if (error) throw new Error(error.message);
+      const buckets: Array<{ name: string; public: boolean; fileCount: number }> = [];
+      for (const b of data || []) {
+        let count = 0;
+        try {
+          const paths = await listAllStoragePaths(svc, b.name);
+          count = paths.length;
+        } catch { /* ignore */ }
+        buckets.push({ name: b.name, public: Boolean((b as any).public), fileCount: count });
+      }
+      return new Response(JSON.stringify({ buckets }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (action === "list_storage_files") {
+      const bucket = String(payload?.bucket || "");
+      if (!bucket) throw new Error("bucket is required");
+      const paths = await listAllStoragePaths(svc, bucket);
+      return new Response(JSON.stringify({ bucket, paths }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (action === "download_storage_file") {
+      const bucket = String(payload?.bucket || "");
+      const path = String(payload?.path || "");
+      if (!bucket || !path) throw new Error("bucket and path are required");
+      const { data, error } = await withTimeout(
+        svc.storage.from(bucket).download(path),
+        UPSTREAM_REQUEST_TIMEOUT_MS,
+        `download ${bucket}/${path}`,
+      );
+      if (error || !data) throw new Error(error?.message || "download failed");
+      const bytes = new Uint8Array(await data.arrayBuffer());
+      const base64 = await toBase64(bytes, deadlineMs);
+      return new Response(
+        JSON.stringify({ bucket, path, contentType: data.type || null, base64 }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    if (action === "clear_storage_bucket") {
+      const bucket = String(payload?.bucket || "");
+      if (!bucket) throw new Error("bucket is required");
+      const paths = await listAllStoragePaths(svc, bucket);
+      for (let i = 0; i < paths.length; i += 100) {
+        const chunk = paths.slice(i, i + 100);
+        await withTimeout(
+          svc.storage.from(bucket).remove(chunk),
+          UPSTREAM_REQUEST_TIMEOUT_MS,
+          `clear ${bucket}`,
+        );
+      }
+      return new Response(JSON.stringify({ ok: true, removed: paths.length }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (action === "upload_storage_file") {
+      const bucket = String(payload?.bucket || "");
+      const path = String(payload?.path || "");
+      const base64 = String(payload?.base64 || "");
+      const contentType = (payload?.contentType as string | null) || "application/octet-stream";
+      if (!bucket || !path) throw new Error("bucket and path are required");
+      // Ensure the bucket exists — create as private by default so restores never fail.
+      try {
+        const { data: existing } = await svc.storage.getBucket(bucket);
+        if (!existing) {
+          await svc.storage.createBucket(bucket, { public: false });
+        }
+      } catch {
+        try { await svc.storage.createBucket(bucket, { public: false }); } catch { /* ignore */ }
+      }
+      const bytes = await base64ToBytes(base64, deadlineMs);
+      const { error } = await withTimeout(
+        svc.storage.from(bucket).upload(path, bytes, {
+          contentType: contentType || undefined,
+          upsert: true,
+        }),
+        UPSTREAM_REQUEST_TIMEOUT_MS,
+        `upload ${bucket}/${path}`,
+      );
+      if (error) throw new Error(error.message);
+      return new Response(JSON.stringify({ ok: true }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     return new Response(JSON.stringify({ error: "Unsupported action" }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
