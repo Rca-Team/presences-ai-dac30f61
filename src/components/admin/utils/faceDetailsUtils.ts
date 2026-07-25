@@ -64,6 +64,16 @@ export const fetchSelectedFace = async (faceId: string): Promise<FaceInfo> => {
         const metadata = deviceInfo.metadata && typeof deviceInfo.metadata === 'object' && !Array.isArray(deviceInfo.metadata) 
           ? deviceInfo.metadata 
           : {};
+
+        let profileAdmission: string | undefined;
+        if (data.user_id) {
+          const { data: profileRow } = await supabase
+            .from('profiles')
+            .select('admission_number')
+            .eq('user_id', data.user_id)
+            .maybeSingle();
+          profileAdmission = (profileRow as any)?.admission_number || undefined;
+        }
         
         return {
           recordId: faceId,
@@ -72,6 +82,7 @@ export const fetchSelectedFace = async (faceId: string): Promise<FaceInfo> => {
           class: metadata.class || '',
           section: metadata.section || '',
           employee_id: metadata.employee_id || data.user_id || faceId,
+          admission_number: profileAdmission || metadata.admission_number || metadata.admission_no || '',
           department: metadata.department || 'N/A',
           position: metadata.position || 'Student',
           roll_number: metadata.roll_number || '',
