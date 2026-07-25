@@ -1,90 +1,64 @@
-# Gate Mode 2.0 — AI Vision Surveillance Upgrade
+# Full-Site Backup & Restore Upgrade
 
-Turn Gate Mode from a face-only gate scanner into a continuous AI surveillance layer that tracks people across the frame (even when the face turns away), identifies teachers by presence, and logs a full class-session timeline (who entered/exited when, peak student count, students leaving during/after teacher).
+## Goal
+Turn the Admin → Data Backup section into a true "whole-site" backup: every table (attendance, profiles, face_descriptors + face samples, timetable, gate entries, etc.), auth users, and roles — with automatic scheduled backups, a real progress UI, and a reliable one-click import that puts everything back.
 
-The `gv_cameras`, `gv_camera_zones`, `gv_tracks`, `gv_events`, `gv_class_sessions` tables already exist and are Realtime-enabled — this build wires them to a real pipeline instead of adding new schema.  
-  
-try to avoid lovable for database and stroage use older one that use in full project 
+## Current State (verified)
+- `src/pages/DataBackup.tsx` currently calls `project-backup-manager` with hard caps: `maxTables: 12`, `maxTableRows: 500`, `maxTotalRows: 2400`, `includeStorage: false`, `includeAuthUsers: false`, `includeFaceDescriptors: false`. So most of the site is deliberately excluded today.
+- Progress bar is a fake timer (`+7% every 850ms`) — it doesn't reflect real work.
+- Auto-daily snapshot exists but uses the same limited export and stores only in `localStorage` (lost on browser clear).
+- Edge function `project-backup-manager` already supports `export_backup` / `restore_backup` actions.
 
-## What ships
+## What Will Change
 
-### 1. Vision pipeline (new file `src/services/vision/`)
+### 1. Full-Coverage Export (edge function)
+Rework `supabase/functions/project-backup-manager/index.ts` to support a **chunked** export:
+- New action `export_manifest` → returns the list of tables + row counts.
+- New action `export_chunk` → returns rows for one `(table, offset, limit)` slice.
+- Includes: all public tables, `auth.users` (id/email/metadata only), `user_roles`, `face_descriptors` (full descriptors), storage bucket file listings.
+- No hard row/table caps — client drives pagination.
 
-- **PersonDetector** — MediaPipe Tasks Vision `ObjectDetector` (EfficientDet-lite) running in a Web Worker at ~10 fps, class=`person`. Broad boxes, no face required. Model auto-downloads from CDN with local fallback.
-- **TrackerService** — IoU + centroid + appearance-signature multi-object tracker (SORT-style, no re-id model). Each track keeps: id, box history, dwell zones, first_seen, last_seen, appearance signature (256-bin HSV histogram of the torso crop).
-- **ReIdentifier** — when face-api identifies a face inside a track box, that identity is bound to the track. When the face later disappears (person turns, sits on a bench, walks off), the tracker keeps the identity as long as the track survives; if the track is dropped and a new track appears with cosine similarity > 0.85 on the appearance signature within 90 s and inside a linked zone, identity is transferred (re-id).
-- **ZoneClassifier** — polygon hit-test using `gv_camera_zones` (gate, corridor, class-front, class-seats, bench-area). Every track update produces a current zone.
+### 2. Client-Driven Full Backup (frontend)
+Rewrite the export flow in `src/pages/DataBackup.tsx`:
+- Step 1: fetch manifest → know exact total rows.
+- Step 2: loop through each table in pages of ~500 rows, assembling one JSON.
+- Step 3: stream-write the assembled JSON to a downloaded file.
+- **Real progress**: `processedRows / totalRows` drives the bar + a live "Backing up `attendance_records` — 3,240 / 5,120" label.
+- Same pipeline reused for snapshots (stored in IndexedDB, not localStorage, so multi-MB backups fit).
 
-### 2. Class session inference (`src/services/vision/ClassSessionInferer.ts`)
+### 3. Full Restore (import)
+- Parse uploaded JSON, show a preview: "This backup contains X users, Y attendance records, Z face samples — Restore?"
+- Send to edge function in the same table-by-table chunked pattern with progress feedback.
+- Auto-create a pre-restore rollback snapshot first (already the pattern, kept).
 
-- Reads today's `timetable` row for the class linked to this camera to get the scheduled teacher and period.
-- Emits `teacher_entered` when a track that is (a) identified as the scheduled teacher via face, OR (b) an adult-sized track that stays in the class-front zone > 60 s during that period, crosses the class threshold zone. The "no face visible" path is what the user asked for: presence + zone + timetable ⇒ confirmed teacher.
-- Emits `teacher_exited` when that track leaves the class polygon for > 20 s.
-- Rolling `student_count_peak` = max simultaneous non-teacher tracks in the class-seats zone.
-- On every student track leaving the class polygon: increments `students_left_during` if inside `[teacher_entered_at, teacher_exited_at]`, else `students_left_after` (within 15 min of exit).
-- Upserts one row per (`class_key`, `period_key`, `day_key`) into `gv_class_sessions`.
+### 4. Automatic Backups
+- Add `automatic_backups` toggle + frequency (`daily` / `weekly`).
+- On admin page load, if last auto backup older than the interval → run silently in background, store in IndexedDB, keep last 7.
+- Optional: schedule a `pg_cron` job to call the edge function server-side and stash a JSON in a private storage bucket `backups/` — makes backups survive browser wipes. (Will confirm bucket creation via migration.)
 
-### 3. Event log
+### 5. UI/UX
+Redesign the backup card into three tabs:
+- **Backup Now** — big button, live progress with per-table breakdown, last-backup timestamp.
+- **Restore** — dropzone + snapshot list (from IndexedDB + storage bucket), confirmation dialog.
+- **Settings** — auto-backup toggle, frequency, retention count.
 
-Every meaningful state change writes to `gv_events`: `person_enter`, `person_exit`, `zone_change`, `teacher_entered`, `teacher_exited`, `student_left_during`, `student_left_after`, `bench_dwell`, `crowd_exit` (≥ 3 students leaving within 10 s). Batched insert every 2 s to keep DB writes cheap.
+## Technical Details
+- **Chunk size**: 500 rows/request keeps each edge-function call well under the 25s CPU/timeout budget.
+- **Storage bucket**: create `backups` (private, admin-only RLS) via migration; store as `backups/<timestamp>.json`.
+- **IndexedDB**: use a tiny wrapper (no library) with one object store `snapshots`.
+- **Auth users**: exported through service-role admin API; on restore, existing users matched by email, missing users inserted via `admin.createUser` with `email_confirmed=true`.
+- **Face descriptors**: exported as raw JSON arrays (already stored that way in `face_descriptors.descriptor`).
+- **Progress model**: `{ phase, table, done, total, overallPct }` state object; drives both the progress bar and the label.
 
-### 4. Gate Mode page rewrite (`src/pages/GateMode.tsx` + new components)
+## Out of Scope
+- Encrypting backup files (can be added later if requested).
+- Cross-project restore (backup format stays project-specific).
 
-- Existing face-gate scanner stays as-is for entries.
-- New tab **"Vision 2.0"** with:
-  - `VisionCanvas` — live video with track boxes, identity labels (or "unknown-adult"/"unknown-student"), zone tint, appearance thumbnail chip.
-  - `LiveTimeline` — realtime feed from `gv_events` for the active class.
-  - `SessionStatsCard` — current teacher (confirmed / inferred), peak student count, exits during / after teacher, dwell heatmap.
-  - `ZoneEditor` — draw polygons on a paused frame; persists to `gv_camera_zones`.
-- Setup step: pick this device's `gv_cameras` row (or create one), set `class_key`, define zones once.
+## Files Touched
+- `supabase/functions/project-backup-manager/index.ts` — add manifest/chunk actions.
+- `src/pages/DataBackup.tsx` — rewrite UI + chunked client.
+- `src/lib/backup/indexeddb.ts` — new tiny helper.
+- New migration — `backups` storage bucket + admin RLS.
+- Optional: `pg_cron` job (via `supabase--insert`) for server-side daily backup.
 
-### 5. Libraries
-
-Add: `@mediapipe/tasks-vision` (person detection), `ml-kmeans` (appearance clustering), `simple-statistics` (rolling stats). All existing face-api / recognition code untouched.
-
-## Technical section
-
-```text
-video ──▶ frame throttler (10 fps) ──▶ Web Worker
-                                          │
-                                          ▼
-                              MediaPipe person boxes
-                                          │
-                          ┌───────────────┴──────────────┐
-                          ▼                              ▼
-                    IoU/appearance tracker        face-api (existing, 4 fps)
-                          │                              │
-                          └──────► bind face → track ◄───┘
-                                          │
-                                          ▼
-                                  ZoneClassifier
-                                          │
-                                          ▼
-                              ClassSessionInferer
-                                          │
-                     batched writes ──────┴──────► gv_tracks / gv_events / gv_class_sessions
-```
-
-Perf budget: MediaPipe worker < 40 ms/frame on mid GPU, tracker < 5 ms, DB writes off the render loop. Vision tab is lazy-loaded; nothing runs unless the operator opens it.
-
-Files created/changed:
-
-- `src/services/vision/PersonDetector.ts` + `personDetector.worker.ts`
-- `src/services/vision/TrackerService.ts`
-- `src/services/vision/ReIdentifier.ts`
-- `src/services/vision/ZoneClassifier.ts`
-- `src/services/vision/ClassSessionInferer.ts`
-- `src/services/vision/EventBatcher.ts`
-- `src/components/gate/vision/VisionCanvas.tsx`
-- `src/components/gate/vision/LiveTimeline.tsx`
-- `src/components/gate/vision/SessionStatsCard.tsx`
-- `src/components/gate/vision/ZoneEditor.tsx`
-- `src/pages/GateMode.tsx` — add Vision 2.0 tab
-
-Existing gv_* tables already have RLS + Realtime, so no migration is required unless zones need extra fields — I'll only add a migration if a column is genuinely missing during build.
-
-## Out of scope for this plan
-
-- Multi-camera fusion across rooms (single-camera per device only).
-- Cross-day re-identification (appearance sigs reset daily).
-- Server-side vision — everything runs on-device to keep it free and private.
+Approve and I'll implement it.
