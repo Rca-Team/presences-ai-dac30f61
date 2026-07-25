@@ -299,7 +299,19 @@ const LoopFaceScanMode: React.FC = () => {
           videoConstraints={{ facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 960 } }}
           className="w-full h-full object-cover"
         />
-        <canvas ref={canvasRef} className="absolute inset-0 pointer-events-none" />
+
+        {/* Tracking ring */}
+        {tracking && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0.4 }}
+              animate={{ scale: [0.95, 1.05, 0.95], opacity: [0.5, 0.9, 0.5] }}
+              transition={{ duration: 0.9, repeat: Infinity }}
+              className="w-60 h-76 sm:w-72 sm:h-88 rounded-[42%] border-[3px]"
+              style={{ borderColor: 'hsl(var(--ios-green))' }}
+            />
+          </div>
+        )}
 
         {/* Face frame */}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
