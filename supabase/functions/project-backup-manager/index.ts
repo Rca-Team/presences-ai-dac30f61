@@ -1209,7 +1209,7 @@ serve(async (req) => {
       } catch {
         try { await svc.storage.createBucket(bucket, { public: false }); } catch { /* ignore */ }
       }
-      const bytes = await base64ToBytes(base64, deadlineMs);
+      const bytes = await fromBase64(base64, deadlineMs);
       const { error } = await withTimeout(
         svc.storage.from(bucket).upload(path, bytes, {
           contentType: contentType || undefined,
