@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import gauravPhoto from '@/assets/gaurav-photo.png';
 import swamiAnantVyasPhoto from '@/assets/swami-anant-vyas.png.asset.json';
+import teamRcaPhoto from '@/assets/team-rca.jpg.asset.json';
 import { usePortfolioData } from '@/hooks/usePortfolioData';
 import { PublicPortfolioView } from '@/pages/Portfolio';
 import { MemberAvatar } from '@/components/portfolio/MemberAvatar';
@@ -262,51 +263,99 @@ const Index = () => {
               </motion.div>
 
               <motion.div
-                className="liquid-glass-surface rounded-3xl p-8"
+                className="group relative overflow-hidden rounded-3xl p-0"
                 style={{ perspective: 900, transformStyle: 'preserve-3d' }}
                 {...cardTilt}
               >
+                {/* Cinematic team photo */}
                 <button
                   type="button"
                   onClick={() => creatorMembers[0] && setActiveProfile(creatorMembers[0])}
-                  className="group block w-full text-left"
-                  aria-label="Open Gaurav portfolio"
+                  className="relative block w-full text-left"
+                  aria-label="Open Team RCA portfolio"
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="relative aspect-[4/3] w-full overflow-hidden">
                     <img
-                      src={portfolio.profileImage || creatorMembers[0]?.image || gauravPhoto}
-                      alt={creatorMembers[0]?.name || 'Gaurav'}
-                      className="h-11 w-11 rounded-full border border-border/70 object-cover"
+                      src={teamRcaPhoto.url}
+                      alt="Team RCA — Presences AI creators"
+                      className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.04]"
                       loading="lazy"
                     />
+                    {/* Golden glow accents */}
+                    <div className="pointer-events-none absolute -inset-8 bg-[radial-gradient(circle_at_top,rgba(251,191,36,0.28),transparent_55%)]" />
+                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black via-black/55 to-transparent" />
+
+                    {/* Top badge */}
+                    <div className="absolute left-4 top-4 flex items-center gap-2 rounded-full border border-amber-300/40 bg-black/50 px-3 py-1.5 backdrop-blur-md">
+                      <span className="h-1.5 w-1.5 rounded-full bg-amber-300 shadow-[0_0_8px_rgba(251,191,36,0.9)]" />
+                      <span className="text-[10px] font-black uppercase tracking-[0.22em] text-amber-200">Team RCA</span>
+                    </div>
+
+                    {/* Bottom title lockup */}
+                    <div className="absolute inset-x-0 bottom-0 p-5">
+                      <p className="text-[10px] font-black uppercase tracking-[0.32em] text-amber-200/90">Presences · AI</p>
+                      <p
+                        className="mt-1 bg-gradient-to-r from-amber-200 via-yellow-300 to-amber-400 bg-clip-text text-2xl font-black leading-none text-transparent"
+                        style={{ fontFamily: 'Sora, sans-serif' }}
+                      >
+                        Built by Team RCA
+                      </p>
+                      <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/70">
+                        Together in mind · United in purpose
+                      </p>
+                    </div>
                   </div>
-                  <p className="mt-8 text-lg font-bold text-foreground transition-colors group-hover:text-primary">
-                    Developed by {creatorMembers[0]?.name || 'Gaurav'}
-                  </p>
-                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Tap to view portfolio</p>
                 </button>
 
+                {/* Members strip */}
+                <div className="space-y-2 bg-card/60 p-4 backdrop-blur-xl">
+                  <button
+                    type="button"
+                    onClick={() => creatorMembers[0] && setActiveProfile(creatorMembers[0])}
+                    className="flex w-full items-center justify-between gap-3 rounded-2xl border border-amber-300/25 bg-gradient-to-r from-amber-500/10 via-transparent to-transparent px-3 py-2.5 text-left transition-colors hover:border-amber-300/60"
+                  >
+                    <div className="flex items-center gap-3">
+                      <img
+                        src={portfolio.profileImage || creatorMembers[0]?.image || gauravPhoto}
+                        alt={creatorMembers[0]?.name || 'Gaurav'}
+                        className="h-9 w-9 rounded-full border border-amber-300/40 object-cover"
+                        loading="lazy"
+                      />
+                      <div>
+                        <p className="text-[9px] font-black uppercase tracking-[0.18em] text-amber-300/90">Lead · Creator</p>
+                        <p className="text-sm font-bold text-foreground">{creatorMembers[0]?.name || 'Gaurav'}</p>
+                      </div>
+                    </div>
+                    <ArrowRight className="h-4 w-4 text-amber-300/80" />
+                  </button>
 
-                <div className="mt-4 space-y-2">
                   {creatorMembers.slice(1).map((member) => (
                     <button
                       key={member.name}
                       type="button"
                       onClick={() => setActiveProfile(member)}
-                      className="inline-flex w-full items-center justify-between gap-2 rounded-xl border border-border/50 bg-card/45 px-3 py-2 text-left text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground"
+                      className="flex w-full items-center justify-between gap-3 rounded-2xl border border-border/40 bg-card/45 px-3 py-2 text-left transition-colors hover:border-amber-300/40"
                       aria-label={`Open ${member.name} profile`}
                     >
-                      <span>Team Member: {member.name}</span>
-                      <MemberAvatar
-                        name={member.name}
-                        image={member.image}
-                        className="h-6 w-6 rounded-full border border-border/60"
-                        fallbackClassName="text-[10px]"
-                      />
-
+                      <div className="flex items-center gap-3">
+                        <MemberAvatar
+                          name={member.name}
+                          image={member.image}
+                          className="h-8 w-8 rounded-full border border-border/60"
+                          fallbackClassName="text-[10px]"
+                        />
+                        <div>
+                          <p className="text-[9px] font-black uppercase tracking-[0.18em] text-muted-foreground">Team Member</p>
+                          <p className="text-sm font-semibold text-foreground">{member.name}</p>
+                        </div>
+                      </div>
+                      <ArrowRight className="h-4 w-4 text-muted-foreground" />
                     </button>
                   ))}
                 </div>
+
+                {/* Framing border */}
+                <div className="pointer-events-none absolute inset-0 rounded-3xl ring-1 ring-amber-300/20" />
               </motion.div>
             </div>
           </div>
