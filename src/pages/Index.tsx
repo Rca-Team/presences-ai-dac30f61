@@ -263,7 +263,7 @@ const Index = () => {
               </motion.div>
 
               <motion.div
-                className="group relative col-span-2 overflow-hidden rounded-3xl p-0 lg:col-span-1"
+                className="group relative overflow-hidden rounded-3xl p-0"
                 style={{ perspective: 900, transformStyle: 'preserve-3d' }}
                 {...cardTilt}
               >
@@ -274,35 +274,41 @@ const Index = () => {
                   className="relative block w-full text-left"
                   aria-label="Open Team RCA portfolio"
                 >
-                  <div className="relative aspect-[16/9] w-full overflow-hidden sm:aspect-[16/10]">
+                  <div className="relative aspect-[4/3] w-full overflow-hidden">
                     <img
                       src={teamRcaPhoto.url}
                       alt="Team RCA — Presences AI creators"
-                      className="absolute inset-0 h-full w-full object-cover object-top transition-transform duration-700 ease-out group-hover:scale-[1.04]"
+                      className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.04]"
                       loading="lazy"
                     />
+                    {/* Golden glow accents */}
                     <div className="pointer-events-none absolute -inset-8 bg-[radial-gradient(circle_at_top,rgba(251,191,36,0.28),transparent_55%)]" />
-                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent" />
+                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black via-black/55 to-transparent" />
 
-                    <div className="absolute left-3 top-3 flex items-center gap-2 rounded-full border border-amber-300/40 bg-black/55 px-2.5 py-1 backdrop-blur-md sm:left-4 sm:top-4 sm:px-3 sm:py-1.5">
+                    {/* Top badge */}
+                    <div className="absolute left-4 top-4 flex items-center gap-2 rounded-full border border-amber-300/40 bg-black/50 px-3 py-1.5 backdrop-blur-md">
                       <span className="h-1.5 w-1.5 rounded-full bg-amber-300 shadow-[0_0_8px_rgba(251,191,36,0.9)]" />
-                      <span className="text-[9px] font-black uppercase tracking-[0.22em] text-amber-200 sm:text-[10px]">Team RCA</span>
+                      <span className="text-[10px] font-black uppercase tracking-[0.22em] text-amber-200">Team RCA</span>
                     </div>
 
-                    <div className="absolute inset-x-0 bottom-0 p-4 sm:p-5">
-                      <p className="text-[9px] font-black uppercase tracking-[0.3em] text-amber-200/90 sm:text-[10px] sm:tracking-[0.32em]">Presences · AI</p>
+                    {/* Bottom title lockup */}
+                    <div className="absolute inset-x-0 bottom-0 p-5">
+                      <p className="text-[10px] font-black uppercase tracking-[0.32em] text-amber-200/90">Presences · AI</p>
                       <p
-                        className="mt-1 bg-gradient-to-r from-amber-200 via-yellow-300 to-amber-400 bg-clip-text text-xl font-black leading-tight text-transparent sm:text-2xl"
+                        className="mt-1 bg-gradient-to-r from-amber-200 via-yellow-300 to-amber-400 bg-clip-text text-2xl font-black leading-none text-transparent"
                         style={{ fontFamily: 'Sora, sans-serif' }}
                       >
                         Built by Team RCA
+                      </p>
+                      <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/70">
+                        Together in mind · United in purpose
                       </p>
                     </div>
                   </div>
                 </button>
 
                 {/* Members strip */}
-                <div className="space-y-2 bg-card/60 p-3 backdrop-blur-xl sm:p-4">
+                <div className="space-y-2 bg-card/60 p-4 backdrop-blur-xl">
                   <button
                     type="button"
                     onClick={() => creatorMembers[0] && setActiveProfile(creatorMembers[0])}
