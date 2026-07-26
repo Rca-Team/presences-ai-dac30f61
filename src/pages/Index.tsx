@@ -305,7 +305,7 @@ const Index = () => {
                 </button>
 
                 {/* Members strip */}
-                <div className="space-y-2 bg-card/60 p-4 backdrop-blur-xl">
+                <div className="space-y-2 bg-card/60 p-3 backdrop-blur-xl sm:p-4">
                   <button
                     type="button"
                     onClick={() => creatorMembers[0] && setActiveProfile(creatorMembers[0])}
