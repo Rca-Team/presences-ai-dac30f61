@@ -274,7 +274,7 @@ const Index = () => {
                   className="relative block w-full text-left"
                   aria-label="Open Team RCA portfolio"
                 >
-                  <div className="relative aspect-[16/10] w-full overflow-hidden sm:aspect-[4/3]">
+                  <div className="relative aspect-[16/9] w-full overflow-hidden sm:aspect-[16/10]">
                     <img
                       src={teamRcaPhoto.url}
                       alt="Team RCA — Presences AI creators"
@@ -296,9 +296,6 @@ const Index = () => {
                         style={{ fontFamily: 'Sora, sans-serif' }}
                       >
                         Built by Team RCA
-                      </p>
-                      <p className="mt-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/75 sm:mt-2 sm:text-[11px] sm:tracking-[0.18em]">
-                        Together in mind · United in purpose
                       </p>
                     </div>
                   </div>
