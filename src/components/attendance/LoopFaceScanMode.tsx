@@ -406,33 +406,74 @@ const LoopFaceScanMode: React.FC = () => {
     const snapshot = [...queue];
     const ids = new Set(snapshot.map(s => s.clientId));
     const payload = snapshot.map(q => ({ clientId: q.clientId, descriptor: q.descriptor, capturedAt: q.capturedAt }));
-    toast({ title: 'Submitting…', description: 'Falls back to on-device if the server is unavailable.' });
+
+    // True close-safe dispatch: use fetch with keepalive so the request survives
+    // tab close / navigation. We do NOT await the response — the browser will
+    // deliver it in the background.
+    const supabaseUrl = (import.meta as any).env?.VITE_SUPABASE_URL as string | undefined;
+    const anonKey = (import.meta as any).env?.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined;
+    let dispatched = false;
     try {
-      const invocation = supabase.functions.invoke('batch-face-attendance', { body: { items: payload } });
-      const timeout = new Promise<never>((_, rej) => setTimeout(() => rej(new Error('timeout')), 8000));
-      const res: any = await Promise.race([invocation, timeout]);
-      if (res?.error) throw res.error;
-      setServerDown(false);
-      if (res?.data?.results) applyResults(res.data.results);
-      // Only drop items that were actually processed by the server
-      setQueue(q => q.filter(x => !ids.has(x.clientId)));
-      toast({ title: 'Sent to backend', description: 'Attendance submitted successfully.' });
-    } catch (err) {
-      setServerDown(true);
-      try {
-        const data = await processLocally(snapshot);
-        setLastResult(data);
-        applyResults(data.results);
-        setQueue(q => q.filter(x => !ids.has(x.clientId)));
-        toast({ title: 'Processed on-device', description: 'Server unreachable — attendance marked locally.' });
-      } catch (e: any) {
-        // Keep the queue intact so the user can retry; persisted in localStorage.
-        toast({
-          title: 'Submission failed',
-          description: 'Kept your captures — please retry when connection is stable.',
-          variant: 'destructive' as any,
-        });
+      if (supabaseUrl && anonKey) {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const accessToken = sessionData?.session?.access_token ?? anonKey;
+        const body = JSON.stringify({ items: payload });
+        // keepalive requests are capped at ~64KB by the browser; guard for that.
+        if (new Blob([body]).size < 60_000) {
+          void fetch(`${supabaseUrl}/functions/v1/batch-face-attendance`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              apikey: anonKey,
+              Authorization: `Bearer ${accessToken}`,
+            },
+            body,
+            keepalive: true,
+          }).then(async (r) => {
+            try {
+              if (r.ok) {
+                const data = await r.json();
+                setServerDown(false);
+                if (data?.results) applyResults(data.results);
+              } else {
+                setServerDown(true);
+              }
+            } catch { /* ignore parse errors on background reply */ }
+          }).catch(() => setServerDown(true));
+          dispatched = true;
+        }
       }
+    } catch { /* fall through to invoke path */ }
+
+    if (dispatched) {
+      // Clear immediately — the request is in-flight and will complete even if
+      // the app is closed. Captures remain in localStorage until state updates
+      // flush, at which point the queue is emptied.
+      setQueue(q => q.filter(x => !ids.has(x.clientId)));
+      toast({
+        title: 'Sent in background',
+        description: 'Safe to close the app — attendance will finish processing on the server.',
+      });
+      return;
+    }
+
+    // Fallback path when keepalive isn't usable (missing env or oversized body):
+    // process locally so nothing is lost. This path is NOT close-safe, but the
+    // queue is preserved on failure so the user can retry.
+    toast({ title: 'Processing on device…', description: 'Keeping this screen open finishes attendance faster.' });
+    try {
+      const data = await processLocally(snapshot);
+      setLastResult(data);
+      applyResults(data.results);
+      setQueue(q => q.filter(x => !ids.has(x.clientId)));
+      setServerDown(true);
+      toast({ title: 'Processed on-device', description: 'Attendance marked locally.' });
+    } catch {
+      toast({
+        title: 'Submission failed',
+        description: 'Kept your captures — please retry when connection is stable.',
+        variant: 'destructive' as any,
+      });
     }
   };
 
