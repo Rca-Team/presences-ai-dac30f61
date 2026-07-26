@@ -623,17 +623,15 @@ const DataBackup = ({ embedded = false }: { embedded?: boolean }) => {
 
     autoRanRef.current = true;
     (async () => {
+      // Run silently in the background: do NOT set `busy` or touch the visible
+      // progress bar so the admin can still click Backup Now / Save Snapshot /
+      // Restore / Delete while this runs.
       try {
-        setBusy('snapshot');
-        setProgress({ phase: 'preparing', label: 'Automatic backup running in background...', done: 0, total: 0, pct: 2 });
-        const backup = await runFullBackup(settings.includeAuthUsers, updateProgress);
+        const backup = await runFullBackup(settings.includeAuthUsers, () => {});
         await persistSnapshot(backup, `Auto ${settings.frequency} ${new Date().toLocaleString()}`, 'auto');
         toast({ title: 'Automatic backup saved', description: 'Latest snapshot stored on this device.' });
       } catch (e: any) {
         console.warn('auto backup failed', e);
-        updateProgress({ phase: 'idle', label: '', pct: 0 });
-      } finally {
-        setBusy(null);
       }
     })();
   }, [isLoading, role, settings, busy, updateProgress, toast]);
