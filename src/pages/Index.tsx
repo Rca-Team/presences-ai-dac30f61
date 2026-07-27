@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import gauravPhoto from '@/assets/gaurav-photo.png';
 import swamiAnantVyasPhoto from '@/assets/swami-anant-vyas.png.asset.json';
-const teamRcaPhoto = { url: '/team-rca.jpg' };
+import teamRcaPhoto from '@/assets/team-rca.jpg.asset.json';
 import { usePortfolioData } from '@/hooks/usePortfolioData';
 import { PublicPortfolioView } from '@/pages/Portfolio';
 import { MemberAvatar } from '@/components/portfolio/MemberAvatar';
