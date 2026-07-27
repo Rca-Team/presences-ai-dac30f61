@@ -407,75 +407,79 @@ const LoopFaceScanMode: React.FC = () => {
     const ids = new Set(snapshot.map(s => s.clientId));
     const payload = snapshot.map(q => ({ clientId: q.clientId, descriptor: q.descriptor, capturedAt: q.capturedAt }));
 
-    // True close-safe dispatch: use fetch with keepalive so the request survives
-    // tab close / navigation. We do NOT await the response — the browser will
-    // deliver it in the background.
+    const runLocalFallback = async () => {
+      toast({ title: 'Server unavailable — processing on device…', description: 'Keeping this screen open finishes attendance faster.' });
+      try {
+        const data = await processLocally(snapshot);
+        setLastResult(data);
+        applyResults(data.results);
+        setQueue(q => q.filter(x => !ids.has(x.clientId)));
+        setServerDown(true);
+        toast({ title: 'Processed on-device', description: 'Attendance marked locally.' });
+      } catch {
+        toast({
+          title: 'Submission failed',
+          description: 'Kept your captures — please retry when connection is stable.',
+          variant: 'destructive' as any,
+        });
+      }
+    };
+
+    // Try keepalive fetch first so the request survives tab close. We do NOT
+    // clear the queue until we get a successful reply — this prevents silent
+    // data loss on non-2xx responses. If the user closes the tab before the
+    // reply arrives, the queue persists in localStorage and can be retried
+    // (server-side mark is idempotent via already-marked status).
     const supabaseUrl = (import.meta as any).env?.VITE_SUPABASE_URL as string | undefined;
     const anonKey = (import.meta as any).env?.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined;
-    let dispatched = false;
     try {
       if (supabaseUrl && anonKey) {
         const { data: sessionData } = await supabase.auth.getSession();
         const accessToken = sessionData?.session?.access_token ?? anonKey;
         const body = JSON.stringify({ items: payload });
-        // keepalive requests are capped at ~64KB by the browser; guard for that.
         if (new Blob([body]).size < 60_000) {
-          void fetch(`${supabaseUrl}/functions/v1/batch-face-attendance`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              apikey: anonKey,
-              Authorization: `Bearer ${accessToken}`,
-            },
-            body,
-            keepalive: true,
-          }).then(async (r) => {
-            try {
-              if (r.ok) {
-                const data = await r.json();
-                setServerDown(false);
-                if (data?.results) applyResults(data.results);
-              } else {
-                setServerDown(true);
+          toast({ title: 'Sending…', description: 'Safe to close — will finish in background if online.' });
+          try {
+            const r = await fetch(`${supabaseUrl}/functions/v1/batch-face-attendance`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                apikey: anonKey,
+                Authorization: `Bearer ${accessToken}`,
+              },
+              body,
+              keepalive: true,
+            });
+            if (r.ok) {
+              const data = await r.json().catch(() => null);
+              setServerDown(false);
+              if (data?.results) {
+                applyResults(data.results);
+                setLastResult(data);
               }
-            } catch { /* ignore parse errors on background reply */ }
-          }).catch(() => setServerDown(true));
-          dispatched = true;
+              // Only now safe to clear.
+              setQueue(q => q.filter(x => !ids.has(x.clientId)));
+              toast({ title: 'Attendance submitted', description: 'Server confirmed your captures.' });
+              return;
+            }
+            // Non-2xx: preserve queue, fall back locally.
+            setServerDown(true);
+            await runLocalFallback();
+            return;
+          } catch {
+            // Network error: preserve queue, fall back locally.
+            setServerDown(true);
+            await runLocalFallback();
+            return;
+          }
         }
       }
-    } catch { /* fall through to invoke path */ }
+    } catch { /* fall through */ }
 
-    if (dispatched) {
-      // Clear immediately — the request is in-flight and will complete even if
-      // the app is closed. Captures remain in localStorage until state updates
-      // flush, at which point the queue is emptied.
-      setQueue(q => q.filter(x => !ids.has(x.clientId)));
-      toast({
-        title: 'Sent in background',
-        description: 'Safe to close the app — attendance will finish processing on the server.',
-      });
-      return;
-    }
-
-    // Fallback path when keepalive isn't usable (missing env or oversized body):
-    // process locally so nothing is lost. This path is NOT close-safe, but the
-    // queue is preserved on failure so the user can retry.
-    toast({ title: 'Processing on device…', description: 'Keeping this screen open finishes attendance faster.' });
-    try {
-      const data = await processLocally(snapshot);
-      setLastResult(data);
-      applyResults(data.results);
-      setQueue(q => q.filter(x => !ids.has(x.clientId)));
-      setServerDown(true);
-      toast({ title: 'Processed on-device', description: 'Attendance marked locally.' });
-    } catch {
-      toast({
-        title: 'Submission failed',
-        description: 'Kept your captures — please retry when connection is stable.',
-        variant: 'destructive' as any,
-      });
-    }
+    // No env / oversized body — go straight to local fallback.
+    await runLocalFallback();
   };
+
 
   const statusBadge = (r?: ItemResult) => {
     if (!r) return null;
