@@ -13,6 +13,7 @@ import * as faceapi from 'face-api.js';
 import {
   Play, Pause, Send, Trash2, CheckCircle2, Loader2,
   Users, Sparkles, Repeat, X, WifiOff, AlertTriangle,
+  UserCheck, UserX, Clock, HelpCircle, ScanFace, Zap,
 } from 'lucide-react';
 
 interface CapturedFace {
