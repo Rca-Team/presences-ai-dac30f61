@@ -13,6 +13,7 @@ import * as faceapi from 'face-api.js';
 import {
   Play, Pause, Send, Trash2, CheckCircle2, Loader2,
   Users, Sparkles, Repeat, X, WifiOff, AlertTriangle,
+  UserCheck, UserX, Clock, HelpCircle, ScanFace, Zap,
 } from 'lucide-react';
 
 interface CapturedFace {
@@ -481,25 +482,44 @@ const LoopFaceScanMode: React.FC = () => {
   };
 
 
+  const statusMeta: Record<ItemStatus, { label: string; cls: string; ring: string; icon: React.ReactNode }> = {
+    marked:    { label: 'Present',   cls: 'bg-emerald-500 text-white',                       ring: 'ring-emerald-500/60', icon: <UserCheck className="w-3 h-3" /> },
+    late:      { label: 'Late',      cls: 'bg-amber-500 text-white',                         ring: 'ring-amber-500/60',   icon: <Clock className="w-3 h-3" /> },
+    already:   { label: 'Already',   cls: 'bg-slate-500 text-white',                         ring: 'ring-slate-400/60',   icon: <CheckCircle2 className="w-3 h-3" /> },
+    unmatched: { label: 'No match',  cls: 'bg-rose-500 text-white',                          ring: 'ring-rose-500/60',    icon: <UserX className="w-3 h-3" /> },
+    low_conf:  { label: 'Low conf',  cls: 'bg-orange-500 text-white',                        ring: 'ring-orange-500/60',  icon: <HelpCircle className="w-3 h-3" /> },
+    error:     { label: 'Error',     cls: 'bg-rose-600 text-white',                          ring: 'ring-rose-600/60',    icon: <AlertTriangle className="w-3 h-3" /> },
+  };
+
   const statusBadge = (r?: ItemResult) => {
     if (!r) return null;
-    const styles: Record<ItemStatus, string> = {
-      marked: 'bg-emerald-500 text-white',
-      late: 'bg-amber-500 text-white',
-      already: 'bg-slate-500 text-white',
-      unmatched: 'bg-rose-500 text-white',
-      low_conf: 'bg-orange-500 text-white',
-      error: 'bg-rose-600 text-white',
-    };
-    const label: Record<ItemStatus, string> = {
-      marked: '✓ Marked', late: '✓ Late', already: '• Already', unmatched: '✗ No match', low_conf: '⚠ Low', error: '! Error',
-    };
+    const m = statusMeta[r.status];
     return (
-      <div className={`absolute top-1 left-1 text-[9px] font-semibold px-1.5 py-0.5 rounded-md ${styles[r.status]}`}>
-        {label[r.status]}
+      <div className={`absolute top-1 left-1 inline-flex items-center gap-1 text-[9px] font-semibold px-1.5 py-0.5 rounded-md shadow-sm ${m.cls}`}>
+        {m.icon}<span>{m.label}</span>
       </div>
     );
   };
+
+  // Aggregate results (live, from itemResults + lastResult history)
+  const resultEntries = Object.values(itemResults);
+  const counts = resultEntries.reduce(
+    (acc, r) => { acc[r.status] = (acc[r.status] || 0) + 1; return acc; },
+    {} as Record<ItemStatus, number>,
+  );
+  const totalProcessed = resultEntries.length;
+  const successProcessed = (counts.marked || 0) + (counts.late || 0) + (counts.already || 0);
+  const pendingCount = queue.length;
+  const totalSeen = pendingCount + totalProcessed;
+  const progressPct = totalSeen ? Math.round((totalProcessed / totalSeen) * 100) : 0;
+
+  const summaryCards: { key: ItemStatus | 'pending'; label: string; value: number; grad: string; icon: React.ReactNode }[] = [
+    { key: 'marked',    label: 'Present',   value: counts.marked || 0,    grad: 'from-emerald-500/15 to-emerald-500/5 text-emerald-600 dark:text-emerald-400', icon: <UserCheck className="w-4 h-4" /> },
+    { key: 'late',      label: 'Late',      value: counts.late || 0,      grad: 'from-amber-500/15 to-amber-500/5 text-amber-600 dark:text-amber-400',         icon: <Clock className="w-4 h-4" /> },
+    { key: 'already',   label: 'Already',   value: counts.already || 0,   grad: 'from-slate-500/15 to-slate-500/5 text-slate-600 dark:text-slate-300',         icon: <CheckCircle2 className="w-4 h-4" /> },
+    { key: 'unmatched', label: 'Unknown',   value: (counts.unmatched || 0) + (counts.low_conf || 0) + (counts.error || 0), grad: 'from-rose-500/15 to-rose-500/5 text-rose-600 dark:text-rose-400', icon: <UserX className="w-4 h-4" /> },
+    { key: 'pending',   label: 'Pending',   value: pendingCount,          grad: 'from-primary/15 to-primary/5 text-primary',                                    icon: <ScanFace className="w-4 h-4" /> },
+  ];
 
   return (
     <div className="space-y-4">
@@ -606,7 +626,7 @@ const LoopFaceScanMode: React.FC = () => {
         >
           <Sparkles className="w-4 h-4 mr-1" /> Send & Close-Safe
         </Button>
-        {queue.length > 0 && (
+        {(queue.length > 0 || totalProcessed > 0) && (
           <Button onClick={clearAll} size="lg" variant="ghost" className="text-destructive">
             <Trash2 className="w-4 h-4 mr-1" /> Clear
           </Button>
@@ -617,52 +637,140 @@ const LoopFaceScanMode: React.FC = () => {
         </div>
       </div>
 
-      {/* Queue grid */}
+      {/* Session summary cards */}
+      {(totalSeen > 0) && (
+        <div className="max-w-2xl mx-auto space-y-3">
+          <div className="grid grid-cols-5 gap-2">
+            {summaryCards.map(c => (
+              <motion.div
+                key={c.key}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                className={`rounded-xl border border-border/50 bg-gradient-to-br ${c.grad} p-2 flex flex-col items-center justify-center text-center`}
+              >
+                <div className="flex items-center gap-1 opacity-80">{c.icon}</div>
+                <div className="text-lg font-bold leading-tight mt-0.5">{c.value}</div>
+                <div className="text-[10px] uppercase tracking-wide opacity-70">{c.label}</div>
+              </motion.div>
+            ))}
+          </div>
+
+          {/* Progress bar */}
+          <div className="rounded-xl border border-border/50 bg-card/60 backdrop-blur p-3">
+            <div className="flex items-center justify-between text-xs mb-1.5">
+              <div className="flex items-center gap-1.5 font-medium">
+                <Zap className="w-3.5 h-3.5 text-primary" />
+                Session progress
+              </div>
+              <div className="text-muted-foreground">
+                {totalProcessed} / {totalSeen} processed · {successProcessed} marked
+              </div>
+            </div>
+            <div className="h-2 rounded-full bg-muted overflow-hidden">
+              <motion.div
+                className="h-full bg-gradient-to-r from-emerald-500 via-teal-500 to-primary"
+                initial={{ width: 0 }}
+                animate={{ width: `${progressPct}%` }}
+                transition={{ duration: 0.5, ease: 'easeOut' }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Queue grid (pending captures) */}
       {queue.length > 0 && (
         <div className="max-w-2xl mx-auto">
-          <div className="text-xs text-muted-foreground mb-2 px-1 flex items-center gap-1">
-            {autoProcess ? (
-              <><Sparkles className="w-3 h-3" /> Auto-processing enabled — marks attendance as faces are captured</>
-            ) : (
-              <><AlertTriangle className="w-3 h-3" /> Manual mode — press Process to mark attendance</>
+          <div className="text-xs text-muted-foreground mb-2 px-1 flex items-center justify-between">
+            <span className="inline-flex items-center gap-1">
+              <ScanFace className="w-3 h-3" />
+              {pendingCount} pending · {autoProcess ? 'auto-processing' : 'manual mode'}
+            </span>
+            {submitting && (
+              <span className="inline-flex items-center gap-1 text-primary">
+                <Loader2 className="w-3 h-3 animate-spin" /> Working…
+              </span>
             )}
           </div>
           <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
             <AnimatePresence>
-              {queue.map(item => (
-                <motion.div
-                  key={item.clientId}
-                  initial={{ scale: 0.6, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  exit={{ scale: 0.6, opacity: 0 }}
-                  className="relative aspect-square rounded-xl overflow-hidden bg-muted border border-border/60"
-                >
-                  <img src={item.imageDataUrl} alt="captured" className="w-full h-full object-cover" />
-                  {statusBadge(itemResults[item.clientId])}
-                  <button
-                    onClick={() => removeItem(item.clientId)}
-                    className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/70 text-white flex items-center justify-center"
+              {queue.map(item => {
+                const r = itemResults[item.clientId];
+                const ringCls = r ? `ring-2 ${statusMeta[r.status].ring}` : '';
+                return (
+                  <motion.div
+                    key={item.clientId}
+                    layout
+                    initial={{ scale: 0.6, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0.6, opacity: 0 }}
+                    className={`relative aspect-square rounded-xl overflow-hidden bg-muted border border-border/60 ${ringCls}`}
                   >
-                    <X className="w-3 h-3" />
-                  </button>
-                  <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-[10px] px-1 py-0.5 text-center">
-                    {(item.quality * 100).toFixed(0)}%
-                  </div>
-                </motion.div>
-              ))}
+                    <img src={item.imageDataUrl} alt="captured" className="w-full h-full object-cover" />
+                    {statusBadge(r)}
+                    <button
+                      onClick={() => removeItem(item.clientId)}
+                      className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/70 text-white flex items-center justify-center"
+                      aria-label="Remove capture"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                    <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[10px] px-1 py-0.5 flex items-center justify-between">
+                      <span className="truncate">{r?.name || '—'}</span>
+                      <span className="opacity-80">{(item.quality * 100).toFixed(0)}%</span>
+                    </div>
+                  </motion.div>
+                );
+              })}
             </AnimatePresence>
           </div>
         </div>
       )}
 
-      {lastResult?.summary && (
-        <div className="max-w-2xl mx-auto rounded-xl border border-border/60 bg-card/70 backdrop-blur p-3 text-sm">
-          <div className="flex items-center gap-2 font-medium">
-            <CheckCircle2 className="w-4 h-4 text-emerald-500" /> Last batch
-            {lastResult.via === 'local' && <span className="text-xs text-amber-500">(on-device)</span>}
+      {/* Results panel — recognized students */}
+      {resultEntries.length > 0 && (
+        <div className="max-w-2xl mx-auto rounded-2xl border border-border/60 bg-card/70 backdrop-blur overflow-hidden">
+          <div className="px-4 py-2.5 flex items-center justify-between border-b border-border/50 bg-gradient-to-r from-emerald-500/10 to-teal-500/10">
+            <div className="flex items-center gap-2 font-semibold text-sm">
+              <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+              Results
+              {lastResult?.via === 'local' && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-amber-500/20 text-amber-600 dark:text-amber-300">on-device</span>
+              )}
+            </div>
+            <div className="text-xs text-muted-foreground">
+              {successProcessed} of {totalProcessed} matched
+            </div>
           </div>
-          <div className="mt-1 text-xs text-muted-foreground">
-            Total {lastResult.summary.total} · Marked {lastResult.summary.marked} · Already {lastResult.summary.alreadyMarked} · Unmatched {lastResult.summary.unrecognized}
+          <div className="max-h-72 overflow-y-auto divide-y divide-border/40">
+            {resultEntries
+              .slice()
+              .sort((a, b) => {
+                const order: Record<ItemStatus, number> = { marked: 0, late: 1, already: 2, low_conf: 3, unmatched: 4, error: 5 };
+                return order[a.status] - order[b.status];
+              })
+              .map(r => {
+                const m = statusMeta[r.status];
+                return (
+                  <div key={r.clientId} className="flex items-center gap-3 px-4 py-2.5">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${m.cls}`}>
+                      {m.icon}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium truncate">
+                        {r.name || (r.status === 'unmatched' ? 'Unknown face' : 'Unrecognized')}
+                      </div>
+                      <div className="text-[11px] text-muted-foreground">
+                        {m.label}
+                        {typeof r.confidence === 'number' && ` · ${(r.confidence * 100).toFixed(0)}% confidence`}
+                      </div>
+                    </div>
+                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-md ${m.cls}`}>
+                      {m.label}
+                    </span>
+                  </div>
+                );
+              })}
           </div>
         </div>
       )}
