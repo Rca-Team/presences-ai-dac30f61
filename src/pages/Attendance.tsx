@@ -148,6 +148,20 @@ const Attendance = () => {
               AI-powered face recognition & QR code attendance
             </p>
 
+            {(signals.slowNetwork || signals.lowMemory || signals.saveData) && preference !== 'off' && (
+              <div className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-xs">
+                <Feather className="w-3.5 h-3.5 text-amber-600" />
+                <span className="text-amber-700 dark:text-amber-400 font-medium">Slow device / network detected</span>
+                <button
+                  onClick={() => setPreference('on')}
+                  className="ml-1 font-semibold text-primary underline underline-offset-2"
+                >
+                  Switch to Lite
+                </button>
+              </div>
+            )}
+
+
             {/* Feature pills */}
             <motion.div
               initial={{ opacity: 0, y: 10 }}
