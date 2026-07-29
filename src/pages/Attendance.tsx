@@ -13,8 +13,11 @@ import LiveAttendanceFeed from '@/components/attendance/LiveAttendanceFeed';
 import QuickStatsPanel from '@/components/attendance/QuickStatsPanel';
 import VoiceCommands from '@/components/attendance/VoiceCommands';
 import AttendanceMethodToggle from '@/components/attendance/AttendanceMethodToggle';
-import { BarChart3, Info, Scan, Sparkles, Zap, Activity, QrCode } from 'lucide-react';
+import { BarChart3, Info, Scan, Sparkles, Zap, Activity, QrCode, Feather } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { usePerformanceMode } from '@/hooks/usePerformanceMode';
+import LiteAttendanceMode from '@/components/attendance/LiteAttendanceMode';
+
 
 const AttendanceLoadingSkeleton = ({ isMobile }: { isMobile: boolean }) => (
   <div className="space-y-4 sm:space-y-6 animate-fade-in">
@@ -37,7 +40,9 @@ const Attendance = () => {
   const { toast } = useToast();
   const isMobile = useIsMobile();
   const prefersReducedMotion = useReducedMotion();
-  const minimizeMotion = isMobile || prefersReducedMotion;
+  const { liteMode, preference, setPreference, signals } = usePerformanceMode();
+  const minimizeMotion = isMobile || prefersReducedMotion || liteMode;
+
 
   useEffect(() => {
     const timer = window.setTimeout(() => setIsInitialLoading(false), 520);
