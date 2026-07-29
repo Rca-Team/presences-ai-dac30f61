@@ -209,14 +209,10 @@ const LoopFaceScanMode: React.FC = () => {
       if (status === 'marked' || status === 'already' || status === 'late') toRemove.add(r.clientId);
     }
     setItemResults(prev => ({ ...prev, ...map }));
-    // Remove successfully-processed items after a short delay so user sees the pill
+    // Remove successfully-processed items from the capture queue after a short delay,
+    // but keep their results in itemResults so the summary/results panel persists for the session.
     setTimeout(() => {
       setQueue(prev => prev.filter(q => !toRemove.has(q.clientId)));
-      setItemResults(prev => {
-        const next = { ...prev };
-        for (const id of toRemove) delete next[id];
-        return next;
-      });
     }, 900);
   }, []);
 
