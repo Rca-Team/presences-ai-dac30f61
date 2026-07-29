@@ -70,9 +70,26 @@ const Attendance = () => {
     if (tabMap[command]) setActiveTab(tabMap[command]);
   };
 
+  if (liteMode) {
+    return (
+      <PageTransition>
+        <PageLayout className="min-h-[100dvh] bg-background">
+          <div className="relative px-3 sm:px-4 py-4 max-w-3xl mx-auto space-y-3">
+            <div className="text-center">
+              <h1 className="text-xl sm:text-2xl font-bold text-foreground">Attendance</h1>
+              <p className="text-xs text-muted-foreground">Simple mode · optimized for this device</p>
+            </div>
+            <LiteAttendanceMode />
+          </div>
+        </PageLayout>
+      </PageTransition>
+    );
+  }
+
   return (
     <PageTransition>
       <PageLayout className="min-h-[100dvh] bg-background">
+
         {/* Soft animated background */}
         <div className="fixed inset-0 overflow-hidden pointer-events-none">
           {minimizeMotion ? (
