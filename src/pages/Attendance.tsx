@@ -13,8 +13,11 @@ import LiveAttendanceFeed from '@/components/attendance/LiveAttendanceFeed';
 import QuickStatsPanel from '@/components/attendance/QuickStatsPanel';
 import VoiceCommands from '@/components/attendance/VoiceCommands';
 import AttendanceMethodToggle from '@/components/attendance/AttendanceMethodToggle';
-import { BarChart3, Info, Scan, Sparkles, Zap, Activity, QrCode } from 'lucide-react';
+import { BarChart3, Info, Scan, Sparkles, Zap, Activity, QrCode, Feather } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { usePerformanceMode } from '@/hooks/usePerformanceMode';
+import LiteAttendanceMode from '@/components/attendance/LiteAttendanceMode';
+
 
 const AttendanceLoadingSkeleton = ({ isMobile }: { isMobile: boolean }) => (
   <div className="space-y-4 sm:space-y-6 animate-fade-in">
@@ -37,7 +40,9 @@ const Attendance = () => {
   const { toast } = useToast();
   const isMobile = useIsMobile();
   const prefersReducedMotion = useReducedMotion();
-  const minimizeMotion = isMobile || prefersReducedMotion;
+  const { liteMode, preference, setPreference, signals } = usePerformanceMode();
+  const minimizeMotion = isMobile || prefersReducedMotion || liteMode;
+
 
   useEffect(() => {
     const timer = window.setTimeout(() => setIsInitialLoading(false), 520);
@@ -65,9 +70,26 @@ const Attendance = () => {
     if (tabMap[command]) setActiveTab(tabMap[command]);
   };
 
+  if (liteMode) {
+    return (
+      <PageTransition>
+        <PageLayout className="min-h-[100dvh] bg-background">
+          <div className="relative px-3 sm:px-4 py-4 max-w-3xl mx-auto space-y-3">
+            <div className="text-center">
+              <h1 className="text-xl sm:text-2xl font-bold text-foreground">Attendance</h1>
+              <p className="text-xs text-muted-foreground">Simple mode · optimized for this device</p>
+            </div>
+            <LiteAttendanceMode />
+          </div>
+        </PageLayout>
+      </PageTransition>
+    );
+  }
+
   return (
     <PageTransition>
       <PageLayout className="min-h-[100dvh] bg-background">
+
         {/* Soft animated background */}
         <div className="fixed inset-0 overflow-hidden pointer-events-none">
           {minimizeMotion ? (
@@ -125,6 +147,20 @@ const Attendance = () => {
             <p className="text-muted-foreground text-xs sm:text-base max-w-lg mx-auto">
               AI-powered face recognition & QR code attendance
             </p>
+
+            {(signals.slowNetwork || signals.lowMemory || signals.saveData) && preference !== 'off' && (
+              <div className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-xs">
+                <Feather className="w-3.5 h-3.5 text-amber-600" />
+                <span className="text-amber-700 dark:text-amber-400 font-medium">Slow device / network detected</span>
+                <button
+                  onClick={() => setPreference('on')}
+                  className="ml-1 font-semibold text-primary underline underline-offset-2"
+                >
+                  Switch to Lite
+                </button>
+              </div>
+            )}
+
 
             {/* Feature pills */}
             <motion.div
