@@ -33,6 +33,8 @@ const Portfolio = lazyWithRetry(() => import('./pages/Portfolio'), 'portfolio');
 
 import { AttendanceProvider } from './contexts/AttendanceContext';
 import { ThemeProvider } from './hooks/use-theme';
+import { PerformanceModeProvider } from './hooks/usePerformanceMode';
+
 
 import MobileAppShell from "./components/mobile/MobileAppShell";
 import { ProtectedRoute } from './components/ProtectedRoute';
