@@ -426,7 +426,9 @@ function App() {
 
   return (
     <ThemeProvider defaultTheme="light">
+      <PerformanceModeProvider>
       <AttendanceProvider>
+
         <QueryClientProvider client={queryClient}>
           <TooltipProvider>
             <Toaster />
@@ -460,7 +462,9 @@ function App() {
           </TooltipProvider>
         </QueryClientProvider>
       </AttendanceProvider>
+      </PerformanceModeProvider>
     </ThemeProvider>
+
   );
 }
 
