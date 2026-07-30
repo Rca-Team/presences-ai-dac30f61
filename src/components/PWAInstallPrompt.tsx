@@ -108,9 +108,13 @@ const PWAInstallPrompt: React.FC = () => {
                 >
                   <Feather className="h-4 w-4" />
                   Install Lite
-
+                </Button>
+              </div>
+              <Button variant="ghost" size="sm" onClick={dismissPrompt} className="w-full">
+                Not now
               </Button>
             </div>
+
           )}
         </div>
       </motion.div>
