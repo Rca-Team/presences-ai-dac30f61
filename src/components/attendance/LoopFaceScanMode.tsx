@@ -465,7 +465,7 @@ const LoopFaceScanMode: React.FC = () => {
 
 
   const removeItem = (id: string) => setQueue(q => q.filter(x => x.clientId !== id));
-  const clearAll = () => { setQueue([]); setItemResults({}); };
+  const clearAll = () => { setQueue([]); setItemResults({}); committedRef.current = []; };
 
   const submitDetached = async () => {
     if (!queue.length) return;
