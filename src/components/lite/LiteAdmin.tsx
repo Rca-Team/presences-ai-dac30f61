@@ -82,7 +82,7 @@ const LiteAdmin: React.FC<Props> = ({ stats }) => {
             </div>
           }
         >
-          {tab === 'records' && <AttendanceCalendar />}
+          {tab === 'records' && <AttendanceCalendar selectedFaceId={null} />}
           {tab === 'students' && <StudentDetailsTable />}
           {tab === 'export' && <AttendanceExport />}
           {tab === 'settings' && <AttendanceCutoffSetting />}
