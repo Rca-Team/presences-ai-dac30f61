@@ -29,6 +29,8 @@ import AdminTutorial from '@/components/admin/AdminTutorial';
 import StudentFaceSamplesManager from '@/components/admin/StudentFaceSamplesManager';
 
 import FaceSamplesDiagnosticsPanel from '@/components/admin/FaceSamplesDiagnosticsPanel';
+import LiteAdmin from '@/components/lite/LiteAdmin';
+import { usePerformanceMode } from '@/hooks/usePerformanceMode';
 import DataBackup from '@/pages/DataBackup';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -86,6 +88,7 @@ const TabPanel: React.FC<{ children: React.ReactNode; className?: string }> = ({
 );
 
 const Admin = () => {
+  const { liteMode } = usePerformanceMode();
   const { toast } = useToast();
   const isMobile = useIsMobile();
   const { trigger: haptic } = useHapticFeedback();
