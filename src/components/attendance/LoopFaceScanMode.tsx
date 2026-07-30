@@ -116,10 +116,11 @@ interface Track {
 const LoopFaceScanMode: React.FC = () => {
   const { toast } = useToast();
   const webcamRef = useRef<Webcam>(null);
-  const rafRef = useRef<number | null>(null);
-  const lastCaptureRef = useRef<number>(0);
+  const timerRef = useRef<number | null>(null);
   const runningRef = useRef(false);
-  const candidateRef = useRef<Candidate | null>(null);
+  const tracksRef = useRef<Map<string, Track>>(new Map());
+  const trackSeqRef = useRef(0);
+  const committedRef = useRef<Float32Array[]>([]);
   const queueRef = useRef<CapturedFace[]>([]);
   const submittingRef = useRef(false);
   const autoFlushTimerRef = useRef<number | null>(null);
@@ -131,6 +132,7 @@ const LoopFaceScanMode: React.FC = () => {
   const [flash, setFlash] = useState(false);
   const [lastResult, setLastResult] = useState<any>(null);
   const [tracking, setTracking] = useState(false);
+  const [liveFaces, setLiveFaces] = useState(0);
   const [autoProcess, setAutoProcess] = useState(true);
   const [serverDown, setServerDown] = useState(false);
   const [itemResults, setItemResults] = useState<Record<string, ItemResult>>({});
@@ -159,10 +161,12 @@ const LoopFaceScanMode: React.FC = () => {
     runningRef.current = false;
     setRunning(false);
     setTracking(false);
-    candidateRef.current = null;
-    if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    rafRef.current = null;
+    setLiveFaces(0);
+    tracksRef.current.clear();
+    if (timerRef.current) window.clearTimeout(timerRef.current);
+    timerRef.current = null;
   }, []);
+
 
   const captureFrom = useCallback((video: HTMLVideoElement, box: faceapi.Box) => {
     const pad = 0.35;
