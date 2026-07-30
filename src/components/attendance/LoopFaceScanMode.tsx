@@ -9,6 +9,8 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { loadModels, areModelsLoaded } from '@/services/face-recognition/ModelService';
 import { recognizeFace, recordAttendance } from '@/services/face-recognition/RecognitionService';
+import { alignFace, isFaceFrontal } from '@/services/face-recognition/FaceAlignmentService';
+import { scoreFaceQuality } from '@/services/face-recognition/FaceQualityService';
 import * as faceapi from 'face-api.js';
 import {
   Play, Pause, Send, Trash2, CheckCircle2, Loader2,
@@ -22,20 +24,38 @@ interface CapturedFace {
   imageDataUrl: string;
   capturedAt: string;
   quality: number;
+  samples: number;
 }
 
 type ItemStatus = 'marked' | 'already' | 'late' | 'unmatched' | 'low_conf' | 'error';
 interface ItemResult { clientId: string; status: ItemStatus; name?: string; confidence?: number }
 
 const QUEUE_KEY = 'loop-mode-queue-v1';
-const DETECT_MIN_SCORE = 0.55;
-const QUALITY_COMMIT = 0.62;
+
+// ─── Recognition-engine tuning ───────────────────────────────────────────────
+// Detector: SSD MobileNetV1 (far more reliable than TinyFaceDetector on
+// classroom distances / angles) running over ALL faces in frame, so several
+// students can be captured simultaneously.
+const DETECT_MIN_CONFIDENCE = 0.5;
+const MAX_FACES_PER_FRAME   = 12;
+const MIN_FACE_PX           = 70;
+
+// Per-face sampling: each tracked face contributes multiple ALIGNED descriptors
+// which are robustly averaged. Averaging 3–5 aligned samples cuts the matcher's
+// error rate dramatically versus a single raw-crop descriptor.
+const SAMPLE_MIN_QUALITY = 0.40;
+const COMMIT_MIN_QUALITY = 0.48;
+const MIN_SAMPLES        = 3;
+const MAX_SAMPLES        = 5;
+const SAMPLE_INTERVAL_MS = 110;
+
+// Tracking
+const TRACK_IOU          = 0.30;
+const TRACK_TIMEOUT_MS   = 650;
+const DETECT_INTERVAL_MS = 100;
+
+// De-duplication
 const SAME_FACE_DIST = 0.42;
-const CANDIDATE_MATCH_DIST = 0.45;
-const MIN_HOLD_MS = 380;
-const MAX_HOLD_MS = 1100;
-const IDLE_COMMIT_MS = 180;
-const POST_CAPTURE_COOLDOWN_MS = 650;
 
 const AUTO_BATCH_SIZE = 5;
 const AUTO_FLUSH_MS = 4000;
@@ -48,32 +68,49 @@ const euclid = (a: Float32Array | number[], b: Float32Array | number[]) => {
   return Math.sqrt(s);
 };
 
-const computeQuality = (
-  det: faceapi.WithFaceDescriptor<faceapi.WithFaceLandmarks<{ detection: faceapi.FaceDetection }>>,
-  video: HTMLVideoElement,
-): number => {
-  const box = det.detection.box;
-  const score = det.detection.score;
-  const sizeRatio = Math.min(1, box.width / Math.max(140, video.videoWidth * 0.22));
-  const lm = det.landmarks;
-  const le = lm.getLeftEye(), re = lm.getRightEye(), nose = lm.getNose();
-  const leCx = (le[0].x + le[3].x) / 2;
-  const reCx = (re[0].x + re[3].x) / 2;
-  const eyeMid = (leCx + reCx) / 2;
-  const eyeDist = Math.max(1, Math.abs(reCx - leCx));
-  const noseX = nose[3].x;
-  const off = Math.abs(noseX - eyeMid) / eyeDist;
-  const frontality = Math.max(0, 1 - off * 2.2);
-  return score * (0.55 + 0.45 * sizeRatio) * (0.55 + 0.45 * frontality);
+const iou = (a: { x: number; y: number; width: number; height: number }, b: { x: number; y: number; width: number; height: number }) => {
+  const x1 = Math.max(a.x, b.x);
+  const y1 = Math.max(a.y, b.y);
+  const x2 = Math.min(a.x + a.width, b.x + b.width);
+  const y2 = Math.min(a.y + a.height, b.y + b.height);
+  const inter = Math.max(0, x2 - x1) * Math.max(0, y2 - y1);
+  if (inter <= 0) return 0;
+  return inter / (a.width * a.height + b.width * b.height - inter);
 };
 
-interface Candidate {
-  descriptor: Float32Array;
+/**
+ * Robust mean of face descriptors:
+ *  - plain (NON-normalised) average, so Euclidean distance stays comparable
+ *    with the stored face-api.js descriptors
+ *  - outlier samples further than 2.0x the median deviation are discarded
+ */
+const robustAverage = (samples: Float32Array[]): Float32Array => {
+  if (samples.length === 1) return samples[0];
+  const dim = samples[0].length;
+  const mean = new Float32Array(dim);
+  for (const s of samples) for (let i = 0; i < dim; i++) mean[i] += s[i] / samples.length;
+
+  const devs = samples.map(s => euclid(s, mean));
+  const sorted = [...devs].sort((x, y) => x - y);
+  const median = sorted[Math.floor(sorted.length / 2)] || 0;
+  const cutoff = Math.max(0.05, median * 2.0);
+  const kept = samples.filter((_, i) => devs[i] <= cutoff);
+  const use = kept.length >= 2 ? kept : samples;
+
+  const out = new Float32Array(dim);
+  for (const s of use) for (let i = 0; i < dim; i++) out[i] += s[i] / use.length;
+  return out;
+};
+
+interface Track {
+  id: string;
   box: faceapi.Box;
-  quality: number;
   firstSeen: number;
   lastSeen: number;
-  imageDataUrl: string;
+  lastSample: number;
+  samples: Float32Array[];
+  bestQuality: number;
+  bestImage: string;
 }
 
 const LoopFaceScanMode: React.FC = () => {
