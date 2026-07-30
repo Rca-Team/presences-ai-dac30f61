@@ -1,13 +1,26 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { X, Download, Share, Plus, Smartphone } from 'lucide-react';
+import { X, Download, Share, Plus, Smartphone, Feather } from 'lucide-react';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
+import { usePerformanceMode } from '@/hooks/usePerformanceMode';
 
 const PWAInstallPrompt: React.FC = () => {
   const { showPrompt, isIOS, install, dismissPrompt } = usePWAInstall();
+  const { setPreference } = usePerformanceMode();
+
+  const installLite = async () => {
+    setPreference('on');
+    await install();
+  };
+
+  const installFull = async () => {
+    setPreference('off');
+    await install();
+  };
 
   if (!showPrompt) return null;
+
 
   return (
     <AnimatePresence>
