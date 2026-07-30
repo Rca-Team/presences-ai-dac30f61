@@ -52,6 +52,7 @@ const cardTilt = {
 };
 
 const Index = () => {
+  const { liteMode } = usePerformanceMode();
   const [activeProfile, setActiveProfile] = useState<null | {
     name: string;
     role: string;
