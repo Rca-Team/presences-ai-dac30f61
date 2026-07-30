@@ -76,33 +76,39 @@ const PWAInstallPrompt: React.FC = () => {
                   </span>
                 </li>
               </ol>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={dismissPrompt}
-                className="mt-3 w-full"
-              >
-                Got it
-              </Button>
+              <p className="mt-3 text-xs text-muted-foreground">
+                Tip: turn on Lite app first for a faster, low-data experience on slow phones.
+              </p>
+              <div className="mt-2 flex gap-2">
+                <Button variant="outline" size="sm" className="flex-1 gap-1.5" onClick={() => setPreference('on')}>
+                  <Feather className="h-4 w-4" /> Use Lite
+                </Button>
+                <Button variant="ghost" size="sm" onClick={dismissPrompt} className="flex-1">
+                  Got it
+                </Button>
+              </div>
             </div>
           ) : (
-            // Android/Chrome install button
-            <div className="relative mt-4 flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={dismissPrompt}
-                className="flex-1"
-              >
-                Not now
-              </Button>
-              <Button
-                size="sm"
-                onClick={install}
-                className="flex-1 gap-2 bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90"
-              >
-                <Download className="h-4 w-4" />
-                Install
+            // Android/Chrome install buttons — full or lite
+            <div className="relative mt-4 space-y-2">
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  onClick={installFull}
+                  className="flex-1 gap-2 bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90"
+                >
+                  <Download className="h-4 w-4" />
+                  Install full app
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={installLite}
+                  className="flex-1 gap-2"
+                >
+                  <Feather className="h-4 w-4" />
+                  Install Lite
+
               </Button>
             </div>
           )}
