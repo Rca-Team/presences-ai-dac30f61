@@ -9,6 +9,8 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { loadModels, areModelsLoaded } from '@/services/face-recognition/ModelService';
 import { recognizeFace, recordAttendance } from '@/services/face-recognition/RecognitionService';
+import { alignFace, isFaceFrontal } from '@/services/face-recognition/FaceAlignmentService';
+import { scoreFaceQuality } from '@/services/face-recognition/FaceQualityService';
 import * as faceapi from 'face-api.js';
 import {
   Play, Pause, Send, Trash2, CheckCircle2, Loader2,
@@ -22,20 +24,38 @@ interface CapturedFace {
   imageDataUrl: string;
   capturedAt: string;
   quality: number;
+  samples?: number;
 }
 
 type ItemStatus = 'marked' | 'already' | 'late' | 'unmatched' | 'low_conf' | 'error';
 interface ItemResult { clientId: string; status: ItemStatus; name?: string; confidence?: number }
 
 const QUEUE_KEY = 'loop-mode-queue-v1';
-const DETECT_MIN_SCORE = 0.55;
-const QUALITY_COMMIT = 0.62;
+
+// ─── Recognition-engine tuning ───────────────────────────────────────────────
+// Detector: SSD MobileNetV1 (far more reliable than TinyFaceDetector on
+// classroom distances / angles) running over ALL faces in frame, so several
+// students can be captured simultaneously.
+const DETECT_MIN_CONFIDENCE = 0.5;
+const MAX_FACES_PER_FRAME   = 12;
+const MIN_FACE_PX           = 70;
+
+// Per-face sampling: each tracked face contributes multiple ALIGNED descriptors
+// which are robustly averaged. Averaging 3–5 aligned samples cuts the matcher's
+// error rate dramatically versus a single raw-crop descriptor.
+const SAMPLE_MIN_QUALITY = 0.40;
+const COMMIT_MIN_QUALITY = 0.48;
+const MIN_SAMPLES        = 3;
+const MAX_SAMPLES        = 5;
+const SAMPLE_INTERVAL_MS = 110;
+
+// Tracking
+const TRACK_IOU          = 0.30;
+const TRACK_TIMEOUT_MS   = 650;
+const DETECT_INTERVAL_MS = 100;
+
+// De-duplication
 const SAME_FACE_DIST = 0.42;
-const CANDIDATE_MATCH_DIST = 0.45;
-const MIN_HOLD_MS = 380;
-const MAX_HOLD_MS = 1100;
-const IDLE_COMMIT_MS = 180;
-const POST_CAPTURE_COOLDOWN_MS = 650;
 
 const AUTO_BATCH_SIZE = 5;
 const AUTO_FLUSH_MS = 4000;
@@ -48,41 +68,59 @@ const euclid = (a: Float32Array | number[], b: Float32Array | number[]) => {
   return Math.sqrt(s);
 };
 
-const computeQuality = (
-  det: faceapi.WithFaceDescriptor<faceapi.WithFaceLandmarks<{ detection: faceapi.FaceDetection }>>,
-  video: HTMLVideoElement,
-): number => {
-  const box = det.detection.box;
-  const score = det.detection.score;
-  const sizeRatio = Math.min(1, box.width / Math.max(140, video.videoWidth * 0.22));
-  const lm = det.landmarks;
-  const le = lm.getLeftEye(), re = lm.getRightEye(), nose = lm.getNose();
-  const leCx = (le[0].x + le[3].x) / 2;
-  const reCx = (re[0].x + re[3].x) / 2;
-  const eyeMid = (leCx + reCx) / 2;
-  const eyeDist = Math.max(1, Math.abs(reCx - leCx));
-  const noseX = nose[3].x;
-  const off = Math.abs(noseX - eyeMid) / eyeDist;
-  const frontality = Math.max(0, 1 - off * 2.2);
-  return score * (0.55 + 0.45 * sizeRatio) * (0.55 + 0.45 * frontality);
+const iou = (a: { x: number; y: number; width: number; height: number }, b: { x: number; y: number; width: number; height: number }) => {
+  const x1 = Math.max(a.x, b.x);
+  const y1 = Math.max(a.y, b.y);
+  const x2 = Math.min(a.x + a.width, b.x + b.width);
+  const y2 = Math.min(a.y + a.height, b.y + b.height);
+  const inter = Math.max(0, x2 - x1) * Math.max(0, y2 - y1);
+  if (inter <= 0) return 0;
+  return inter / (a.width * a.height + b.width * b.height - inter);
 };
 
-interface Candidate {
-  descriptor: Float32Array;
+/**
+ * Robust mean of face descriptors:
+ *  - plain (NON-normalised) average, so Euclidean distance stays comparable
+ *    with the stored face-api.js descriptors
+ *  - outlier samples further than 2.0x the median deviation are discarded
+ */
+const robustAverage = (samples: Float32Array[]): Float32Array => {
+  if (samples.length === 1) return samples[0];
+  const dim = samples[0].length;
+  const mean = new Float32Array(dim);
+  for (const s of samples) for (let i = 0; i < dim; i++) mean[i] += s[i] / samples.length;
+
+  const devs = samples.map(s => euclid(s, mean));
+  const sorted = [...devs].sort((x, y) => x - y);
+  const median = sorted[Math.floor(sorted.length / 2)] || 0;
+  const cutoff = Math.max(0.05, median * 2.0);
+  const kept = samples.filter((_, i) => devs[i] <= cutoff);
+  const use = kept.length >= 2 ? kept : samples;
+
+  const out = new Float32Array(dim);
+  for (const s of use) for (let i = 0; i < dim; i++) out[i] += s[i] / use.length;
+  return out;
+};
+
+interface Track {
+  id: string;
   box: faceapi.Box;
-  quality: number;
   firstSeen: number;
   lastSeen: number;
-  imageDataUrl: string;
+  lastSample: number;
+  samples: Float32Array[];
+  bestQuality: number;
+  bestImage: string;
 }
 
 const LoopFaceScanMode: React.FC = () => {
   const { toast } = useToast();
   const webcamRef = useRef<Webcam>(null);
-  const rafRef = useRef<number | null>(null);
-  const lastCaptureRef = useRef<number>(0);
+  const timerRef = useRef<number | null>(null);
   const runningRef = useRef(false);
-  const candidateRef = useRef<Candidate | null>(null);
+  const tracksRef = useRef<Map<string, Track>>(new Map());
+  const trackSeqRef = useRef(0);
+  const committedRef = useRef<Float32Array[]>([]);
   const queueRef = useRef<CapturedFace[]>([]);
   const submittingRef = useRef(false);
   const autoFlushTimerRef = useRef<number | null>(null);
@@ -94,6 +132,7 @@ const LoopFaceScanMode: React.FC = () => {
   const [flash, setFlash] = useState(false);
   const [lastResult, setLastResult] = useState<any>(null);
   const [tracking, setTracking] = useState(false);
+  const [liveFaces, setLiveFaces] = useState(0);
   const [autoProcess, setAutoProcess] = useState(true);
   const [serverDown, setServerDown] = useState(false);
   const [itemResults, setItemResults] = useState<Record<string, ItemResult>>({});
@@ -122,10 +161,12 @@ const LoopFaceScanMode: React.FC = () => {
     runningRef.current = false;
     setRunning(false);
     setTracking(false);
-    candidateRef.current = null;
-    if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    rafRef.current = null;
+    setLiveFaces(0);
+    tracksRef.current.clear();
+    if (timerRef.current) window.clearTimeout(timerRef.current);
+    timerRef.current = null;
   }, []);
+
 
   const captureFrom = useCallback((video: HTMLVideoElement, box: faceapi.Box) => {
     const pad = 0.35;
@@ -286,97 +327,124 @@ const LoopFaceScanMode: React.FC = () => {
     };
   }, [queue.length, autoProcess, submitting, submit, scheduleAutoFlush]);
 
-  const commitCandidate = useCallback(() => {
-    const cand = candidateRef.current;
-    candidateRef.current = null;
-    setTracking(false);
-    if (!cand) return;
-    if (cand.quality < QUALITY_COMMIT) return;
+  /** Finalise a tracked face: robust-average its aligned samples and queue it. */
+  const commitTrack = useCallback((track: Track) => {
+    if (track.samples.length < 2 || track.bestQuality < COMMIT_MIN_QUALITY) return;
 
-    const dup = queueRef.current.some(q => euclid(cand.descriptor, q.descriptor) < SAME_FACE_DIST);
-    if (dup) return;
+    const descriptor = robustAverage(track.samples);
+
+    // Skip if this person is already in the queue OR was already committed this session
+    const dupQueue = queueRef.current.some(q => euclid(descriptor, q.descriptor) < SAME_FACE_DIST);
+    const dupSession = committedRef.current.some(d => euclid(descriptor, d) < SAME_FACE_DIST);
+    if (dupQueue || dupSession) return;
+
+    committedRef.current.push(descriptor);
+    if (committedRef.current.length > 300) committedRef.current.shift();
 
     const item: CapturedFace = {
       clientId: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      descriptor: Array.from(cand.descriptor),
-      imageDataUrl: cand.imageDataUrl,
+      descriptor: Array.from(descriptor),
+      imageDataUrl: track.bestImage,
       capturedAt: new Date().toISOString(),
-      quality: cand.quality,
+      quality: track.bestQuality,
+      samples: track.samples.length,
     };
     setQueue(prev => [item, ...prev]);
-    lastCaptureRef.current = Date.now();
     setFlash(true);
-    setTimeout(() => setFlash(false), 200);
+    setTimeout(() => setFlash(false), 180);
     try { (navigator as any).vibrate?.(30); } catch {}
   }, []);
 
+  /**
+   * Detection loop — SSD MobileNetV1 over ALL faces in frame, IoU tracking,
+   * multi-sample aligned descriptors per track. Runs on a self-scheduling
+   * timer so a slow frame never stacks work up.
+   */
   const detectLoop = useCallback(async () => {
     if (!runningRef.current) return;
+    const started = Date.now();
     const video = webcamRef.current?.video as HTMLVideoElement | undefined;
-    if (!video || video.readyState < 2) {
-      rafRef.current = requestAnimationFrame(detectLoop);
-      return;
+
+    if (video && video.readyState >= 2 && video.videoWidth > 0) {
+      try {
+        const dets = await faceapi
+          .detectAllFaces(video, new faceapi.SsdMobilenetv1Options({
+            minConfidence: DETECT_MIN_CONFIDENCE,
+            maxResults: MAX_FACES_PER_FRAME,
+          }))
+          .withFaceLandmarks();
+
+        const now = Date.now();
+        const used = new Set<string>();
+
+        for (const det of dets) {
+          const box = det.detection.box;
+          if (Math.min(box.width, box.height) < MIN_FACE_PX) continue;
+
+          // Associate with an existing track by IoU
+          let matched: Track | null = null;
+          let bestIou = TRACK_IOU;
+          for (const t of tracksRef.current.values()) {
+            if (used.has(t.id)) continue;
+            const overlap = iou(t.box, box);
+            if (overlap > bestIou) { bestIou = overlap; matched = t; }
+          }
+          if (!matched) {
+            matched = {
+              id: `t${++trackSeqRef.current}`,
+              box, firstSeen: now, lastSeen: now, lastSample: 0,
+              samples: [], bestQuality: 0, bestImage: '',
+            };
+            tracksRef.current.set(matched.id, matched);
+          }
+          matched.box = box;
+          matched.lastSeen = now;
+          used.add(matched.id);
+
+          if (matched.samples.length >= MAX_SAMPLES) continue;
+          if (now - matched.lastSample < SAMPLE_INTERVAL_MS) continue;
+          if (!isFaceFrontal(det.landmarks)) continue;
+
+          // Canonical alignment → quality gate → descriptor
+          const aligned = alignFace(video, det.landmarks, 112);
+          const report = scoreFaceQuality(aligned, { width: box.width, height: box.height });
+          const quality = report.score * (0.6 + 0.4 * det.detection.score);
+          if (quality < SAMPLE_MIN_QUALITY) continue;
+
+          const descriptor = await faceapi.computeFaceDescriptor(aligned) as Float32Array;
+          if (!descriptor || descriptor.length !== 128) continue;
+
+          matched.samples.push(descriptor);
+          matched.lastSample = Date.now();
+          if (quality > matched.bestQuality) {
+            matched.bestQuality = quality;
+            matched.bestImage = captureFrom(video, box);
+          }
+        }
+
+        // Finalise tracks that are ready or have left the frame
+        const stamp = Date.now();
+        for (const t of Array.from(tracksRef.current.values())) {
+          const ready = t.samples.length >= MIN_SAMPLES && t.bestQuality >= COMMIT_MIN_QUALITY;
+          const gone = stamp - t.lastSeen > TRACK_TIMEOUT_MS;
+          if (ready || gone) {
+            tracksRef.current.delete(t.id);
+            commitTrack(t);
+          }
+        }
+
+        const active = tracksRef.current.size;
+        setLiveFaces(active);
+        setTracking(active > 0);
+      } catch {
+        /* transient frame errors are ignored */
+      }
     }
 
-    const now = Date.now();
-    const inCooldown = now - lastCaptureRef.current < POST_CAPTURE_COOLDOWN_MS;
-
-    try {
-      const det = inCooldown
-        ? null
-        : await faceapi
-            .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: DETECT_MIN_SCORE }))
-            .withFaceLandmarks()
-            .withFaceDescriptor();
-
-      const cand = candidateRef.current;
-
-      if (det && det.detection.score >= DETECT_MIN_SCORE) {
-        const q = computeQuality(det, video);
-        const alreadyQueued = queueRef.current.some(item => euclid(det.descriptor, item.descriptor) < SAME_FACE_DIST);
-        if (alreadyQueued) {
-          candidateRef.current = null;
-          setTracking(false);
-        } else {
-          const isSame = cand && euclid(det.descriptor, cand.descriptor) < CANDIDATE_MATCH_DIST;
-          if (!cand || !isSame) {
-            candidateRef.current = {
-              descriptor: det.descriptor,
-              box: det.detection.box,
-              quality: q,
-              firstSeen: now,
-              lastSeen: now,
-              imageDataUrl: captureFrom(video, det.detection.box),
-            };
-            setTracking(true);
-          } else {
-            cand.lastSeen = now;
-            if (q > cand.quality) {
-              cand.quality = q;
-              cand.descriptor = det.descriptor;
-              cand.box = det.detection.box;
-              cand.imageDataUrl = captureFrom(video, det.detection.box);
-            }
-            const held = now - cand.firstSeen;
-            if (held >= MIN_HOLD_MS && cand.quality >= QUALITY_COMMIT) {
-              if (held >= MAX_HOLD_MS || cand.quality >= 0.85) commitCandidate();
-            }
-          }
-        }
-      } else if (cand) {
-        if (now - cand.lastSeen >= IDLE_COMMIT_MS) {
-          if (cand.quality >= QUALITY_COMMIT && now - cand.firstSeen >= MIN_HOLD_MS) {
-            commitCandidate();
-          } else {
-            candidateRef.current = null;
-            setTracking(false);
-          }
-        }
-      }
-    } catch {}
-
-    rafRef.current = requestAnimationFrame(detectLoop);
-  }, [captureFrom, commitCandidate]);
+    if (!runningRef.current) return;
+    const elapsed = Date.now() - started;
+    timerRef.current = window.setTimeout(detectLoop, Math.max(16, DETECT_INTERVAL_MS - elapsed));
+  }, [captureFrom, commitTrack]);
 
   const start = useCallback(() => {
     if (!modelsReady) {
@@ -385,18 +453,19 @@ const LoopFaceScanMode: React.FC = () => {
     }
     runningRef.current = true;
     setRunning(true);
-    lastCaptureRef.current = 0;
-    rafRef.current = requestAnimationFrame(detectLoop);
+    tracksRef.current.clear();
+    timerRef.current = window.setTimeout(detectLoop, 0);
   }, [detectLoop, modelsReady, toast]);
 
   useEffect(() => () => {
     runningRef.current = false;
-    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    if (timerRef.current) window.clearTimeout(timerRef.current);
     if (autoFlushTimerRef.current) window.clearTimeout(autoFlushTimerRef.current);
   }, []);
 
+
   const removeItem = (id: string) => setQueue(q => q.filter(x => x.clientId !== id));
-  const clearAll = () => { setQueue([]); setItemResults({}); };
+  const clearAll = () => { setQueue([]); setItemResults({}); committedRef.current = []; };
 
   const submitDetached = async () => {
     if (!queue.length) return;
@@ -572,7 +641,7 @@ const LoopFaceScanMode: React.FC = () => {
               </Badge>
             )}
             <Badge className="bg-black/60 text-white border-white/20 backdrop-blur">
-              <Users className="w-3 h-3 mr-1" /> {queue.length} queued
+              <Users className="w-3 h-3 mr-1" /> {liveFaces > 0 ? `${liveFaces} in view · ` : ''}{queue.length} queued
             </Badge>
           </div>
         </div>

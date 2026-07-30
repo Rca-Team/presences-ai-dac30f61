@@ -69,6 +69,16 @@ export const PerformanceModeProvider: React.FC<{ children: React.ReactNode }> = 
   const [preference, setPrefState] = useState<LitePref>(() => {
     if (typeof window === 'undefined') return 'auto';
     try {
+      // Lite app shortcut / installed Lite PWA launches with ?lite=1
+      const param = new URLSearchParams(window.location.search).get('lite');
+      if (param === '1' || param === 'true') {
+        localStorage.setItem(STORAGE_KEY, 'on');
+        return 'on';
+      }
+      if (param === '0' || param === 'false') {
+        localStorage.setItem(STORAGE_KEY, 'off');
+        return 'off';
+      }
       const stored = localStorage.getItem(STORAGE_KEY) as LitePref | null;
       if (stored === 'on' || stored === 'off' || stored === 'auto') return stored;
     } catch {}
