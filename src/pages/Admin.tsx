@@ -388,6 +388,8 @@ const Admin = () => {
     }
   };
 
+  if (liteMode) return <LiteAdmin stats={stats} />;
+
   return (
     <PageTransition>
       <PageLayout className="min-h-screen bg-background">
