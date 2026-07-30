@@ -1,5 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
+import { usePerformanceMode } from '@/hooks/usePerformanceMode';
+import LiteHome from '@/components/lite/LiteHome';
 import gauravPhoto from '@/assets/gaurav-photo.png';
 import swamiAnantVyasPhoto from '@/assets/swami-anant-vyas.png.asset.json';
 import teamRcaPhoto from '@/assets/team-rca.jpg.asset.json';
