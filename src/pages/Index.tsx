@@ -169,6 +169,8 @@ const Index = () => {
   );
 
 
+  if (liteMode) return <LiteHome />;
+
   return (
     <PageTransition>
       <PageLayout className="neon-liquid-bg overflow-hidden has-bottom-nav md:pb-0">
