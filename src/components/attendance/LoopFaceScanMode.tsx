@@ -24,7 +24,7 @@ interface CapturedFace {
   imageDataUrl: string;
   capturedAt: string;
   quality: number;
-  samples: number;
+  samples?: number;
 }
 
 type ItemStatus = 'marked' | 'already' | 'late' | 'unmatched' | 'low_conf' | 'error';
