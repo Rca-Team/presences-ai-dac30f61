@@ -641,7 +641,7 @@ const LoopFaceScanMode: React.FC = () => {
               </Badge>
             )}
             <Badge className="bg-black/60 text-white border-white/20 backdrop-blur">
-              <Users className="w-3 h-3 mr-1" /> {queue.length} queued
+              <Users className="w-3 h-3 mr-1" /> {liveFaces > 0 ? `${liveFaces} in view · ` : ''}{queue.length} queued
             </Badge>
           </div>
         </div>
