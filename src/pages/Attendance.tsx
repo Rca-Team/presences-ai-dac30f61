@@ -70,6 +70,25 @@ const Attendance = () => {
     if (tabMap[command]) setActiveTab(tabMap[command]);
   };
 
+  const ModeToggle = () => (
+    <div className="flex items-center justify-center">
+      <div className="inline-flex rounded-xl border border-border overflow-hidden text-xs">
+        <button
+          onClick={() => setPreference('off')}
+          className={`px-3 py-1.5 font-medium ${!liteMode ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground'}`}
+        >
+          Original mode
+        </button>
+        <button
+          onClick={() => setPreference('on')}
+          className={`px-3 py-1.5 font-medium inline-flex items-center gap-1 ${liteMode ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground'}`}
+        >
+          <Feather className="w-3 h-3" /> Lite mode
+        </button>
+      </div>
+    </div>
+  );
+
   if (liteMode) {
     return (
       <PageTransition>
@@ -79,12 +98,14 @@ const Attendance = () => {
               <h1 className="text-xl sm:text-2xl font-bold text-foreground">Attendance</h1>
               <p className="text-xs text-muted-foreground">Simple mode · optimized for this device</p>
             </div>
+            <ModeToggle />
             <LiteAttendanceMode />
           </div>
         </PageLayout>
       </PageTransition>
     );
   }
+
 
   return (
     <PageTransition>
