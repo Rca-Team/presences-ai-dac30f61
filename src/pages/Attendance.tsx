@@ -169,6 +169,10 @@ const Attendance = () => {
               AI-powered face recognition & QR code attendance
             </p>
 
+            <div className="mt-3">
+              <ModeToggle />
+            </div>
+
             {(signals.slowNetwork || signals.lowMemory || signals.saveData) && preference !== 'off' && (
               <div className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-xs">
                 <Feather className="w-3.5 h-3.5 text-amber-600" />
@@ -181,6 +185,7 @@ const Attendance = () => {
                 </button>
               </div>
             )}
+
 
 
             {/* Feature pills */}
