@@ -76,6 +76,12 @@ const LiteQRScanner: React.FC<{ autoStart?: boolean }> = ({ autoStart = true }) 
   const busyRef = useRef(false);
   const seenRef = useRef<Map<string, number>>(new Map());
   const rafRef = useRef<number | null>(null);
+  // --- decode throttling / ROI / frame-change state ---
+  const sigCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const lastSigRef = useRef<Float32Array | null>(null);
+  const lastDecodeAtRef = useRef(0);
+  const roiMissesRef = useRef(0);
+
 
   const [active, setActive] = useState(false);
   const [status, setStatus] = useState('Idle');
