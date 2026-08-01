@@ -4,6 +4,8 @@ import { recordAttendance } from '@/services/face-recognition/RecognitionService
 import { getAttendanceCutoffTime, isPastCutoffTime } from '@/services/attendance/AttendanceSettingsService';
 import { sendAutoParentNotification } from '@/services/notification/AutoNotificationService';
 import { QrCode, Camera, CameraOff, RefreshCw } from 'lucide-react';
+import { useLiteFeedback } from '@/hooks/useLiteFeedback';
+import { LiteFeedbackControls, LiteFlashOverlay } from './LiteFeedbackControls';
 
 /**
  * LiteQRScanner
