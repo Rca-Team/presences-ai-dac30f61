@@ -27,6 +27,19 @@ interface QRData {
 
 const COOLDOWN_MS = 12_000;
 const MAX_SCAN_WIDTH = 640;
+/** Minimum gap between two decode attempts (frame-rate throttle). */
+const MIN_DECODE_INTERVAL_MS = 45;
+/** Force a decode at least this often even if the frame looks identical. */
+const FORCE_DECODE_INTERVAL_MS = 600;
+/** Centre ROI size as a fraction of the shorter video edge. */
+const ROI_FRACTION = 0.72;
+/** Consecutive misses in ROI before falling back to a full-frame pass. */
+const ROI_MISSES_BEFORE_WIDE = 6;
+/** Signature grid (NxN luma buckets) used for cheap change detection. */
+const SIG_GRID = 8;
+/** Mean per-bucket luma delta that counts as a meaningful frame change. */
+const SIG_DELTA = 2.2;
+
 
 const normalize = (v?: string | null) => (typeof v === 'string' ? v.trim() : '');
 const looksLikeUuid = (v: string) =>
