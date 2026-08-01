@@ -113,11 +113,15 @@ Automated message from Presence Smart School</td></tr>
 </table></body></html>`;
 
         try {
-          const resp = await fetch("https://api.resend.com/emails", {
+          const resp = await fetch("https://connector-gateway.lovable.dev/resend/emails", {
             method: "POST",
-            headers: { Authorization: `Bearer ${resendApiKey}`, "Content-Type": "application/json" },
+            headers: {
+              Authorization: `Bearer ${Deno.env.get("LOVABLE_API_KEY")}`,
+              "X-Connection-Api-Key": resendApiKey,
+              "Content-Type": "application/json",
+            },
             body: JSON.stringify({
-              from: "School Substitution <noreply@electronicgaurav.me>",
+              from: "School Substitution <noreply@presences.dev>",
               to: [contact.email],
               subject: `📚 Substitution Assigned — ${subs.length} period(s) on ${dateStr}`,
               html,
@@ -125,12 +129,14 @@ Automated message from Presence Smart School</td></tr>
           });
           result.emailSent = resp.ok;
           if (!resp.ok) {
-            const e = await resp.json().catch(() => ({}));
-            result.errors.push(`Email: ${e.message || resp.status}`);
+            const body = await resp.text();
+            console.error(`Resend gateway failed [${resp.status}]: ${body}`);
+            result.errors.push(`Email: ${resp.status} ${body}`);
           }
         } catch (e: any) {
           result.errors.push(`Email: ${e.message}`);
         }
+
       }
 
       // WHATSAPP

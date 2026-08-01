@@ -156,11 +156,12 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log("Sending SMS to:", cleanPhone);
 
-    // Send SMS using SMS77 (RapidAPI)
-    const sms77ApiKey = Deno.env.get("SMS77_RAPIDAPI_KEY");
-    
-    if (!sms77ApiKey) {
-      console.error("SMS77 RapidAPI key not configured");
+    // Send SMS through the Lovable connector gateway -> GatewayAPI
+    const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
+    const gatewayApiKey = Deno.env.get("GATEWAYAPI_API_KEY");
+
+    if (!lovableApiKey || !gatewayApiKey) {
+      console.error("SMS provider not configured (missing LOVABLE_API_KEY or GATEWAYAPI_API_KEY)");
       return new Response(
         JSON.stringify({ error: "Service temporarily unavailable. Please contact support." }),
         {
@@ -170,37 +171,42 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    const smsResponse = await fetch('https://sms77io.p.rapidapi.com/sms', {
+    const smsResponse = await fetch("https://connector-gateway.lovable.dev/gatewayapi/mobile/single", {
       method: "POST",
       headers: {
-        'x-rapidapi-key': sms77ApiKey,
-        'x-rapidapi-host': 'sms77io.p.rapidapi.com',
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Accept': 'application/json',
+        Authorization: `Bearer ${lovableApiKey}`,
+        "X-Connection-Api-Key": gatewayApiKey,
+        "Content-Type": "application/json",
       },
-      body: new URLSearchParams({
-        to: cleanPhone,
-        text: message,
+      body: JSON.stringify({
+        sender: "Presences",
+        recipient: Number(cleanPhone),
+        message,
+        reference: studentId ? `att-${studentId}` : undefined,
       }),
     });
 
-    const smsData = await smsResponse.json();
-    
-    console.log("SMS77 Response:", smsData);
+    const smsRaw = await smsResponse.text();
+    let smsData: any = {};
+    try { smsData = smsRaw ? JSON.parse(smsRaw) : {}; } catch { smsData = { raw: smsRaw }; }
 
-    if (!smsResponse.ok || smsData?.success === false || smsData?.error) {
-      console.error("SMS77 API Error:", smsData);
+    if (!smsResponse.ok) {
+      console.error(`GatewayAPI send failed [${smsResponse.status}]: ${smsRaw}`);
       return new Response(
-        JSON.stringify({ 
-          error: "Failed to send SMS. Please try again or contact support.",
-          support_id: crypto.randomUUID()
+        JSON.stringify({
+          error: "Failed to send SMS.",
+          status: smsResponse.status,
+          details: smsData,
         }),
         {
-          status: 500,
+          status: smsResponse.status,
           headers: { "Content-Type": "application/json", ...corsHeaders },
         }
       );
     }
+
+    console.log("GatewayAPI response:", smsData);
+
 
     return new Response(
       JSON.stringify({ 

@@ -27,6 +27,19 @@ interface QRData {
 
 const COOLDOWN_MS = 12_000;
 const MAX_SCAN_WIDTH = 640;
+/** Minimum gap between two decode attempts (frame-rate throttle). */
+const MIN_DECODE_INTERVAL_MS = 45;
+/** Force a decode at least this often even if the frame looks identical. */
+const FORCE_DECODE_INTERVAL_MS = 600;
+/** Centre ROI size as a fraction of the shorter video edge. */
+const ROI_FRACTION = 0.72;
+/** Consecutive misses in ROI before falling back to a full-frame pass. */
+const ROI_MISSES_BEFORE_WIDE = 6;
+/** Signature grid (NxN luma buckets) used for cheap change detection. */
+const SIG_GRID = 8;
+/** Mean per-bucket luma delta that counts as a meaningful frame change. */
+const SIG_DELTA = 2.2;
+
 
 const normalize = (v?: string | null) => (typeof v === 'string' ? v.trim() : '');
 const looksLikeUuid = (v: string) =>
@@ -63,6 +76,12 @@ const LiteQRScanner: React.FC<{ autoStart?: boolean }> = ({ autoStart = true }) 
   const busyRef = useRef(false);
   const seenRef = useRef<Map<string, number>>(new Map());
   const rafRef = useRef<number | null>(null);
+  // --- decode throttling / ROI / frame-change state ---
+  const sigCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const lastSigRef = useRef<Float32Array | null>(null);
+  const lastDecodeAtRef = useRef(0);
+  const roiMissesRef = useRef(0);
+
 
   const [active, setActive] = useState(false);
   const [status, setStatus] = useState('Idle');
@@ -129,36 +148,102 @@ const LiteQRScanner: React.FC<{ autoStart?: boolean }> = ({ autoStart = true }) 
     }
   }, []);
 
+  /**
+   * Cheap perceptual signature of the current frame (SIG_GRID x SIG_GRID luma
+   * buckets). Used to skip decode work while the scene is static.
+   * Returns true when the frame changed meaningfully since the last call.
+   */
+  const frameChanged = useCallback((video: HTMLVideoElement) => {
+    const c = sigCanvasRef.current || (sigCanvasRef.current = document.createElement('canvas'));
+    if (c.width !== SIG_GRID || c.height !== SIG_GRID) { c.width = SIG_GRID; c.height = SIG_GRID; }
+    const ctx = c.getContext('2d', { willReadFrequently: true });
+    if (!ctx) return true;
+    try {
+      ctx.drawImage(video, 0, 0, SIG_GRID, SIG_GRID);
+    } catch {
+      return true;
+    }
+    const px = ctx.getImageData(0, 0, SIG_GRID, SIG_GRID).data;
+    const sig = new Float32Array(SIG_GRID * SIG_GRID);
+    for (let i = 0, p = 0; i < sig.length; i++, p += 4) {
+      sig[i] = 0.299 * px[p] + 0.587 * px[p + 1] + 0.114 * px[p + 2];
+    }
+    const prev = lastSigRef.current;
+    lastSigRef.current = sig;
+    if (!prev) return true;
+    let diff = 0;
+    for (let i = 0; i < sig.length; i++) diff += Math.abs(sig[i] - prev[i]);
+    return diff / sig.length >= SIG_DELTA;
+  }, []);
+
   const decodeFrame = useCallback(async () => {
     const video = videoRef.current;
     if (!runningRef.current || !video || video.readyState < 2) return;
+    const vw = video.videoWidth, vh = video.videoHeight;
+    if (!vw || !vh) return;
 
-    // 1) Native detector (fastest, handles motion blur best)
+    const now = performance.now();
+    const since = now - lastDecodeAtRef.current;
+    // 1) Frame-rate throttle — never analyse faster than MIN_DECODE_INTERVAL_MS.
+    if (since < MIN_DECODE_INTERVAL_MS) return;
+    // 2) Skip identical frames, but still refresh at FORCE_DECODE_INTERVAL_MS.
+    const changed = frameChanged(video);
+    if (!changed && since < FORCE_DECODE_INTERVAL_MS) return;
+    lastDecodeAtRef.current = now;
+
+    // 3) ROI: decode the centre square where cards are held. Every so often,
+    //    after repeated misses, do one full-frame pass to catch off-centre codes.
+    const wide = roiMissesRef.current >= ROI_MISSES_BEFORE_WIDE;
+    let sx = 0, sy = 0, sw = vw, sh = vh;
+    if (!wide) {
+      const side = Math.round(Math.min(vw, vh) * ROI_FRACTION);
+      sw = side; sh = side;
+      sx = Math.round((vw - side) / 2);
+      sy = Math.round((vh - side) / 2);
+    }
+
+    const canvas = canvasRef.current || (canvasRef.current = document.createElement('canvas'));
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (!ctx) return;
+    const scale = sw > MAX_SCAN_WIDTH ? MAX_SCAN_WIDTH / sw : 1;
+    const w = Math.max(1, Math.round(sw * scale));
+    const h = Math.max(1, Math.round(sh * scale));
+    if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
+    ctx.drawImage(video, sx, sy, sw, sh, 0, 0, w, h);
+
+    const hit = () => {
+      roiMissesRef.current = 0;
+      lastSigRef.current = null; // force a fresh comparison after a decode
+    };
+
+    // 4) Native detector on the cropped canvas (fastest, best with motion blur)
     if (detectorRef.current) {
       try {
-        const codes = await detectorRef.current.detect(video);
+        const codes = await detectorRef.current.detect(canvas);
         if (codes?.length) {
           for (const c of codes) if (c.rawValue) void handleValue(c.rawValue);
+          hit();
           return;
         }
       } catch { /* fall through to jsQR */ }
     }
 
-    // 2) jsQR fallback on a downscaled centre crop
-    if (!jsqrRef.current) return;
-    const canvas = canvasRef.current || (canvasRef.current = document.createElement('canvas'));
-    const ctx = canvas.getContext('2d', { willReadFrequently: true });
-    if (!ctx) return;
-    const vw = video.videoWidth, vh = video.videoHeight;
-    if (!vw || !vh) return;
-    const scale = vw > MAX_SCAN_WIDTH ? MAX_SCAN_WIDTH / vw : 1;
-    const w = Math.round(vw * scale), h = Math.round(vh * scale);
-    if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
-    ctx.drawImage(video, 0, 0, w, h);
-    const data = ctx.getImageData(0, 0, w, h);
-    const res = jsqrRef.current(data.data, w, h, { inversionAttempts: 'attemptBoth' });
-    if (res?.data) void handleValue(res.data);
-  }, [handleValue]);
+    // 5) jsQR fallback on the same cropped, downscaled pixels
+    if (jsqrRef.current) {
+      const data = ctx.getImageData(0, 0, w, h);
+      const res = jsqrRef.current(data.data, w, h, {
+        inversionAttempts: wide ? 'attemptBoth' : 'dontInvert',
+      });
+      if (res?.data) {
+        void handleValue(res.data);
+        hit();
+        return;
+      }
+    }
+
+    roiMissesRef.current = wide ? 0 : roiMissesRef.current + 1;
+  }, [handleValue, frameChanged]);
+
 
   const loop = useCallback(() => {
     if (!runningRef.current) return;
