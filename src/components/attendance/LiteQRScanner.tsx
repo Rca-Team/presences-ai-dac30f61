@@ -90,20 +90,7 @@ const LiteQRScanner: React.FC<{ autoStart?: boolean }> = ({ autoStart = true }) 
   const [error, setError] = useState<string | null>(null);
   const [scans, setScans] = useState<{ name: string; id: string; status: string; time: number }[]>([]);
 
-  const beep = () => {
-    try {
-      const Ctx = (window as any).AudioContext || (window as any).webkitAudioContext;
-      if (!Ctx) return;
-      const ctx = new Ctx();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.frequency.value = 1040;
-      gain.gain.value = 0.12;
-      osc.connect(gain); gain.connect(ctx.destination);
-      osc.start(); osc.stop(ctx.currentTime + 0.1);
-      setTimeout(() => ctx.close().catch(() => undefined), 300);
-    } catch { /* ignore */ }
-  };
+  const { prefs, toggle, signal, flashKind } = useLiteFeedback();
 
   const resolveTarget = async (qr: QRData) => {
     const preferred = normalize(qr.user_id || qr.id);
@@ -138,17 +125,17 @@ const LiteQRScanner: React.FC<{ autoStart?: boolean }> = ({ autoStart = true }) 
         scanned_at: new Date().toISOString(),
         metadata: { name: qr.name, employee_id: qr.employee_id },
       }, undefined, 'qr-scan');
-      beep();
-      try { navigator.vibrate?.(40); } catch { /* ignore */ }
+      signal(st === 'late' ? 'warn' : 'ok');
       setScans(prev => [{ name: qr.name, id: qr.employee_id || target.slice(0, 8), status: st, time: now }, ...prev].slice(0, 12));
       setStatus(`${qr.name} · ${st}`);
       sendAutoParentNotification(target, qr.name, st).catch(() => undefined);
     } catch (e: any) {
+      signal('fail');
       setStatus('Scan failed — try again');
     } finally {
       busyRef.current = false;
     }
-  }, []);
+  }, [signal]);
 
   /**
    * Cheap perceptual signature of the current frame (SIG_GRID x SIG_GRID luma
@@ -326,9 +313,15 @@ const LiteQRScanner: React.FC<{ autoStart?: boolean }> = ({ autoStart = true }) 
         <div className="absolute top-2 left-2 text-[11px] text-white bg-black/60 px-2 py-1 rounded">
           {active ? 'Scanning' : 'Paused'}
         </div>
+        <LiteFlashOverlay kind={flashKind} />
       </div>
 
       <div className="text-center text-sm text-foreground">{status}</div>
+      <LiteFeedbackControls
+        prefs={prefs}
+        onToggle={toggle}
+        status={`${active ? 'camera on' : 'camera off'} · ${scans.length} scanned`}
+      />
       {error && <div className="text-center text-xs text-destructive">{error}</div>}
 
       <div className="flex gap-2 justify-center">
