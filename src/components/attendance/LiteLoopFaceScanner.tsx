@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import * as faceapi from 'face-api.js';
+import { useLiteFeedback } from '@/hooks/useLiteFeedback';
+import { LiteFeedbackControls, LiteFlashOverlay } from './LiteFeedbackControls';
 import { supabase } from '@/integrations/supabase/client';
 import { loadModels, areModelsLoaded } from '@/services/face-recognition/ModelService';
 import { recognizeFace, recordAttendance } from '@/services/face-recognition/RecognitionService';
@@ -89,6 +91,7 @@ const robustAverage = (samples: Float32Array[]): Float32Array => {
 };
 
 const LiteLoopFaceScanner: React.FC = () => {
+  const { prefs, toggle, signal, flashKind } = useLiteFeedback();
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const timerRef = useRef<number | null>(null);
@@ -147,8 +150,8 @@ const LiteLoopFaceScanner: React.FC = () => {
       quality: t.bestQuality,
       samples: t.samples.length,
     }, ...prev]);
-    try { navigator.vibrate?.(25); } catch { /* ignore */ }
-  }, []);
+    signal('ok');
+  }, [signal]);
 
   const detectLoop = useCallback(async () => {
     if (!runningRef.current) return;
@@ -354,9 +357,15 @@ const LiteLoopFaceScanner: React.FC = () => {
         <div className="absolute top-2 left-2 text-[11px] text-white bg-black/60 px-2 py-1 rounded inline-flex items-center gap-1">
           <Users className="w-3 h-3" /> {liveFaces} in view · {queue.length} captured
         </div>
+        <LiteFlashOverlay kind={flashKind} />
       </div>
 
       <p className="text-center text-sm text-foreground">{note}</p>
+      <LiteFeedbackControls
+        prefs={prefs}
+        onToggle={toggle}
+        status={`${running ? 'capturing' : 'paused'} · ${queue.length} queued · ${results.length} processed`}
+      />
 
       <div className="flex flex-wrap gap-2 justify-center">
         {!running ? (
