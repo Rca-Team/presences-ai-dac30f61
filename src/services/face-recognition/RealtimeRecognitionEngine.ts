@@ -44,6 +44,12 @@ export interface EngineOptions {
   onTracks?: (tracks: FaceTrack[]) => void;
   /** Called once per newly identified person */
   onIdentified?: (result: IdentifiedFace) => void;
+  /**
+   * Optional persistence handler. When provided, writes are pushed onto the
+   * background write queue (de-duplicated per person) so the camera loop never
+   * waits for the network.
+   */
+  markAttendance?: (result: IdentifiedFace) => Promise<void>;
   /** Called with latency/throughput telemetry */
   onStats?: (stats: EngineStats) => void;
 }
