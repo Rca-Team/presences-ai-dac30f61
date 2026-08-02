@@ -26,6 +26,8 @@ import { buildVectorIndex, searchVectorIndex, getVectorIndexStats } from './Vect
 import { createFaceTracker, type FaceTrack, type Box } from './FaceTrackerService';
 import { initializeWorkerPool, matchDescriptorParallel, isPoolInitialized } from './WorkerPoolService';
 import { initializeGPU } from './GPUAccelerationService';
+import { embedFaceOnnx, initializeOnnxEmbedder, isOnnxEmbedderReady } from './OnnxEmbeddingService';
+import { enqueueWrite } from './AttendanceWriteQueue';
 
 export interface EngineOptions {
   /** Recognition/detection passes per second (camera preview stays full fps) */
