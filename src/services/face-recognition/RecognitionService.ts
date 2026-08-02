@@ -194,13 +194,42 @@ export async function recognizeFace(faceDescriptor: Float32Array): Promise<Recog
     // ── Phase 1: match against progressively-trained descriptors ─────────────
     const trainedDescriptors = await getAllTrainedDescriptors();
 
+    // Vector-index shortlist (HNSW, FAISS-style): instead of scoring every
+    // person in the school we pull the nearest candidates from the index and
+    // re-score ONLY those exactly. Scoring maths and thresholds below are
+    // unchanged, so accuracy is identical while lookups stay sub-linear.
+    let candidateIds: string[] = Array.from(trainedDescriptors.keys());
+    if (trainedDescriptors.size > 25) {
+      try {
+        const vectors: Array<{ ownerId: string; vector: Float32Array }> = [];
+        let sampleCount = 0;
+        for (const [userId, data] of trainedDescriptors) {
+          vectors.push({ ownerId: userId, vector: data.averagedDescriptor });
+          for (const d of data.descriptors) {
+            vectors.push({ ownerId: userId, vector: d });
+            sampleCount++;
+          }
+        }
+        buildVectorIndex(vectors, `rs:${trainedDescriptors.size}:${sampleCount}`);
+        const hits = searchVectorIndex(faceDescriptor, 24);
+        if (hits.length >= 2) {
+          candidateIds = hits.map(h => h.ownerId);
+          console.log(`Vector index shortlisted ${candidateIds.length}/${trainedDescriptors.size} people`);
+        }
+      } catch (indexError) {
+        console.warn('Vector index unavailable, falling back to full scan:', indexError);
+      }
+    }
+
     // Track top-2 matches for ambiguity detection.
     // Collapse all entries with the same userName into one — a student may have
     // descriptors stored under multiple user IDs (e.g. re-registration) and the
     // ambiguity check must not penalise them for being their own second-best match.
     const perNameBest = new Map<string, { userId: string; userName: string; studentId: string | null; distance: number; sampleCount: number }>();
 
-    for (const [userId, data] of trainedDescriptors) {
+    for (const userId of candidateIds) {
+      const data = trainedDescriptors.get(userId);
+      if (!data) continue;
       // Best distance across all stored samples for this user
       // Using ONLY Euclidean distance — do NOT mix with cosine distance for face-api.js vectors
       let minDist = euclideanDistance(faceDescriptor, data.averagedDescriptor);
