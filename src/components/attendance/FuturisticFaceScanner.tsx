@@ -17,6 +17,8 @@ import { saveEmotionEvent } from '@/services/ai/EmotionAnalysisService';
 import { sendAutoParentNotification } from '@/services/notification/AutoNotificationService';
 import { getCutoffTime, isPastCutoffTime, getAttendanceCutoffTime } from '@/services/attendance/AttendanceSettingsService';
 import * as faceapi from 'face-api.js';
+import { createRecognitionEngine } from '@/services/face-recognition/RealtimeRecognitionEngine';
+import type { FaceTrack } from '@/services/face-recognition/FaceTrackerService';
 import {
   Camera,
   Scan,
