@@ -416,6 +416,7 @@ export function createRecognitionEngine(
         if (!faceapi.nets.tinyFaceDetector.isLoaded) await faceapi.nets.tinyFaceDetector.load('/models');
         await initializeGPU().catch(() => undefined);
         await initializeWorkerPool().catch(() => undefined);
+        void initializeOnnxEmbedder().catch(() => undefined);
         await ensureGalleryIndex().catch(() => undefined);
         publishStats();
       })();
