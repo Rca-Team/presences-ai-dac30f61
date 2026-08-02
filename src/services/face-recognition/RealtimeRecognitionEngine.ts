@@ -290,10 +290,21 @@ export function createRecognitionEngine(
       cctx.drawImage(video, sx, sy, sw, sh, 0, 0, 224, 224);
 
       const tEmbed = performance.now();
-      const det = await faceapi
-        .detectSingleFace(cropCanvas, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.4 }))
-        .withFaceLandmarks()
-        .withFaceDescriptor();
+
+      // Fast path: InsightFace/ArcFace via ONNX Runtime (WebGPU/WASM-SIMD).
+      // Only used when the gallery itself is 512-dim ArcFace, so embeddings are
+      // always compared within the same space.
+      let onnxEmbedding: Float32Array | null = null;
+      if (getVectorIndexStats().dimension === 512 && isOnnxEmbedderReady()) {
+        onnxEmbedding = await embedFaceOnnx(cropCanvas);
+      }
+
+      const det = onnxEmbedding
+        ? ({ descriptor: onnxEmbedding } as { descriptor: Float32Array })
+        : await faceapi
+            .detectSingleFace(cropCanvas, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.4 }))
+            .withFaceLandmarks()
+            .withFaceDescriptor();
       stats.embedMs = performance.now() - tEmbed;
 
       if (!det) {
