@@ -228,43 +228,57 @@ export async function recognizeFace(faceDescriptor: Float32Array): Promise<Recog
     // ambiguity check must not penalise them for being their own second-best match.
     const perNameBest = new Map<string, { userId: string; userName: string; studentId: string | null; distance: number; sampleCount: number }>();
 
-    for (const userId of candidateIds) {
-      const data = trainedDescriptors.get(userId);
-      if (!data) continue;
-      // Best distance across all stored samples for this user
-      // Using ONLY Euclidean distance — do NOT mix with cosine distance for face-api.js vectors
-      let minDist = euclideanDistance(faceDescriptor, data.averagedDescriptor);
-      for (const desc of data.descriptors) {
-        // Skip descriptors with mismatched dimensions (prevents NaN from corrupting ranking)
-        if (desc.length !== faceDescriptor.length) continue;
-        const d = euclideanDistance(faceDescriptor, desc);
-        if (d < minDist) minDist = d;
-      }
+    const scoreCandidates = (ids: string[]) => {
+      perNameBest.clear();
+      for (const userId of ids) {
+        const data = trainedDescriptors.get(userId);
+        if (!data) continue;
+        // Best distance across all stored samples for this user
+        // Using ONLY Euclidean distance — do NOT mix with cosine distance for face-api.js vectors
+        let minDist = euclideanDistance(faceDescriptor, data.averagedDescriptor);
+        for (const desc of data.descriptors) {
+          // Skip descriptors with mismatched dimensions (prevents NaN from corrupting ranking)
+          if (desc.length !== faceDescriptor.length) continue;
+          const d = euclideanDistance(faceDescriptor, desc);
+          if (d < minDist) minDist = d;
+        }
 
-      // Guard: skip if distance is non-finite (indicates corrupt/mismatched descriptor data)
-      if (!Number.isFinite(minDist)) {
-        console.warn(`Skipping ${data.userName}: non-finite distance (descriptor data issue)`);
-        continue;
-      }
+        // Guard: skip if distance is non-finite (indicates corrupt/mismatched descriptor data)
+        if (!Number.isFinite(minDist)) {
+          console.warn(`Skipping ${data.userName}: non-finite distance (descriptor data issue)`);
+          continue;
+        }
 
-      console.log(`  ${data.userName} (${data.sampleCount} samples): dist=${minDist.toFixed(4)}`);
+        console.log(`  ${data.userName} (${data.sampleCount} samples): dist=${minDist.toFixed(4)}`);
 
-      // Merge into per-name best (normalise name for comparison)
-      const nameKey = data.userName.trim().toLowerCase();
-      const existing = perNameBest.get(nameKey);
-      if (!existing || minDist < existing.distance) {
-        perNameBest.set(nameKey, {
-          userId,
-          userName:    data.userName,
-          studentId:   (data as any).studentId ?? null,
-          distance:    minDist,
-          sampleCount: data.sampleCount + (existing?.sampleCount ?? 0),
-        });
+        // Merge into per-name best (normalise name for comparison)
+        const nameKey = data.userName.trim().toLowerCase();
+        const existing = perNameBest.get(nameKey);
+        if (!existing || minDist < existing.distance) {
+          perNameBest.set(nameKey, {
+            userId,
+            userName:    data.userName,
+            studentId:   (data as any).studentId ?? null,
+            distance:    minDist,
+            sampleCount: data.sampleCount + (existing?.sampleCount ?? 0),
+          });
+        }
       }
+      // Sort merged results to find best + second-best across DIFFERENT people
+      return Array.from(perNameBest.values()).sort((a, b) => a.distance - b.distance);
+    };
+
+    const usedShortlist = candidateIds.length < trainedDescriptors.size;
+    let ranked = scoreCandidates(candidateIds);
+
+    // Safety net: an approximate index can miss the true nearest neighbour.
+    // If nothing passes the threshold on the shortlist, fall back to the exact
+    // full scan so accuracy is never worse than before.
+    if (usedShortlist && (!ranked[0] || ranked[0].distance > MATCH_THRESHOLD)) {
+      console.log('Shortlist produced no accepted match — running exact full scan');
+      ranked = scoreCandidates(Array.from(trainedDescriptors.keys()));
     }
 
-    // Sort merged results to find best + second-best across DIFFERENT people
-    const ranked = Array.from(perNameBest.values()).sort((a, b) => a.distance - b.distance);
     const best   = ranked[0] ?? null;
     const second = ranked[1] ?? null;
 
@@ -273,6 +287,7 @@ export async function recognizeFace(faceDescriptor: Float32Array): Promise<Recog
       console.log(`No match within threshold (best=${best?.distance.toFixed(4) ?? 'none'}, threshold=${MATCH_THRESHOLD})`);
       return { recognized: false };
     }
+
 
     // Ambiguity check: if second-best (different person) is almost as close, refuse to guess
     if (second && best.distance / second.distance > AMBIGUITY_RATIO) {
