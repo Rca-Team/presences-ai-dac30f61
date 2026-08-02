@@ -38,9 +38,9 @@ interface IndexState {
   signature: string;
 }
 
-const M = 12;               // neighbours per node per layer
-const M_MAX0 = 24;          // neighbours on layer 0
-const EF_CONSTRUCTION = 40; // beam width while building
+const M = 16;               // neighbours per node per layer
+const M_MAX0 = 32;          // neighbours on layer 0
+const EF_CONSTRUCTION = 120; // beam width while building
 const ML = 1 / Math.log(2); // level generation factor
 
 let index: IndexState | null = null;
@@ -206,7 +206,7 @@ export interface VectorHit {
 /**
  * Approximate k-nearest search. Returns unique owners ordered by distance.
  */
-export function searchVectorIndex(query: Float32Array | number[], k = 16, efSearch = 48): VectorHit[] {
+export function searchVectorIndex(query: Float32Array | number[], k = 16, efSearch = 160): VectorHit[] {
   if (!index || index.nodes.length === 0) return [];
   const q = query instanceof Float32Array ? query : new Float32Array(query);
   if (q.length !== index.dim) return [];
