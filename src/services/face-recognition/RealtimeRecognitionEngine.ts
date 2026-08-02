@@ -357,7 +357,7 @@ export function createRecognitionEngine(
 
       if (!identifiedTracks.has(track.id)) {
         identifiedTracks.add(track.id);
-        options.onIdentified?.({
+        const identified: IdentifiedFace = {
           trackId: track.id,
           userId: match.userId,
           name: match.name,
@@ -365,7 +365,18 @@ export function createRecognitionEngine(
           distance: match.distance,
           box: track.box,
           descriptor: det.descriptor,
-        });
+        };
+        options.onIdentified?.(identified);
+
+        // Thread 4: database updates run off the recognition path
+        if (options.markAttendance) {
+          const handler = options.markAttendance;
+          enqueueWrite({
+            key: `attendance:${match.userId}`,
+            payload: identified,
+            run: face => handler(face),
+          });
+        }
       }
       publishStats();
     } catch (err) {
