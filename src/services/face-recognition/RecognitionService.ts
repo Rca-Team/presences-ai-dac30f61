@@ -31,6 +31,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { descriptorToString, stringToDescriptor } from './ModelService';
 import { getAttendanceCutoffTime } from '../attendance/AttendanceSettingsService';
 import { getAllTrainedDescriptors } from './ProgressiveTrainingService';
+import { buildVectorIndex, searchVectorIndex } from './VectorIndexService';
 import { dataUrlToBlob, uploadAttendanceTrainingImage } from './TrainingDataStorageService';
 import { ensureActiveClassSession, upsertClassAttendanceEvent } from '../attendance/ClassSessionService';
 
