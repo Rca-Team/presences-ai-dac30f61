@@ -147,106 +147,89 @@ const FuturisticFaceScanner: React.FC<FuturisticFaceScannerProps> = ({ onScanCom
     initModels();
   }, []);
 
-  // Real-time face detection
+  // Real-time face detection — engine driven:
+  //  • preview stays at full camera fps, detection runs at 9 fps
+  //  • inference on a 640px downscaled frame, boxes mapped back to full res
+  //  • IoU tracking keeps identities so a face is recognised once, not per frame
+  const engineRef = useRef<ReturnType<typeof createRecognitionEngine> | null>(null);
+
   useEffect(() => {
     if (!modelsLoaded || isScanning) {
-      if (detectionIntervalRef.current) {
-        window.clearInterval(detectionIntervalRef.current);
-        detectionIntervalRef.current = null;
-      }
+      engineRef.current?.stop();
+      engineRef.current = null;
+      setIsDetecting(false);
       return;
     }
 
-    const detectFaces = async () => {
-      if (!webcamRef.current?.video || isScanning) return;
-      
-      const video = webcamRef.current.video;
-      if (video.readyState !== 4) return;
+    const drawTracks = (tracks: FaceTrack[]) => {
+      const video = webcamRef.current?.video;
+      const canvas = canvasRef.current;
+      if (!video || !canvas) return;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
 
-      try {
-        const detections = await faceapi
-          .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.5 }))
-          .withFaceLandmarks();
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        const faces: DetectedFace[] = detections.map(d => ({
-          box: {
-            x: d.detection.box.x,
-            y: d.detection.box.y,
-            width: d.detection.box.width,
-            height: d.detection.box.height
-          }
-        }));
+      tracks.forEach((track, i) => {
+        const box = track.box;
+        ctx.strokeStyle = track.identity ? '#34d399' : '#22d3ee';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(box.x, box.y, box.width, box.height);
 
-        setDetectedFaces(faces);
-        setFaceCount(faces.length);
+        const cornerSize = 15;
+        ctx.strokeStyle = track.identity ? '#10b981' : '#06b6d4';
+        ctx.lineWidth = 4;
 
-        // Draw on canvas
-        if (canvasRef.current) {
-          const ctx = canvasRef.current.getContext('2d');
-          if (ctx) {
-            canvasRef.current.width = video.videoWidth;
-            canvasRef.current.height = video.videoHeight;
-            ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+        ctx.beginPath();
+        ctx.moveTo(box.x, box.y + cornerSize);
+        ctx.lineTo(box.x, box.y);
+        ctx.lineTo(box.x + cornerSize, box.y);
+        ctx.stroke();
 
-            faces.forEach((face, i) => {
-              // Draw face box
-              ctx.strokeStyle = '#22d3ee';
-              ctx.lineWidth = 3;
-              ctx.strokeRect(face.box.x, face.box.y, face.box.width, face.box.height);
+        ctx.beginPath();
+        ctx.moveTo(box.x + box.width - cornerSize, box.y);
+        ctx.lineTo(box.x + box.width, box.y);
+        ctx.lineTo(box.x + box.width, box.y + cornerSize);
+        ctx.stroke();
 
-              // Draw corner brackets
-              const cornerSize = 15;
-              ctx.strokeStyle = '#06b6d4';
-              ctx.lineWidth = 4;
-              
-              // Top-left
-              ctx.beginPath();
-              ctx.moveTo(face.box.x, face.box.y + cornerSize);
-              ctx.lineTo(face.box.x, face.box.y);
-              ctx.lineTo(face.box.x + cornerSize, face.box.y);
-              ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(box.x, box.y + box.height - cornerSize);
+        ctx.lineTo(box.x, box.y + box.height);
+        ctx.lineTo(box.x + cornerSize, box.y + box.height);
+        ctx.stroke();
 
-              // Top-right
-              ctx.beginPath();
-              ctx.moveTo(face.box.x + face.box.width - cornerSize, face.box.y);
-              ctx.lineTo(face.box.x + face.box.width, face.box.y);
-              ctx.lineTo(face.box.x + face.box.width, face.box.y + cornerSize);
-              ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(box.x + box.width - cornerSize, box.y + box.height);
+        ctx.lineTo(box.x + box.width, box.y + box.height);
+        ctx.lineTo(box.x + box.width, box.y + box.height - cornerSize);
+        ctx.stroke();
 
-              // Bottom-left
-              ctx.beginPath();
-              ctx.moveTo(face.box.x, face.box.y + face.box.height - cornerSize);
-              ctx.lineTo(face.box.x, face.box.y + face.box.height);
-              ctx.lineTo(face.box.x + cornerSize, face.box.y + face.box.height);
-              ctx.stroke();
-
-              // Bottom-right
-              ctx.beginPath();
-              ctx.moveTo(face.box.x + face.box.width - cornerSize, face.box.y + face.box.height);
-              ctx.lineTo(face.box.x + face.box.width, face.box.y + face.box.height);
-              ctx.lineTo(face.box.x + face.box.width, face.box.y + face.box.height - cornerSize);
-              ctx.stroke();
-
-              // Face number label
-              ctx.fillStyle = '#06b6d4';
-              ctx.font = 'bold 14px Inter';
-              ctx.fillText(`Face ${i + 1}`, face.box.x, face.box.y - 8);
-            });
-          }
-        }
-      } catch (error) {
-        console.error('Face detection error:', error);
-      }
+        ctx.fillStyle = track.identity ? '#10b981' : '#06b6d4';
+        ctx.font = 'bold 14px Inter';
+        ctx.fillText(track.identity ? track.identity.name : `Face ${i + 1}`, box.x, box.y - 8);
+      });
     };
 
+    const engine = createRecognitionEngine(() => webcamRef.current?.video ?? null, {
+      detectFps: 9,
+      detectionWidth: 640,
+      maxConcurrentJobs: 2,
+      onTracks: (tracks) => {
+        setDetectedFaces(tracks.map(t => ({ box: { ...t.box } })));
+        setFaceCount(tracks.length);
+        drawTracks(tracks);
+      },
+    });
+
+    engineRef.current = engine;
+    engine.start();
     setIsDetecting(true);
-    detectionIntervalRef.current = window.setInterval(detectFaces, 200);
 
     return () => {
-      if (detectionIntervalRef.current) {
-        window.clearInterval(detectionIntervalRef.current);
-        detectionIntervalRef.current = null;
-      }
+      engine.stop();
+      engineRef.current = null;
       setIsDetecting(false);
     };
   }, [modelsLoaded, isScanning]);
