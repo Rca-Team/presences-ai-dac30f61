@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
+
 import { motion, AnimatePresence } from 'framer-motion';
 import PageLayout from '@/components/layouts/PageLayout';
 import PageTransition from '@/components/PageTransition';
@@ -110,11 +112,20 @@ const Admin = () => {
     lateToday: 0
   });
 
+  const [searchParams] = useSearchParams();
+  const requestedTab = searchParams.get('tab');
+
   useEffect(() => {
     if (!isRoleLoading && !activeTab) {
       setActiveTab(isTeacher && !isAdminOrPrincipal ? 'teacher' : 'dashboard');
     }
   }, [isRoleLoading, isTeacher, isAdminOrPrincipal, activeTab]);
+
+  // Deep-link support: /admin?tab=timetable opens that section directly.
+  useEffect(() => {
+    if (requestedTab) setActiveTab(requestedTab);
+  }, [requestedTab]);
+
 
   const fetchData = useCallback(async () => {
     if (!isAdminOrPrincipal) return;

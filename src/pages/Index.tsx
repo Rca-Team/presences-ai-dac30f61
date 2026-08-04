@@ -64,12 +64,13 @@ const Index = () => {
   }>(null);
 
   const modules = [
-    { icon: Scan, label: 'Attendance', tone: 'bg-primary/20 text-primary' },
-    { icon: BookOpen, label: 'Timetable', tone: 'bg-accent/30 text-accent-foreground' },
-    { icon: Shield, label: 'Security', tone: 'bg-warning/20 text-warning-foreground' },
-    { icon: Bell, label: 'Alerts', tone: 'bg-success/20 text-success' },
-    { icon: BarChart3, label: 'Analytics', tone: 'bg-primary/20 text-primary' },
-    { icon: Bus, label: 'Transport', tone: 'bg-accent/30 text-accent-foreground' },
+    { icon: Scan, label: 'Attendance', tone: 'bg-primary/20 text-primary', to: '/attendance' },
+    { icon: BookOpen, label: 'Timetable', tone: 'bg-accent/30 text-accent-foreground', to: '/admin?tab=timetable' },
+    { icon: Shield, label: 'Security', tone: 'bg-warning/20 text-warning-foreground', to: '/gate' },
+    { icon: Bell, label: 'Alerts', tone: 'bg-success/20 text-success', to: '/admin?tab=emergency' },
+    { icon: BarChart3, label: 'Analytics', tone: 'bg-primary/20 text-primary', to: '/admin?tab=reports' },
+    { icon: Bus, label: 'Transport', tone: 'bg-accent/30 text-accent-foreground', to: '/features' },
+
   ];
 
   const stats = [
@@ -240,10 +241,14 @@ const Index = () => {
                 </div>
                 <div className="grid grid-cols-3 gap-4">
                   {modules.map((mod) => (
-                    <motion.div
+                    <motion.button
                       key={mod.label}
-                      className="rounded-2xl border border-border/60 bg-card/55 p-4 text-center"
+                      type="button"
+                      onClick={() => navigate(mod.to)}
+                      aria-label={`Open ${mod.label}`}
+                      className="rounded-2xl border border-border/60 bg-card/55 p-4 text-center transition-colors hover:border-primary/50 hover:bg-card/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
                       whileHover={{ rotateX: -5, rotateY: 7, y: -4 }}
+                      whileTap={{ scale: 0.96 }}
                       transition={{ duration: 0.2 }}
                       style={{ transformStyle: 'preserve-3d' }}
                     >
@@ -251,9 +256,10 @@ const Index = () => {
                         <mod.icon className="h-5 w-5" />
                       </div>
                       <p className="text-[10px] font-bold uppercase tracking-tight text-muted-foreground">{mod.label}</p>
-                    </motion.div>
+                    </motion.button>
                   ))}
                 </div>
+
                 <p className="mt-8 text-center text-xs font-bold tracking-widest text-primary">ALL SYSTEMS OPERATIONAL</p>
               </motion.div>
 
