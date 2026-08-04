@@ -7,7 +7,7 @@ import { loadModels, areModelsLoaded } from '@/services/face-recognition/ModelSe
 import { recognizeFace, recordAttendance } from '@/services/face-recognition/RecognitionService';
 import { alignFace, isFaceFrontal } from '@/services/face-recognition/FaceAlignmentService';
 import { scoreFaceQuality } from '@/services/face-recognition/FaceQualityService';
-import { Play, Pause, Send, Trash2, Loader2, Users, Eye } from 'lucide-react';
+import { Play, Pause, Send, Trash2, Loader2, Users, Eye, SwitchCamera } from 'lucide-react';
 
 /**
  * LiteLoopFaceScanner
@@ -33,6 +33,7 @@ import { Play, Pause, Send, Trash2, Loader2, Users, Eye } from 'lucide-react';
 
 const QUEUE_KEY = 'lite-loop-queue-v2';
 const BLINK_KEY = 'lite-loop-blink-gate';
+const FACING_KEY = 'lite-loop-camera-facing';
 
 const DETECT_MIN_CONFIDENCE = 0.5;
 const MAX_FACES_PER_FRAME = 12;
@@ -130,6 +131,7 @@ const LiteLoopFaceScanner: React.FC = () => {
   const queueRef = useRef<CapturedFace[]>([]);
   const busyRef = useRef(false);
   const blinkGateRef = useRef(false);
+  const facingRef = useRef<'user' | 'environment'>('user');
 
   const [modelsReady, setModelsReady] = useState(false);
   const [running, setRunning] = useState(false);
@@ -141,10 +143,15 @@ const LiteLoopFaceScanner: React.FC = () => {
   const [blinkGate, setBlinkGate] = useState<boolean>(() => {
     try { return localStorage.getItem(BLINK_KEY) === '1'; } catch { return false; }
   });
+  const [facing, setFacing] = useState<'user' | 'environment'>(() => {
+    try { return localStorage.getItem(FACING_KEY) === 'environment' ? 'environment' : 'user'; } catch { return 'user'; }
+  });
   const [note, setNote] = useState('Tap Start, then walk students past the camera.');
 
   useEffect(() => { queueRef.current = queue; }, [queue]);
   useEffect(() => { blinkGateRef.current = blinkGate; }, [blinkGate]);
+  useEffect(() => { facingRef.current = facing; }, [facing]);
+  useEffect(() => { try { localStorage.setItem(FACING_KEY, facing); } catch { /* ignore */ } }, [facing]);
   useEffect(() => {
     try { localStorage.setItem(BLINK_KEY, blinkGate ? '1' : '0'); } catch { /* ignore */ }
   }, [blinkGate]);
@@ -276,18 +283,24 @@ const LiteLoopFaceScanner: React.FC = () => {
     timerRef.current = window.setTimeout(detectLoop, Math.max(16, DETECT_INTERVAL_MS - elapsed));
   }, [commitTrack, signal]);
 
+  /** Opens a stream on the requested camera and attaches it to the video tag. */
+  const openStream = useCallback(async (which: 'user' | 'environment') => {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: which }, width: { ideal: 1280 }, height: { ideal: 960 } }, audio: false,
+    });
+    streamRef.current?.getTracks().forEach(t => t.stop());
+    streamRef.current = stream;
+    if (videoRef.current) {
+      videoRef.current.srcObject = stream;
+      await videoRef.current.play().catch(() => undefined);
+    }
+  }, []);
+
   const start = useCallback(async () => {
     if (runningRef.current) return;
     if (!modelsReady) { setNote('Loading face models…'); return; }
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 960 } }, audio: false,
-      });
-      streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play().catch(() => undefined);
-      }
+      await openStream(facingRef.current);
       runningRef.current = true;
       setRunning(true);
       setNote(blinkGateRef.current
@@ -297,7 +310,22 @@ const LiteLoopFaceScanner: React.FC = () => {
     } catch (e: any) {
       setNote(e?.message || 'Camera unavailable');
     }
-  }, [detectLoop, modelsReady]);
+  }, [detectLoop, modelsReady, openStream]);
+
+  /** Front ⇄ back switch. Keeps the capture loop and queue running mid-session. */
+  const switchCamera = useCallback(async () => {
+    const next = facingRef.current === 'user' ? 'environment' : 'user';
+    try {
+      if (runningRef.current) await openStream(next);
+      facingRef.current = next;
+      setFacing(next);
+      tracksRef.current.clear();
+      setLiveFaces(0);
+      setNote(next === 'user' ? 'Front camera' : 'Back camera');
+    } catch {
+      setNote('Could not switch camera on this device');
+    }
+  }, [openStream]);
 
   const stop = useCallback(() => {
     runningRef.current = false;
@@ -458,6 +486,14 @@ const LiteLoopFaceScanner: React.FC = () => {
             <Eye className="w-3 h-3" /> blink to capture
           </div>
         )}
+        {/* Front ⇄ back camera switch — plain button, no animation */}
+        <button
+          onClick={() => void switchCamera()}
+          aria-label="Switch camera"
+          className="absolute bottom-2 right-2 inline-flex items-center gap-1 rounded bg-black/60 px-2 py-1 text-[11px] font-medium text-white"
+        >
+          <SwitchCamera className="w-3.5 h-3.5" /> {facing === 'user' ? 'Front' : 'Back'}
+        </button>
         <LiteFlashOverlay kind={flashKind} />
       </div>
 
