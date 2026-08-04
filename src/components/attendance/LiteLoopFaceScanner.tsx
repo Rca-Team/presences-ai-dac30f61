@@ -7,7 +7,7 @@ import { loadModels, areModelsLoaded } from '@/services/face-recognition/ModelSe
 import { recognizeFace, recordAttendance } from '@/services/face-recognition/RecognitionService';
 import { alignFace, isFaceFrontal } from '@/services/face-recognition/FaceAlignmentService';
 import { scoreFaceQuality } from '@/services/face-recognition/FaceQualityService';
-import { Play, Pause, Send, Trash2, Loader2, Users, Eye } from 'lucide-react';
+import { Play, Pause, Send, Trash2, Loader2, Users, Eye, SwitchCamera } from 'lucide-react';
 
 /**
  * LiteLoopFaceScanner
