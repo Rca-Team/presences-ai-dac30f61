@@ -486,6 +486,14 @@ const LiteLoopFaceScanner: React.FC = () => {
             <Eye className="w-3 h-3" /> blink to capture
           </div>
         )}
+        {/* Front ⇄ back camera switch — plain button, no animation */}
+        <button
+          onClick={() => void switchCamera()}
+          aria-label="Switch camera"
+          className="absolute bottom-2 right-2 inline-flex items-center gap-1 rounded bg-black/60 px-2 py-1 text-[11px] font-medium text-white"
+        >
+          <SwitchCamera className="w-3.5 h-3.5" /> {facing === 'user' ? 'Front' : 'Back'}
+        </button>
         <LiteFlashOverlay kind={flashKind} />
       </div>
 
