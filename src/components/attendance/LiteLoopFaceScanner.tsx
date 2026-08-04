@@ -130,6 +130,7 @@ const LiteLoopFaceScanner: React.FC = () => {
   const queueRef = useRef<CapturedFace[]>([]);
   const busyRef = useRef(false);
   const blinkGateRef = useRef(false);
+  const facingRef = useRef<'user' | 'environment'>('user');
 
   const [modelsReady, setModelsReady] = useState(false);
   const [running, setRunning] = useState(false);
