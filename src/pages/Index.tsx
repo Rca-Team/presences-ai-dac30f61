@@ -15,6 +15,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { motion } from 'framer-motion';
 import PageLayout from '@/components/layouts/PageLayout';
 import PageTransition from '@/components/PageTransition';
+import HomeInstallCard from '@/components/HomeInstallCard';
 import {
   ArrowRight,
   Scan,
