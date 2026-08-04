@@ -142,6 +142,9 @@ const LiteLoopFaceScanner: React.FC = () => {
   const [blinkGate, setBlinkGate] = useState<boolean>(() => {
     try { return localStorage.getItem(BLINK_KEY) === '1'; } catch { return false; }
   });
+  const [facing, setFacing] = useState<'user' | 'environment'>(() => {
+    try { return localStorage.getItem(FACING_KEY) === 'environment' ? 'environment' : 'user'; } catch { return 'user'; }
+  });
   const [note, setNote] = useState('Tap Start, then walk students past the camera.');
 
   useEffect(() => { queueRef.current = queue; }, [queue]);
