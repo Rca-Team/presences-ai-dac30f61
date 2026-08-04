@@ -64,12 +64,13 @@ const Index = () => {
   }>(null);
 
   const modules = [
-    { icon: Scan, label: 'Attendance', tone: 'bg-primary/20 text-primary' },
-    { icon: BookOpen, label: 'Timetable', tone: 'bg-accent/30 text-accent-foreground' },
-    { icon: Shield, label: 'Security', tone: 'bg-warning/20 text-warning-foreground' },
-    { icon: Bell, label: 'Alerts', tone: 'bg-success/20 text-success' },
-    { icon: BarChart3, label: 'Analytics', tone: 'bg-primary/20 text-primary' },
-    { icon: Bus, label: 'Transport', tone: 'bg-accent/30 text-accent-foreground' },
+    { icon: Scan, label: 'Attendance', tone: 'bg-primary/20 text-primary', to: '/attendance' },
+    { icon: BookOpen, label: 'Timetable', tone: 'bg-accent/30 text-accent-foreground', to: '/admin?tab=timetable' },
+    { icon: Shield, label: 'Security', tone: 'bg-warning/20 text-warning-foreground', to: '/gate' },
+    { icon: Bell, label: 'Alerts', tone: 'bg-success/20 text-success', to: '/admin?tab=emergency' },
+    { icon: BarChart3, label: 'Analytics', tone: 'bg-primary/20 text-primary', to: '/admin?tab=reports' },
+    { icon: Bus, label: 'Transport', tone: 'bg-accent/30 text-accent-foreground', to: '/features' },
+
   ];
 
   const stats = [
