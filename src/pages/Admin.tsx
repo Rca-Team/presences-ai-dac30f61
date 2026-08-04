@@ -110,11 +110,20 @@ const Admin = () => {
     lateToday: 0
   });
 
+  const [searchParams] = useSearchParams();
+  const requestedTab = searchParams.get('tab');
+
   useEffect(() => {
     if (!isRoleLoading && !activeTab) {
       setActiveTab(isTeacher && !isAdminOrPrincipal ? 'teacher' : 'dashboard');
     }
   }, [isRoleLoading, isTeacher, isAdminOrPrincipal, activeTab]);
+
+  // Deep-link support: /admin?tab=timetable opens that section directly.
+  useEffect(() => {
+    if (requestedTab) setActiveTab(requestedTab);
+  }, [requestedTab]);
+
 
   const fetchData = useCallback(async () => {
     if (!isAdminOrPrincipal) return;
