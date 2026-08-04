@@ -281,18 +281,24 @@ const LiteLoopFaceScanner: React.FC = () => {
     timerRef.current = window.setTimeout(detectLoop, Math.max(16, DETECT_INTERVAL_MS - elapsed));
   }, [commitTrack, signal]);
 
+  /** Opens a stream on the requested camera and attaches it to the video tag. */
+  const openStream = useCallback(async (which: 'user' | 'environment') => {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: which }, width: { ideal: 1280 }, height: { ideal: 960 } }, audio: false,
+    });
+    streamRef.current?.getTracks().forEach(t => t.stop());
+    streamRef.current = stream;
+    if (videoRef.current) {
+      videoRef.current.srcObject = stream;
+      await videoRef.current.play().catch(() => undefined);
+    }
+  }, []);
+
   const start = useCallback(async () => {
     if (runningRef.current) return;
     if (!modelsReady) { setNote('Loading face models…'); return; }
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 960 } }, audio: false,
-      });
-      streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play().catch(() => undefined);
-      }
+      await openStream(facingRef.current);
       runningRef.current = true;
       setRunning(true);
       setNote(blinkGateRef.current
@@ -302,7 +308,22 @@ const LiteLoopFaceScanner: React.FC = () => {
     } catch (e: any) {
       setNote(e?.message || 'Camera unavailable');
     }
-  }, [detectLoop, modelsReady]);
+  }, [detectLoop, modelsReady, openStream]);
+
+  /** Front ⇄ back switch. Keeps the capture loop and queue running mid-session. */
+  const switchCamera = useCallback(async () => {
+    const next = facingRef.current === 'user' ? 'environment' : 'user';
+    try {
+      if (runningRef.current) await openStream(next);
+      facingRef.current = next;
+      setFacing(next);
+      tracksRef.current.clear();
+      setLiveFaces(0);
+      setNote(next === 'user' ? 'Front camera' : 'Back camera');
+    } catch {
+      setNote('Could not switch camera on this device');
+    }
+  }, [openStream]);
 
   const stop = useCallback(() => {
     runningRef.current = false;
