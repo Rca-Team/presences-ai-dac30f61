@@ -150,6 +150,8 @@ const LiteLoopFaceScanner: React.FC = () => {
 
   useEffect(() => { queueRef.current = queue; }, [queue]);
   useEffect(() => { blinkGateRef.current = blinkGate; }, [blinkGate]);
+  useEffect(() => { facingRef.current = facing; }, [facing]);
+  useEffect(() => { try { localStorage.setItem(FACING_KEY, facing); } catch { /* ignore */ } }, [facing]);
   useEffect(() => {
     try { localStorage.setItem(BLINK_KEY, blinkGate ? '1' : '0'); } catch { /* ignore */ }
   }, [blinkGate]);
