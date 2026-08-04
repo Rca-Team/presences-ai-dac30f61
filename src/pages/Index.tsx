@@ -372,6 +372,8 @@ const Index = () => {
           </div>
         </section>
 
+        <HomeInstallCard />
+
         <section className="pb-14">
           <div className="grid grid-cols-2 gap-4 md:grid-cols-4 md:gap-6">
             {stats.map((stat) => (
