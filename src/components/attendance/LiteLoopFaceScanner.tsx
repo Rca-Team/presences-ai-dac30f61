@@ -33,6 +33,7 @@ import { Play, Pause, Send, Trash2, Loader2, Users, Eye } from 'lucide-react';
 
 const QUEUE_KEY = 'lite-loop-queue-v2';
 const BLINK_KEY = 'lite-loop-blink-gate';
+const FACING_KEY = 'lite-loop-camera-facing';
 
 const DETECT_MIN_CONFIDENCE = 0.5;
 const MAX_FACES_PER_FRAME = 12;
