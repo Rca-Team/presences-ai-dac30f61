@@ -100,6 +100,7 @@ const Admin = () => {
   const [notificationCount, setNotificationCount] = useState(0);
   const [isDataLoading, setIsDataLoading] = useState(true);
   const refreshTimerRef = useRef<number | null>(null);
+  const hasLoadedOnceRef = useRef(false);
   const [stats, setStats] = useState({
     totalFaces: 0,
     todayAttendance: 0,
@@ -169,6 +170,7 @@ const Admin = () => {
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
+      hasLoadedOnceRef.current = true;
       setIsDataLoading(false);
     }
   }, [isAdminOrPrincipal]);
