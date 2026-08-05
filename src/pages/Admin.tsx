@@ -544,21 +544,31 @@ const Admin = () => {
                   {navItems.map((item) => {
                     const isActive = activeTab === item.id;
                     return (
-                      <Button
+                      <button
                         key={item.id}
-                        variant={isActive ? 'default' : 'outline'}
-                        size="sm"
                         onClick={() => handleTabChange(item.id)}
-                        className="shrink-0 h-8 px-2.5 gap-1.5"
+                        className={cn(
+                          "relative shrink-0 h-8 px-2.5 rounded-md border flex items-center gap-1.5 transition-colors duration-200",
+                          isActive
+                            ? "border-transparent text-primary-foreground"
+                            : "border-border text-muted-foreground active:scale-[0.97]"
+                        )}
                       >
-                        <item.icon className="w-3.5 h-3.5" />
-                        <span className="text-[11px]">{item.label}</span>
+                        {isActive && (
+                          <motion.span
+                            layoutId="admin-mobile-nav-active"
+                            className="absolute inset-0 rounded-md bg-primary"
+                            transition={{ type: 'spring', stiffness: 500, damping: 40, mass: 0.7 }}
+                          />
+                        )}
+                        <item.icon className="relative z-10 w-3.5 h-3.5" />
+                        <span className="relative z-10 text-[11px] whitespace-nowrap">{item.label}</span>
                         {item.count !== undefined && item.count > 0 && (
-                          <Badge variant="destructive" className="text-[8px] h-4 min-w-[14px] px-1">
+                          <Badge variant="destructive" className="relative z-10 text-[8px] h-4 min-w-[14px] px-1">
                             {item.count}
                           </Badge>
                         )}
-                      </Button>
+                      </button>
                     );
                   })}
                 </div>
@@ -568,19 +578,21 @@ const Admin = () => {
             {/* Content Area */}
             <PullToRefresh onRefresh={handleRefresh} enabled={isMobile} className="flex-1 overflow-auto">
               <div className="p-2.5 sm:p-4 md:p-6 pb-6">
-                <AnimatePresence mode="wait">
+                <AnimatePresence mode="popLayout" initial={false}>
                   <motion.div
-                    key={activeTab}
-                    initial={{ opacity: 0, y: 8 }}
+                    key={isDataLoading ? 'loading' : activeTab}
+                    initial={{ opacity: 0, y: 6 }}
                     animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -8 }}
-                    transition={{ duration: 0.15 }}>
+                    exit={{ opacity: 0, y: -4 }}
+                    transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                    style={{ willChange: 'opacity, transform' }}>
 
                     {isDataLoading ? <AdminContentSkeleton /> : renderContent()}
                   </motion.div>
                 </AnimatePresence>
               </div>
             </PullToRefresh>
+
           </main>
         </div>
 
