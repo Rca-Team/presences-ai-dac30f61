@@ -267,10 +267,10 @@ const Attendance = () => {
             {activeTab === 'single' && (
               <motion.div
                 key="single"
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                transition={{ duration: 0.3 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
                 className="space-y-4 lg:grid lg:grid-cols-3 lg:gap-5 lg:space-y-0"
               >
                 {/* Scanner */}
@@ -331,15 +331,15 @@ const Attendance = () => {
                     <div className="p-2 sm:p-5">
                       <AnimatePresence mode="wait">
                         {attendanceMethod === 'face' ? (
-                          <motion.div key="face" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }}>
+                          <motion.div key="face" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.18, ease: 'easeOut' }}>
                             <FuturisticFaceScanner />
                           </motion.div>
                         ) : attendanceMethod === 'loop' ? (
-                          <motion.div key="loop" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+                          <motion.div key="loop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.18, ease: 'easeOut' }}>
                             <LoopFaceScanMode />
                           </motion.div>
                         ) : (
-                          <motion.div key="qr" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
+                          <motion.div key="qr" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.18, ease: 'easeOut' }}>
                             <QRCodeScanner autoStart={isQRKioskMode} hideManualControls={isQRKioskMode} />
                           </motion.div>
                         )}
