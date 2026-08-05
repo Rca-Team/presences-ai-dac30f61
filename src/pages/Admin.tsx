@@ -124,8 +124,11 @@ const Admin = () => {
 
   const fetchData = useCallback(async () => {
     if (!isAdminOrPrincipal) return;
-    setIsDataLoading(true);
+    // Only the very first load may show a skeleton — background refreshes must
+    // never blank out the active section (that's what felt like a page reload).
+    if (!hasLoadedOnceRef.current) setIsDataLoading(true);
     try {
+
       // Registered users: attendance_records with status='registered' is the canonical source
       const { data: faceData } = await supabase
         .from('attendance_records')
