@@ -471,12 +471,7 @@ const Index = () => {
         <Dialog open={Boolean(activeProfile)} onOpenChange={(open) => !open && setActiveProfile(null)}>
           <DialogContent className="max-w-md rounded-2xl border-border/70 bg-card/95 p-0 backdrop-blur-xl">
             {activeProfile && (
-              <motion.div
-                initial={{ opacity: 0, y: 12, scale: 0.98 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                transition={{ duration: 0.2 }}
-                className="p-6"
-              >
+              <div className="p-6">
                 <DialogHeader className="space-y-3 text-left">
                   <div className="flex items-center gap-3">
                     <MemberAvatar
@@ -507,7 +502,7 @@ const Index = () => {
                     </Link>
                   ) : null}
                 </DialogHeader>
-              </motion.div>
+              </div>
             )}
           </DialogContent>
         </Dialog>
