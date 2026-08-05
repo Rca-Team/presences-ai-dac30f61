@@ -77,17 +77,12 @@ const AdminContentSkeleton = () => (
   </div>
 );
 
+// Plain wrapper — the single AnimatePresence in the content area owns the
+// transition, so panels must not animate a second time (double animation = jank).
 const TabPanel: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className }) => (
-  <motion.div
-    initial={{ opacity: 0, y: 12, scale: 0.99 }}
-    animate={{ opacity: 1, y: 0, scale: 1 }}
-    exit={{ opacity: 0, y: -8, scale: 0.99 }}
-    transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-    className={cn("space-y-4", className)}
-  >
-    {children}
-  </motion.div>
+  <div className={cn("space-y-4", className)}>{children}</div>
 );
+
 
 const Admin = () => {
   const { liteMode } = usePerformanceMode();
@@ -105,6 +100,7 @@ const Admin = () => {
   const [notificationCount, setNotificationCount] = useState(0);
   const [isDataLoading, setIsDataLoading] = useState(true);
   const refreshTimerRef = useRef<number | null>(null);
+  const hasLoadedOnceRef = useRef(false);
   const [stats, setStats] = useState({
     totalFaces: 0,
     todayAttendance: 0,
@@ -129,8 +125,11 @@ const Admin = () => {
 
   const fetchData = useCallback(async () => {
     if (!isAdminOrPrincipal) return;
-    setIsDataLoading(true);
+    // Only the very first load may show a skeleton — background refreshes must
+    // never blank out the active section (that's what felt like a page reload).
+    if (!hasLoadedOnceRef.current) setIsDataLoading(true);
     try {
+
       // Registered users: attendance_records with status='registered' is the canonical source
       const { data: faceData } = await supabase
         .from('attendance_records')
@@ -171,6 +170,7 @@ const Admin = () => {
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
+      hasLoadedOnceRef.current = true;
       setIsDataLoading(false);
     }
   }, [isAdminOrPrincipal]);
@@ -442,28 +442,35 @@ const Admin = () => {
                       data-nav-id={item.id}
                       onClick={() => handleTabChange(item.id)}
                       className={cn(
-                        "w-full flex items-center gap-2.5 px-3 py-2 text-sm transition-colors",
+                        "relative w-full flex items-center gap-2.5 px-3 py-2 text-sm transition-colors duration-200",
                         isActive ?
-                        "bg-primary/10 text-primary border-r-2 border-primary font-medium" :
-                        "text-muted-foreground hover:bg-muted hover:text-foreground"
+                        "text-primary font-medium" :
+                        "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
                       )}
                       title={sidebarCollapsed ? item.label : undefined}>
-                      
-                          <item.icon className={cn("w-4 h-4 flex-shrink-0", isActive && "text-primary")} />
+
+                          {isActive &&
+                      <motion.span
+                        layoutId="admin-nav-active"
+                        className="absolute inset-0 bg-primary/10 border-r-2 border-primary"
+                        transition={{ type: 'spring', stiffness: 480, damping: 38, mass: 0.8 }} />
+                      }
+                          <item.icon className={cn("relative z-10 w-4 h-4 flex-shrink-0", isActive && "text-primary")} />
                           {!sidebarCollapsed &&
                       <>
-                              <span className="truncate flex-1 text-left">{item.label}</span>
+                              <span className="relative z-10 truncate flex-1 text-left">{item.label}</span>
                               {item.badge &&
-                        <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                        <span className="relative z-10 w-1.5 h-1.5 rounded-full bg-green-500" />
                         }
                               {item.count !== undefined && item.count > 0 &&
-                        <Badge variant="destructive" className="text-[8px] px-1 py-0 h-3.5 min-w-[14px]">
+                        <Badge variant="destructive" className="relative z-10 text-[8px] px-1 py-0 h-3.5 min-w-[14px]">
                           {item.count}
                         </Badge>
                         }
                             </>
                       }
                         </button>);
+
 
                 })}
                   </div>
@@ -537,21 +544,31 @@ const Admin = () => {
                   {navItems.map((item) => {
                     const isActive = activeTab === item.id;
                     return (
-                      <Button
+                      <button
                         key={item.id}
-                        variant={isActive ? 'default' : 'outline'}
-                        size="sm"
                         onClick={() => handleTabChange(item.id)}
-                        className="shrink-0 h-8 px-2.5 gap-1.5"
+                        className={cn(
+                          "relative shrink-0 h-8 px-2.5 rounded-md border flex items-center gap-1.5 transition-colors duration-200",
+                          isActive
+                            ? "border-transparent text-primary-foreground"
+                            : "border-border text-muted-foreground active:scale-[0.97]"
+                        )}
                       >
-                        <item.icon className="w-3.5 h-3.5" />
-                        <span className="text-[11px]">{item.label}</span>
+                        {isActive && (
+                          <motion.span
+                            layoutId="admin-mobile-nav-active"
+                            className="absolute inset-0 rounded-md bg-primary"
+                            transition={{ type: 'spring', stiffness: 500, damping: 40, mass: 0.7 }}
+                          />
+                        )}
+                        <item.icon className="relative z-10 w-3.5 h-3.5" />
+                        <span className="relative z-10 text-[11px] whitespace-nowrap">{item.label}</span>
                         {item.count !== undefined && item.count > 0 && (
-                          <Badge variant="destructive" className="text-[8px] h-4 min-w-[14px] px-1">
+                          <Badge variant="destructive" className="relative z-10 text-[8px] h-4 min-w-[14px] px-1">
                             {item.count}
                           </Badge>
                         )}
-                      </Button>
+                      </button>
                     );
                   })}
                 </div>
@@ -561,19 +578,21 @@ const Admin = () => {
             {/* Content Area */}
             <PullToRefresh onRefresh={handleRefresh} enabled={isMobile} className="flex-1 overflow-auto">
               <div className="p-2.5 sm:p-4 md:p-6 pb-6">
-                <AnimatePresence mode="wait">
+                <AnimatePresence mode="popLayout" initial={false}>
                   <motion.div
-                    key={activeTab}
-                    initial={{ opacity: 0, y: 8 }}
+                    key={isDataLoading ? 'loading' : activeTab}
+                    initial={{ opacity: 0, y: 6 }}
                     animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -8 }}
-                    transition={{ duration: 0.15 }}>
+                    exit={{ opacity: 0, y: -4 }}
+                    transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                    style={{ willChange: 'opacity, transform' }}>
 
                     {isDataLoading ? <AdminContentSkeleton /> : renderContent()}
                   </motion.div>
                 </AnimatePresence>
               </div>
             </PullToRefresh>
+
           </main>
         </div>
 
