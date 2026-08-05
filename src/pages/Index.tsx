@@ -49,9 +49,10 @@ import {
   Building2,
 } from 'lucide-react';
 
+// Professional, restrained card motion: a calm lift instead of a 3D tilt.
 const cardTilt = {
-  whileHover: { rotateX: -4, rotateY: 5, y: -8, scale: 1.01 },
-  transition: { type: 'spring', stiffness: 260, damping: 20 },
+  whileHover: { y: -4 },
+  transition: { duration: 0.28, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] },
 };
 
 const Index = () => {
@@ -189,7 +190,6 @@ const Index = () => {
           <div className="grid grid-cols-12 gap-6">
             <motion.div
               className="liquid-glass-surface liquid-glass-highlight col-span-12 rounded-3xl p-8 md:p-14 lg:col-span-7"
-              style={{ perspective: 900, transformStyle: 'preserve-3d' }}
               {...cardTilt}
             >
               <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-card/55 px-4 py-1.5 text-[11px] font-black uppercase tracking-widest text-primary">
@@ -229,7 +229,6 @@ const Index = () => {
             <div className="col-span-12 grid grid-cols-2 gap-6 lg:col-span-5 lg:grid-rows-2">
               <motion.div
                 className="liquid-glass-surface col-span-2 rounded-3xl p-8"
-                style={{ perspective: 900, transformStyle: 'preserve-3d' }}
                 {...cardTilt}
               >
                 <div className="mb-8 flex items-center justify-between">
@@ -248,10 +247,9 @@ const Index = () => {
                       onClick={() => navigate(mod.to)}
                       aria-label={`Open ${mod.label}`}
                       className="rounded-2xl border border-border/60 bg-card/55 p-4 text-center transition-colors hover:border-primary/50 hover:bg-card/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
-                      whileHover={{ rotateX: -5, rotateY: 7, y: -4 }}
-                      whileTap={{ scale: 0.96 }}
-                      transition={{ duration: 0.2 }}
-                      style={{ transformStyle: 'preserve-3d' }}
+                      whileHover={{ y: -3 }}
+                      whileTap={{ scale: 0.97 }}
+                      transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
                     >
                       <div className={`mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-2xl ${mod.tone}`}>
                         <mod.icon className="h-5 w-5" />
@@ -266,7 +264,6 @@ const Index = () => {
 
               <motion.div
                 className="liquid-glass-surface rounded-3xl p-8"
-                style={{ perspective: 900, transformStyle: 'preserve-3d' }}
                 {...cardTilt}
               >
                 <Zap className="h-8 w-8 text-warning" />
@@ -276,7 +273,6 @@ const Index = () => {
 
               <motion.div
                 className="group relative overflow-hidden rounded-3xl p-0"
-                style={{ perspective: 900, transformStyle: 'preserve-3d' }}
                 {...cardTilt}
               >
                 {/* Cinematic team photo */}
@@ -381,7 +377,6 @@ const Index = () => {
               <motion.div
                 key={stat.label}
                   className="liquid-glass-surface rounded-2xl p-5 text-center"
-                style={{ perspective: 900, transformStyle: 'preserve-3d' }}
                 {...cardTilt}
               >
                   <p className="text-gradient-neon text-3xl font-black md:text-5xl" style={{ fontFamily: 'Sora, sans-serif' }}>
@@ -406,9 +401,8 @@ const Index = () => {
                 <motion.div
                   key={feature.title}
                   className="liquid-glass-surface liquid-glass-highlight group relative overflow-hidden rounded-2xl p-5"
-                  style={{ perspective: 900, transformStyle: 'preserve-3d' }}
-                  whileHover={{ rotateX: -4, rotateY: 6, y: -8 }}
-                  transition={{ type: 'spring', stiffness: 240, damping: 18 }}
+                    whileHover={{ y: -4 }}
+                  transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
                 >
                   <div className="absolute left-0 top-0 h-1 w-full bg-gradient-to-r from-primary via-accent to-warning" />
                   <div className="mb-4 inline-flex rounded-2xl bg-primary/15 p-3 text-primary">
@@ -448,7 +442,6 @@ const Index = () => {
         <section className="pb-10">
           <motion.div
             className="liquid-glass-surface relative overflow-hidden rounded-3xl p-8 md:p-14"
-            style={{ perspective: 900, transformStyle: 'preserve-3d' }}
             {...cardTilt}
           >
             <div className="relative z-10 text-center">
