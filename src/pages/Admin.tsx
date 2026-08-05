@@ -442,28 +442,35 @@ const Admin = () => {
                       data-nav-id={item.id}
                       onClick={() => handleTabChange(item.id)}
                       className={cn(
-                        "w-full flex items-center gap-2.5 px-3 py-2 text-sm transition-colors",
+                        "relative w-full flex items-center gap-2.5 px-3 py-2 text-sm transition-colors duration-200",
                         isActive ?
-                        "bg-primary/10 text-primary border-r-2 border-primary font-medium" :
-                        "text-muted-foreground hover:bg-muted hover:text-foreground"
+                        "text-primary font-medium" :
+                        "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
                       )}
                       title={sidebarCollapsed ? item.label : undefined}>
-                      
-                          <item.icon className={cn("w-4 h-4 flex-shrink-0", isActive && "text-primary")} />
+
+                          {isActive &&
+                      <motion.span
+                        layoutId="admin-nav-active"
+                        className="absolute inset-0 bg-primary/10 border-r-2 border-primary"
+                        transition={{ type: 'spring', stiffness: 480, damping: 38, mass: 0.8 }} />
+                      }
+                          <item.icon className={cn("relative z-10 w-4 h-4 flex-shrink-0", isActive && "text-primary")} />
                           {!sidebarCollapsed &&
                       <>
-                              <span className="truncate flex-1 text-left">{item.label}</span>
+                              <span className="relative z-10 truncate flex-1 text-left">{item.label}</span>
                               {item.badge &&
-                        <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                        <span className="relative z-10 w-1.5 h-1.5 rounded-full bg-green-500" />
                         }
                               {item.count !== undefined && item.count > 0 &&
-                        <Badge variant="destructive" className="text-[8px] px-1 py-0 h-3.5 min-w-[14px]">
+                        <Badge variant="destructive" className="relative z-10 text-[8px] px-1 py-0 h-3.5 min-w-[14px]">
                           {item.count}
                         </Badge>
                         }
                             </>
                       }
                         </button>);
+
 
                 })}
                   </div>
