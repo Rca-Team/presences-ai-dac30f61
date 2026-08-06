@@ -20,7 +20,12 @@ import {
 
 interface CapturedFace {
   clientId: string;
+  /** Averaged descriptor from standard face-api crops — same domain as registration. */
   descriptor: number[];
+  /** Averaged descriptor from eye-aligned 112px crops — second opinion. */
+  altDescriptor?: number[];
+  /** A few individual raw samples, matched separately for hard angles. */
+  samples3?: number[][];
   imageDataUrl: string;
   capturedAt: string;
   quality: number;
@@ -108,7 +113,10 @@ interface Track {
   firstSeen: number;
   lastSeen: number;
   lastSample: number;
+  /** Descriptors from standard face-api crops (registration domain). */
   samples: Float32Array[];
+  /** Descriptors from eye-aligned crops (second opinion). */
+  alt: Float32Array[];
   bestQuality: number;
   bestImage: string;
 }
@@ -182,27 +190,44 @@ const LoopFaceScanMode: React.FC = () => {
     return c.toDataURL('image/jpeg', 0.85);
   }, []);
 
-  // ─── Local (client-side) fallback recognizer ───────────────────────────────
+  // ─── Local (client-side) recognizer — accuracy first, no time pressure ─────
+  // Each capture is compared with several candidate descriptors (averaged
+  // standard, averaged aligned, and individual samples) and the most confident
+  // verdict wins. This is what lifts the hit-rate on hard angles and removes
+  // the "Unrecognised for a registered user" failures.
   const processLocally = useCallback(async (items: CapturedFace[]) => {
     const results: any[] = [];
     let marked = 0, alreadyMarked = 0, unrecognized = 0, lowConf = 0;
 
     for (const item of items) {
       try {
-        const desc = new Float32Array(item.descriptor);
-        const rec = await recognizeFace(desc);
-        if (!rec.recognized || !rec.employee) {
+        const candidates: Float32Array[] = [new Float32Array(item.descriptor)];
+        for (const s of item.samples3 || []) candidates.push(new Float32Array(s));
+        if (item.altDescriptor) candidates.push(new Float32Array(item.altDescriptor));
+
+        let best: { employee: any; confidence: number } | null = null;
+        for (const cand of candidates) {
+          const rec = await recognizeFace(cand);
+          const c = rec.confidence ?? 0;
+          if (rec.recognized && rec.employee && c > (best?.confidence ?? 0)) {
+            best = { employee: rec.employee, confidence: c };
+          }
+          if (best && best.confidence >= 0.9) break; // already certain
+        }
+
+        if (!best) {
           unrecognized++;
           results.push({ clientId: item.clientId, recognized: false, reason: 'no_match' });
           continue;
         }
-        const conf = rec.confidence ?? 0;
+        const conf = best.confidence;
         if (conf < LOCAL_MIN_CONFIDENCE) {
           lowConf++;
           unrecognized++;
           results.push({ clientId: item.clientId, recognized: false, reason: 'low_confidence', confidence: conf });
           continue;
         }
+        const rec = { employee: best.employee };
         const outcome = await recordAttendance(
           rec.employee.id,
           'present',
@@ -215,6 +240,7 @@ const LoopFaceScanMode: React.FC = () => {
           if (outcome.reason === 'already_marked') {
             alreadyMarked++;
             results.push({ clientId: item.clientId, recognized: true, alreadyMarked: true, name: rec.employee.name, confidence: conf });
+
           } else {
             lowConf++;
             results.push({ clientId: item.clientId, recognized: false, reason: outcome.reason, confidence: conf });
@@ -264,25 +290,51 @@ const LoopFaceScanMode: React.FC = () => {
     setSubmitting(true);
     const wasRunning = runningRef.current;
     try {
-      const payload = items.map(q => ({
-        clientId: q.clientId,
-        descriptor: q.descriptor,
-        capturedAt: q.capturedAt,
-      }));
+      // 1) On-device pass first — highest accuracy, unlimited time budget.
+      const local = await processLocally(items);
+      const localResults: any[] = Array.isArray(local.results) ? local.results : [];
+      let data: any = local;
 
-      let data: any = null;
-      let usedLocal = false;
-      try {
-        const { data: srvData, error } = await supabase.functions.invoke('batch-face-attendance', { body: { items: payload } });
-        if (error) throw error;
-        if (!srvData?.summary) throw new Error('Malformed server response');
-        data = srvData;
+      // 2) Second opinion from the server for anything the device could not match.
+      const unresolvedIds = new Set(
+        localResults.filter(r => !r.recognized).map(r => r.clientId),
+      );
+      const leftovers = items.filter(i => unresolvedIds.has(i.clientId));
+
+      if (leftovers.length) {
+        try {
+          const payload = leftovers.map(q => ({
+            clientId: q.clientId,
+            descriptor: q.descriptor,
+            capturedAt: q.capturedAt,
+          }));
+          const { data: srvData, error } = await supabase.functions.invoke('batch-face-attendance', { body: { items: payload } });
+          if (error) throw error;
+          if (!srvData?.summary) throw new Error('Malformed server response');
+          setServerDown(false);
+
+          const srvResults: any[] = Array.isArray(srvData.results) ? srvData.results : [];
+          const byId = new Map(srvResults.map(r => [r.clientId, r]));
+          const merged = localResults.map(r => {
+            const srv = byId.get(r.clientId);
+            return srv && srv.recognized ? srv : r;
+          });
+          const summary = merged.reduce(
+            (acc, r) => {
+              if (r.recognized && r.alreadyMarked) acc.alreadyMarked++;
+              else if (r.recognized) acc.marked++;
+              else { acc.unrecognized++; if (r.reason === 'low_confidence') acc.lowConf++; }
+              return acc;
+            },
+            { total: merged.length, marked: 0, alreadyMarked: 0, unrecognized: 0, lowConf: 0 },
+          );
+          data = { ok: true, summary, results: merged, via: 'hybrid' as const };
+        } catch (edgeErr: any) {
+          console.warn('Server second-opinion unavailable:', edgeErr?.message || edgeErr);
+          setServerDown(true);
+        }
+      } else {
         setServerDown(false);
-      } catch (edgeErr: any) {
-        console.warn('Edge function unavailable, falling back to local recognition:', edgeErr?.message || edgeErr);
-        setServerDown(true);
-        data = await processLocally(items);
-        usedLocal = true;
       }
 
       setLastResult(data);
@@ -291,8 +343,8 @@ const LoopFaceScanMode: React.FC = () => {
       if (!opts.silent) {
         const s = data.summary || {};
         toast({
-          title: usedLocal ? 'Processed on-device' : 'Batch processed',
-          description: `${s.marked ?? 0} marked · ${s.alreadyMarked ?? 0} already · ${s.unrecognized ?? 0} unmatched${usedLocal ? ' (offline mode)' : ''}`,
+          title: 'Batch processed',
+          description: `${s.marked ?? 0} marked · ${s.alreadyMarked ?? 0} already · ${s.unrecognized ?? 0} unmatched`,
         });
       }
     } catch (e: any) {
@@ -327,7 +379,7 @@ const LoopFaceScanMode: React.FC = () => {
     };
   }, [queue.length, autoProcess, submitting, submit, scheduleAutoFlush]);
 
-  /** Finalise a tracked face: robust-average its aligned samples and queue it. */
+  /** Finalise a tracked face: robust-average its samples and queue it. */
   const commitTrack = useCallback((track: Track) => {
     if (track.samples.length < 2 || track.bestQuality < COMMIT_MIN_QUALITY) return;
 
@@ -344,6 +396,8 @@ const LoopFaceScanMode: React.FC = () => {
     const item: CapturedFace = {
       clientId: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       descriptor: Array.from(descriptor),
+      altDescriptor: track.alt.length ? Array.from(robustAverage(track.alt)) : undefined,
+      samples3: track.samples.slice(0, 3).map(s => Array.from(s)),
       imageDataUrl: track.bestImage,
       capturedAt: new Date().toISOString(),
       quality: track.bestQuality,
@@ -372,7 +426,8 @@ const LoopFaceScanMode: React.FC = () => {
             minConfidence: DETECT_MIN_CONFIDENCE,
             maxResults: MAX_FACES_PER_FRAME,
           }))
-          .withFaceLandmarks();
+          .withFaceLandmarks()
+          .withFaceDescriptors();
 
         const now = Date.now();
         const used = new Set<string>();
@@ -393,7 +448,7 @@ const LoopFaceScanMode: React.FC = () => {
             matched = {
               id: `t${++trackSeqRef.current}`,
               box, firstSeen: now, lastSeen: now, lastSample: 0,
-              samples: [], bestQuality: 0, bestImage: '',
+              samples: [], alt: [], bestQuality: 0, bestImage: '',
             };
             tracksRef.current.set(matched.id, matched);
           }
@@ -405,16 +460,21 @@ const LoopFaceScanMode: React.FC = () => {
           if (now - matched.lastSample < SAMPLE_INTERVAL_MS) continue;
           if (!isFaceFrontal(det.landmarks)) continue;
 
-          // Canonical alignment → quality gate → descriptor
+          // Quality gate on the aligned crop, descriptors from BOTH domains
           const aligned = alignFace(video, det.landmarks, 112);
           const report = scoreFaceQuality(aligned, { width: box.width, height: box.height });
           const quality = report.score * (0.6 + 0.4 * det.detection.score);
           if (quality < SAMPLE_MIN_QUALITY) continue;
 
-          const descriptor = await faceapi.computeFaceDescriptor(aligned) as Float32Array;
-          if (!descriptor || descriptor.length !== 128) continue;
+          // Standard descriptor = exactly how students were registered.
+          const std = det.descriptor as Float32Array;
+          if (!std || std.length !== 128) continue;
+          matched.samples.push(std);
+          try {
+            const altDesc = await faceapi.computeFaceDescriptor(aligned) as Float32Array;
+            if (altDesc && altDesc.length === 128) matched.alt.push(altDesc);
+          } catch { /* aligned descriptor is optional */ }
 
-          matched.samples.push(descriptor);
           matched.lastSample = Date.now();
           if (quality > matched.bestQuality) {
             matched.bestQuality = quality;
@@ -423,6 +483,7 @@ const LoopFaceScanMode: React.FC = () => {
         }
 
         // Finalise tracks that are ready or have left the frame
+
         const stamp = Date.now();
         for (const t of Array.from(tracksRef.current.values())) {
           const ready = t.samples.length >= MIN_SAMPLES && t.bestQuality >= COMMIT_MIN_QUALITY;
