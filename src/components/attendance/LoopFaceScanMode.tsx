@@ -190,27 +190,44 @@ const LoopFaceScanMode: React.FC = () => {
     return c.toDataURL('image/jpeg', 0.85);
   }, []);
 
-  // ─── Local (client-side) fallback recognizer ───────────────────────────────
+  // ─── Local (client-side) recognizer — accuracy first, no time pressure ─────
+  // Each capture is compared with several candidate descriptors (averaged
+  // standard, averaged aligned, and individual samples) and the most confident
+  // verdict wins. This is what lifts the hit-rate on hard angles and removes
+  // the "Unrecognised for a registered user" failures.
   const processLocally = useCallback(async (items: CapturedFace[]) => {
     const results: any[] = [];
     let marked = 0, alreadyMarked = 0, unrecognized = 0, lowConf = 0;
 
     for (const item of items) {
       try {
-        const desc = new Float32Array(item.descriptor);
-        const rec = await recognizeFace(desc);
-        if (!rec.recognized || !rec.employee) {
+        const candidates: Float32Array[] = [new Float32Array(item.descriptor)];
+        for (const s of item.samples3 || []) candidates.push(new Float32Array(s));
+        if (item.altDescriptor) candidates.push(new Float32Array(item.altDescriptor));
+
+        let best: { employee: any; confidence: number } | null = null;
+        for (const cand of candidates) {
+          const rec = await recognizeFace(cand);
+          const c = rec.confidence ?? 0;
+          if (rec.recognized && rec.employee && c > (best?.confidence ?? 0)) {
+            best = { employee: rec.employee, confidence: c };
+          }
+          if (best && best.confidence >= 0.9) break; // already certain
+        }
+
+        if (!best) {
           unrecognized++;
           results.push({ clientId: item.clientId, recognized: false, reason: 'no_match' });
           continue;
         }
-        const conf = rec.confidence ?? 0;
+        const conf = best.confidence;
         if (conf < LOCAL_MIN_CONFIDENCE) {
           lowConf++;
           unrecognized++;
           results.push({ clientId: item.clientId, recognized: false, reason: 'low_confidence', confidence: conf });
           continue;
         }
+        const rec = { employee: best.employee };
         const outcome = await recordAttendance(
           rec.employee.id,
           'present',
@@ -223,6 +240,7 @@ const LoopFaceScanMode: React.FC = () => {
           if (outcome.reason === 'already_marked') {
             alreadyMarked++;
             results.push({ clientId: item.clientId, recognized: true, alreadyMarked: true, name: rec.employee.name, confidence: conf });
+
           } else {
             lowConf++;
             results.push({ clientId: item.clientId, recognized: false, reason: outcome.reason, confidence: conf });
