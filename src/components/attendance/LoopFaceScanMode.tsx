@@ -382,7 +382,8 @@ const LoopFaceScanMode: React.FC = () => {
             minConfidence: DETECT_MIN_CONFIDENCE,
             maxResults: MAX_FACES_PER_FRAME,
           }))
-          .withFaceLandmarks();
+          .withFaceLandmarks()
+          .withFaceDescriptors();
 
         const now = Date.now();
         const used = new Set<string>();
@@ -403,7 +404,7 @@ const LoopFaceScanMode: React.FC = () => {
             matched = {
               id: `t${++trackSeqRef.current}`,
               box, firstSeen: now, lastSeen: now, lastSample: 0,
-              samples: [], bestQuality: 0, bestImage: '',
+              samples: [], alt: [], bestQuality: 0, bestImage: '',
             };
             tracksRef.current.set(matched.id, matched);
           }
@@ -415,16 +416,21 @@ const LoopFaceScanMode: React.FC = () => {
           if (now - matched.lastSample < SAMPLE_INTERVAL_MS) continue;
           if (!isFaceFrontal(det.landmarks)) continue;
 
-          // Canonical alignment → quality gate → descriptor
+          // Quality gate on the aligned crop, descriptors from BOTH domains
           const aligned = alignFace(video, det.landmarks, 112);
           const report = scoreFaceQuality(aligned, { width: box.width, height: box.height });
           const quality = report.score * (0.6 + 0.4 * det.detection.score);
           if (quality < SAMPLE_MIN_QUALITY) continue;
 
-          const descriptor = await faceapi.computeFaceDescriptor(aligned) as Float32Array;
-          if (!descriptor || descriptor.length !== 128) continue;
+          // Standard descriptor = exactly how students were registered.
+          const std = det.descriptor as Float32Array;
+          if (!std || std.length !== 128) continue;
+          matched.samples.push(std);
+          try {
+            const altDesc = await faceapi.computeFaceDescriptor(aligned) as Float32Array;
+            if (altDesc && altDesc.length === 128) matched.alt.push(altDesc);
+          } catch { /* aligned descriptor is optional */ }
 
-          matched.samples.push(descriptor);
           matched.lastSample = Date.now();
           if (quality > matched.bestQuality) {
             matched.bestQuality = quality;
@@ -433,6 +439,7 @@ const LoopFaceScanMode: React.FC = () => {
         }
 
         // Finalise tracks that are ready or have left the frame
+
         const stamp = Date.now();
         for (const t of Array.from(tracksRef.current.values())) {
           const ready = t.samples.length >= MIN_SAMPLES && t.bestQuality >= COMMIT_MIN_QUALITY;
