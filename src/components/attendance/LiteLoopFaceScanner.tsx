@@ -7,7 +7,7 @@ import { loadModels, areModelsLoaded } from '@/services/face-recognition/ModelSe
 import { recognizeFace, recordAttendance } from '@/services/face-recognition/RecognitionService';
 import { alignFace, isFaceFrontal } from '@/services/face-recognition/FaceAlignmentService';
 import { scoreFaceQuality } from '@/services/face-recognition/FaceQualityService';
-import { Play, Pause, Send, Trash2, Loader2, Users, Eye, SwitchCamera } from 'lucide-react';
+import { Play, Pause, Send, Trash2, Loader2, Users, Eye, SwitchCamera, Camera } from 'lucide-react';
 
 /**
  * LiteLoopFaceScanner
@@ -327,6 +327,62 @@ const LiteLoopFaceScanner: React.FC = () => {
     }
   }, [openStream]);
 
+  /** Manual instant capture — click while running to immediately record every face currently in frame. */
+  const manualCapture = useCallback(async () => {
+    const video = videoRef.current;
+    if (!video || video.readyState < 2 || !video.videoWidth) return;
+    if (!modelsReady) { setNote('Models still loading…'); return; }
+    setNote('Capturing now…');
+    try {
+      const dets = await faceapi
+        .detectAllFaces(video, new faceapi.SsdMobilenetv1Options({
+          minConfidence: DETECT_MIN_CONFIDENCE, maxResults: MAX_FACES_PER_FRAME,
+        }))
+        .withFaceLandmarks()
+        .withFaceDescriptors();
+      if (!dets.length) { setNote('No face detected — try again'); signal('fail'); return; }
+      const currentQueue = queueRef.current;
+      const currentCommitted = committedRef.current;
+      let added = 0;
+      for (const det of dets) {
+        const box = det.detection.box;
+        if (Math.min(box.width, box.height) < MIN_FACE_PX) continue;
+        if (!isFaceFrontal(det.landmarks)) continue;
+        const aligned = alignFace(video, det.landmarks, 112);
+        const report = scoreFaceQuality(aligned, { width: box.width, height: box.height });
+        const quality = report.score * (0.6 + 0.4 * det.detection.score);
+        if (quality < COMMIT_MIN_QUALITY) continue;
+        const std = det.descriptor as Float32Array;
+        if (!std || std.length !== 128) continue;
+        const dupQueue = currentQueue.some(q => euclid(std, q.descriptor) < SAME_FACE_DIST);
+        const dupSession = currentCommitted.some(d => euclid(std, d) < SAME_FACE_DIST);
+        if (dupQueue || dupSession) continue;
+        currentCommitted.push(std);
+        let alt: number[] | undefined;
+        try {
+          const altDesc = await faceapi.computeFaceDescriptor(aligned) as Float32Array;
+          if (altDesc && altDesc.length === 128) alt = Array.from(altDesc);
+        } catch { /* aligned descriptor is optional */ }
+        setQueue(prev => [{
+          clientId: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          descriptor: Array.from(std),
+          altDescriptor: alt,
+          samples3: [Array.from(std)],
+          capturedAt: new Date().toISOString(),
+          quality,
+          samples: 1,
+          blinked: false,
+        }, ...prev]);
+        added++;
+      }
+      setNote(added ? `${added} face(s) captured instantly` : 'No new face captured (duplicate or low quality)');
+      signal(added ? 'ok' : 'warn');
+    } catch (e: any) {
+      setNote(e?.message || 'Capture failed');
+      signal('fail');
+    }
+  }, [modelsReady, signal]);
+
   const stop = useCallback(() => {
     runningRef.current = false;
     setRunning(false);
@@ -538,6 +594,14 @@ const LiteLoopFaceScanner: React.FC = () => {
         ) : (
           <button onClick={stop} className="inline-flex items-center gap-1.5 rounded-lg border border-border px-4 py-2 text-sm">
             <Pause className="w-4 h-4" /> Pause
+          </button>
+        )}
+        {running && (
+          <button
+            onClick={() => void manualCapture()}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-primary text-primary-foreground px-4 py-2 text-sm font-medium"
+          >
+            <Camera className="w-4 h-4" /> Capture now
           </button>
         )}
         <button
