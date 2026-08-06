@@ -20,7 +20,12 @@ import {
 
 interface CapturedFace {
   clientId: string;
+  /** Averaged descriptor from standard face-api crops — same domain as registration. */
   descriptor: number[];
+  /** Averaged descriptor from eye-aligned 112px crops — second opinion. */
+  altDescriptor?: number[];
+  /** A few individual raw samples, matched separately for hard angles. */
+  samples3?: number[][];
   imageDataUrl: string;
   capturedAt: string;
   quality: number;
