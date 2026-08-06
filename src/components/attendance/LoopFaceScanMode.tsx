@@ -335,7 +335,7 @@ const LoopFaceScanMode: React.FC = () => {
     };
   }, [queue.length, autoProcess, submitting, submit, scheduleAutoFlush]);
 
-  /** Finalise a tracked face: robust-average its aligned samples and queue it. */
+  /** Finalise a tracked face: robust-average its samples and queue it. */
   const commitTrack = useCallback((track: Track) => {
     if (track.samples.length < 2 || track.bestQuality < COMMIT_MIN_QUALITY) return;
 
@@ -352,6 +352,8 @@ const LoopFaceScanMode: React.FC = () => {
     const item: CapturedFace = {
       clientId: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       descriptor: Array.from(descriptor),
+      altDescriptor: track.alt.length ? Array.from(robustAverage(track.alt)) : undefined,
+      samples3: track.samples.slice(0, 3).map(s => Array.from(s)),
       imageDataUrl: track.bestImage,
       capturedAt: new Date().toISOString(),
       quality: track.bestQuality,
