@@ -113,7 +113,10 @@ interface Track {
   firstSeen: number;
   lastSeen: number;
   lastSample: number;
+  /** Descriptors from standard face-api crops (registration domain). */
   samples: Float32Array[];
+  /** Descriptors from eye-aligned crops (second opinion). */
+  alt: Float32Array[];
   bestQuality: number;
   bestImage: string;
 }
