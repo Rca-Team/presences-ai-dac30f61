@@ -290,25 +290,51 @@ const LoopFaceScanMode: React.FC = () => {
     setSubmitting(true);
     const wasRunning = runningRef.current;
     try {
-      const payload = items.map(q => ({
-        clientId: q.clientId,
-        descriptor: q.descriptor,
-        capturedAt: q.capturedAt,
-      }));
+      // 1) On-device pass first — highest accuracy, unlimited time budget.
+      const local = await processLocally(items);
+      const localResults: any[] = Array.isArray(local.results) ? local.results : [];
+      let data: any = local;
 
-      let data: any = null;
-      let usedLocal = false;
-      try {
-        const { data: srvData, error } = await supabase.functions.invoke('batch-face-attendance', { body: { items: payload } });
-        if (error) throw error;
-        if (!srvData?.summary) throw new Error('Malformed server response');
-        data = srvData;
+      // 2) Second opinion from the server for anything the device could not match.
+      const unresolvedIds = new Set(
+        localResults.filter(r => !r.recognized).map(r => r.clientId),
+      );
+      const leftovers = items.filter(i => unresolvedIds.has(i.clientId));
+
+      if (leftovers.length) {
+        try {
+          const payload = leftovers.map(q => ({
+            clientId: q.clientId,
+            descriptor: q.descriptor,
+            capturedAt: q.capturedAt,
+          }));
+          const { data: srvData, error } = await supabase.functions.invoke('batch-face-attendance', { body: { items: payload } });
+          if (error) throw error;
+          if (!srvData?.summary) throw new Error('Malformed server response');
+          setServerDown(false);
+
+          const srvResults: any[] = Array.isArray(srvData.results) ? srvData.results : [];
+          const byId = new Map(srvResults.map(r => [r.clientId, r]));
+          const merged = localResults.map(r => {
+            const srv = byId.get(r.clientId);
+            return srv && srv.recognized ? srv : r;
+          });
+          const summary = merged.reduce(
+            (acc, r) => {
+              if (r.recognized && r.alreadyMarked) acc.alreadyMarked++;
+              else if (r.recognized) acc.marked++;
+              else { acc.unrecognized++; if (r.reason === 'low_confidence') acc.lowConf++; }
+              return acc;
+            },
+            { total: merged.length, marked: 0, alreadyMarked: 0, unrecognized: 0, lowConf: 0 },
+          );
+          data = { ok: true, summary, results: merged, via: 'hybrid' as const };
+        } catch (edgeErr: any) {
+          console.warn('Server second-opinion unavailable:', edgeErr?.message || edgeErr);
+          setServerDown(true);
+        }
+      } else {
         setServerDown(false);
-      } catch (edgeErr: any) {
-        console.warn('Edge function unavailable, falling back to local recognition:', edgeErr?.message || edgeErr);
-        setServerDown(true);
-        data = await processLocally(items);
-        usedLocal = true;
       }
 
       setLastResult(data);
@@ -317,8 +343,8 @@ const LoopFaceScanMode: React.FC = () => {
       if (!opts.silent) {
         const s = data.summary || {};
         toast({
-          title: usedLocal ? 'Processed on-device' : 'Batch processed',
-          description: `${s.marked ?? 0} marked · ${s.alreadyMarked ?? 0} already · ${s.unrecognized ?? 0} unmatched${usedLocal ? ' (offline mode)' : ''}`,
+          title: 'Batch processed',
+          description: `${s.marked ?? 0} marked · ${s.alreadyMarked ?? 0} already · ${s.unrecognized ?? 0} unmatched`,
         });
       }
     } catch (e: any) {
