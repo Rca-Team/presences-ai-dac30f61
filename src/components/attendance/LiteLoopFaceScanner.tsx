@@ -596,6 +596,14 @@ const LiteLoopFaceScanner: React.FC = () => {
             <Pause className="w-4 h-4" /> Pause
           </button>
         )}
+        {running && (
+          <button
+            onClick={() => void manualCapture()}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-primary text-primary-foreground px-4 py-2 text-sm font-medium"
+          >
+            <Camera className="w-4 h-4" /> Capture now
+          </button>
+        )}
         <button
           onClick={() => void processAll()}
           disabled={!queue.length || processing}
