@@ -45,6 +45,7 @@ import AppExperienceLayer from './components/AppExperienceLayer';
 import SplashAnimation from './components/SplashAnimation';
 import { areGateDetectionModelsLoaded, loadGateDetectionModels } from '@/services/face-recognition/ModelService';
 import NotificationPermissionGate from './components/NotificationPermissionGate';
+import LuminaScope from './components/LuminaScope';
 
 
 const queryClient = new QueryClient();
@@ -444,6 +445,7 @@ function App() {
                     <NotificationPermissionGate>
                       <MobileAppShell>
                         <SeoHead />
+                        <LuminaScope />
                         <AnimatedRoutes />
                       </MobileAppShell>
                       {mountNonCritical && (
