@@ -5,7 +5,23 @@ import { useLocation } from 'react-router-dom';
  * Applies the Lumina deep-space dark theme on the routes that were designed
  * for it (home + attendance). Keeps the rest of the app on its normal theme.
  */
-const LUMINA_PATHS = new Set<string>(['/', '/attendance', '/user']);
+const LUMINA_PATHS = new Set<string>([
+  '/',
+  '/attendance',
+  '/user',
+  '/admin',
+  '/gate',
+  '/gate-vision',
+  '/features',
+  '/parent',
+  '/teacher',
+  '/profile',
+  '/register',
+  '/contact',
+  '/portfolio',
+  '/login',
+  '/signup',
+]);
 
 export default function LuminaScope() {
   const { pathname } = useLocation();
