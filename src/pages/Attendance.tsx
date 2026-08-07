@@ -271,121 +271,75 @@ const Attendance = () => {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -6 }}
                 transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-                className="space-y-4 lg:grid lg:grid-cols-3 lg:gap-5 lg:space-y-0"
+                className="space-y-4"
               >
-                {/* Scanner */}
-                <div className="lg:col-span-2 space-y-4">
-                  <div className="bg-card/80 backdrop-blur-xl rounded-2xl sm:rounded-3xl border border-border/50 shadow-lg overflow-hidden">
-                    {/* Method Toggle */}
-                    <div className="p-3 sm:p-4 border-b border-border/50">
-                      <AttendanceMethodToggle method={attendanceMethod} onChange={setAttendanceMethod} />
-                    </div>
-
-                    {/* Scanner Header */}
-                    <div
-                      className="p-3 sm:p-4 flex items-center gap-3"
-                      style={{
-                        background:
-                          attendanceMethod === 'face'
-                            ? 'linear-gradient(135deg, hsl(var(--ios-blue)), hsl(var(--primary)))'
-                            : attendanceMethod === 'loop'
-                            ? 'linear-gradient(135deg, hsl(var(--ios-green)), hsl(var(--ios-blue)))'
-                            : 'linear-gradient(135deg, hsl(var(--ios-purple)), hsl(var(--ios-pink)))',
-                      }}
-                    >
-                      <div className="w-9 h-9 rounded-xl sm:rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center flex-shrink-0">
-                        {attendanceMethod === 'face' ? (
-                          <Scan className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-                        ) : attendanceMethod === 'loop' ? (
-                          <Scan className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-                        ) : (
-                          <QrCode className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-white text-sm sm:text-base">
-                          {attendanceMethod === 'face'
-                            ? 'AI Powered Scanner'
-                            : attendanceMethod === 'loop'
-                            ? 'Loop Mode Scanner'
-                            : 'QR Code Scanner'}
-                        </h3>
-                        <p className="text-xs text-white/70 truncate">
-                          {attendanceMethod === 'face'
-                            ? 'Position your face in frame'
-                            : attendanceMethod === 'loop'
-                            ? 'Capture many students, process on server'
-                            : 'Scan your ID card QR code'}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-1.5 flex-shrink-0">
-                        <span className="relative flex h-2 w-2">
-                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ background: 'hsl(var(--ios-green))' }} />
-                          <span className="relative inline-flex rounded-full h-2 w-2" style={{ background: 'hsl(var(--ios-green))' }} />
-                        </span>
-                        <span className="text-xs text-white/80">Live</span>
-                      </div>
-                    </div>
-
-                    {/* Scanner Body */}
-                    <div className="p-2 sm:p-5">
-                      <AnimatePresence mode="wait">
-                        {attendanceMethod === 'face' ? (
-                          <motion.div key="face" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.18, ease: 'easeOut' }}>
-                            <FuturisticFaceScanner />
-                          </motion.div>
-                        ) : attendanceMethod === 'loop' ? (
-                          <motion.div key="loop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.18, ease: 'easeOut' }}>
-                            <LoopFaceScanMode />
-                          </motion.div>
-                        ) : (
-                          <motion.div key="qr" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.18, ease: 'easeOut' }}>
-                            <QRCodeScanner autoStart={isQRKioskMode} hideManualControls={isQRKioskMode} />
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </div>
-
-                  </div>
-
-                  {/* Voice Commands */}
-                  <div className="hidden sm:block">
-                    <VoiceCommands
-                      onCommand={handleVoiceCommand}
-                      onStartScan={() => toast({ title: 'Starting Scan', description: 'Voice command activated face scanning' })}
-                      onStopScan={() => toast({ title: 'Scan Stopped', description: 'Voice command stopped the scanner' })}
-                      onConfirmAttendance={() => toast({ title: 'Attendance Confirmed', description: 'Voice command confirmed attendance' })}
-                    />
-                  </div>
+                {/* Method toggle */}
+                <div className="rounded-2xl sm:rounded-3xl border border-primary/10 bg-card/55 p-3 backdrop-blur-xl shadow-[0_24px_70px_-30px_hsl(230_50%_3%/0.8)]">
+                  <AttendanceMethodToggle method={attendanceMethod} onChange={setAttendanceMethod} />
                 </div>
 
-                {/* Live Feed Sidebar */}
-                <div>
-                  <motion.div
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.2 }}
-                    className="bg-card/80 backdrop-blur-xl rounded-2xl sm:rounded-3xl border border-border/50 shadow-lg overflow-hidden"
-                    style={{ height: isMobile ? '280px' : 'calc(100vh - 520px)', minHeight: '260px', maxHeight: '520px' }}
-                  >
-                    <div
-                      className="p-2.5 sm:p-3 flex items-center gap-2"
-                      style={{ background: 'linear-gradient(135deg, hsl(var(--ios-green)), hsl(var(--emerald)))' }}
+                <AnimatePresence mode="wait">
+                  {attendanceMethod === 'face' ? (
+                    <motion.div key="face" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}>
+                      <NeuralConsole
+                        title="Recognition"
+                        subtitle="Live neural inference"
+                        cameraLabel="CAM-01 · FACE STATION"
+                        statusText="Analyzing…"
+                        badge="REC · FACE ID"
+                      >
+                        <FuturisticFaceScanner />
+                      </NeuralConsole>
+                    </motion.div>
+                  ) : attendanceMethod === 'loop' ? (
+                    <motion.div key="loop" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}>
+                      <NeuralConsole
+                        title="Loop inference"
+                        subtitle="Batch capture · deferred matching"
+                        cameraLabel="CAM-02 · LOOP STATION"
+                        statusText="Capturing best shots"
+                        badge="REC · LOOP"
+                      >
+                        <LoopFaceScanMode />
+                      </NeuralConsole>
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="qr"
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -6 }}
+                      transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                      className="space-y-4 lg:grid lg:grid-cols-3 lg:gap-5 lg:space-y-0"
                     >
-                      <Activity className="w-4 h-4 text-white" />
-                      <span className="text-sm font-semibold text-white">Live Feed</span>
-                      <span className="relative flex h-2 w-2 ml-auto">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
-                        <span className="relative inline-flex rounded-full h-2 w-2 bg-white" />
-                      </span>
-                    </div>
-                    <div className="p-2.5 sm:p-3 h-[calc(100%-40px)] sm:h-[calc(100%-44px)] overflow-auto">
-                      <LiveAttendanceFeed />
-                    </div>
-                  </motion.div>
+                      <div className="lg:col-span-2 rounded-2xl sm:rounded-3xl border border-primary/10 bg-card/55 p-2 backdrop-blur-xl sm:p-4">
+                        <QRCodeScanner autoStart={isQRKioskMode} hideManualControls={isQRKioskMode} />
+                      </div>
+                      <div className="rounded-2xl sm:rounded-3xl border border-primary/10 bg-card/55 p-3 backdrop-blur-xl">
+                        <div className="mb-2 flex items-center gap-2">
+                          <Activity className="h-4 w-4 text-primary" />
+                          <span className="text-sm font-semibold text-foreground">Live feed</span>
+                        </div>
+                        <div className="max-h-[420px] overflow-auto">
+                          <LiveAttendanceFeed />
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {/* Voice Commands */}
+                <div className="hidden sm:block">
+                  <VoiceCommands
+                    onCommand={handleVoiceCommand}
+                    onStartScan={() => toast({ title: 'Starting Scan', description: 'Voice command activated face scanning' })}
+                    onStopScan={() => toast({ title: 'Scan Stopped', description: 'Voice command stopped the scanner' })}
+                    onConfirmAttendance={() => toast({ title: 'Attendance Confirmed', description: 'Voice command confirmed attendance' })}
+                  />
                 </div>
               </motion.div>
             )}
+
 
             {activeTab === 'stats' && (
               <motion.div key="stats" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} transition={{ duration: 0.3 }}
