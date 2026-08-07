@@ -262,14 +262,10 @@ const Index = () => {
                 <p className="mt-8 text-center text-xs font-bold tracking-widest text-primary">ALL SYSTEMS OPERATIONAL</p>
               </motion.div>
 
-              <motion.div
-                className="liquid-glass-surface rounded-3xl p-8"
-                {...cardTilt}
-              >
-                <Zap className="h-8 w-8 text-warning" />
-                <p className="mt-14 text-4xl font-black text-foreground" style={{ fontFamily: 'Sora, sans-serif' }}>2.4k</p>
-                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Daily Students</p>
+              <motion.div className="col-span-2" {...cardTilt}>
+                <NeuralOrbPanel />
               </motion.div>
+
 
               <motion.div
                 className="group relative overflow-hidden rounded-3xl p-0"
