@@ -14,14 +14,27 @@ export default function LuminaScope() {
     const root = document.documentElement;
     const active = LUMINA_PATHS.has(pathname);
 
+    const syncStoredTheme = () => {
+      let stored: string | null = null;
+      try {
+        stored = localStorage.getItem('ui-theme');
+      } catch {
+        stored = null;
+      }
+      root.classList.toggle('dark', stored === 'dark');
+    };
+
     if (active) {
       root.classList.add('lumina', 'dark');
     } else {
       root.classList.remove('lumina');
+      syncStoredTheme();
     }
 
     return () => {
-      if (active) root.classList.remove('lumina');
+      if (!active) return;
+      root.classList.remove('lumina');
+      syncStoredTheme();
     };
   }, [pathname]);
 
