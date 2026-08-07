@@ -1576,3 +1576,129 @@ html.lite-mode .neon-liquid-bg > * {
 html.lite-mode .route-mount { animation: none !important; }
 html.lite-mode [data-decorative="true"] { display: none !important; }
 
+
+/* =========================================================
+   LUMINA — deep-space dark theme (home + attendance).
+   Ported from "Presence AI: Lumina". Tuned for smoothness:
+   one fixed gradient + static grid instead of animated orbs.
+   ========================================================= */
+html.lumina {
+  color-scheme: dark;
+
+  --background: 230 32% 9%;
+  --foreground: 225 24% 96%;
+
+  --card: 230 28% 14%;
+  --card-foreground: 225 24% 96%;
+
+  --popover: 230 30% 12%;
+  --popover-foreground: 225 24% 96%;
+
+  --primary: 191 78% 56%;
+  --primary-foreground: 230 42% 10%;
+
+  --secondary: 232 24% 20%;
+  --secondary-foreground: 225 24% 96%;
+
+  --muted: 230 22% 17%;
+  --muted-foreground: 224 14% 70%;
+
+  --accent: 178 70% 46%;
+  --accent-foreground: 230 42% 10%;
+
+  --destructive: 8 78% 58%;
+  --destructive-foreground: 225 24% 97%;
+
+  --success: 155 68% 50%;
+  --success-foreground: 230 42% 10%;
+
+  --warning: 40 94% 60%;
+  --warning-foreground: 230 42% 10%;
+
+  --border: 205 26% 26%;
+  --input: 205 26% 28%;
+  --ring: 191 78% 56%;
+
+  --gradient-start: rgba(12, 16, 32, 0.94);
+  --gradient-end: rgba(14, 26, 40, 0.94);
+
+  --sidebar-background: 230 32% 10%;
+  --sidebar-foreground: 225 24% 96%;
+  --sidebar-primary: 191 78% 56%;
+  --sidebar-primary-foreground: 230 42% 10%;
+  --sidebar-accent: 232 24% 20%;
+  --sidebar-accent-foreground: 225 24% 96%;
+  --sidebar-border: 205 26% 26%;
+  --sidebar-ring: 191 78% 56%;
+
+  --neon-cyan: 191 82% 60%;
+  --neon-blue: 205 82% 62%;
+  --neon-purple: 258 72% 66%;
+  --neon-violet: 258 72% 66%;
+  --neon-pink: 318 70% 64%;
+  --neon-orange: 191 82% 60%;
+  --neon-amber: 178 72% 54%;
+
+  --cyan: 191 82% 60%;
+  --teal: 178 72% 54%;
+  --violet: 258 72% 66%;
+  --indigo: 232 74% 68%;
+  --emerald: 155 68% 52%;
+  --amber: 40 94% 62%;
+  --rose: 348 76% 64%;
+  --fuchsia: 300 70% 66%;
+}
+
+/* Single fixed backdrop — cheap, no repaint per scroll frame. */
+html.lumina body {
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 0%, hsl(205 70% 40% / 0.32), transparent 62%),
+    radial-gradient(ellipse 60% 50% at 92% 92%, hsl(184 70% 40% / 0.22), transparent 62%),
+    linear-gradient(180deg, hsl(232 34% 8%), hsl(228 32% 11%));
+  background-attachment: fixed;
+}
+
+/* Retire the four animated blur orbs on Lumina routes: biggest jank source. */
+html.lumina .neon-liquid-bg { display: none !important; }
+
+/* Flatten the loud multi-gradient shell into calm glass. */
+html.lumina .premium-glass-app { background: transparent; }
+html.lumina .premium-glass-app::before {
+  background-image:
+    linear-gradient(hsl(200 60% 80% / 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, hsl(200 60% 80% / 0.05) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: radial-gradient(ellipse at 50% 20%, #000 30%, transparent 78%);
+  mix-blend-mode: normal;
+}
+
+html.lumina .premium-glass-main {
+  background: linear-gradient(180deg, hsl(200 40% 92% / 0.07), hsl(200 40% 92% / 0.02));
+  border-color: hsl(200 60% 80% / 0.1);
+  backdrop-filter: blur(18px) saturate(135%);
+  -webkit-backdrop-filter: blur(18px) saturate(135%);
+  box-shadow:
+    0 20px 60px -20px hsl(230 40% 4% / 0.65),
+    inset 0 1px 0 hsl(0 0% 100% / 0.06);
+}
+html.lumina .premium-glass-main::before,
+html.lumina .premium-glass-main::after { display: none; }
+
+/* Lumina helpers */
+html.lumina .lumina-glass {
+  background: linear-gradient(180deg, hsl(200 40% 92% / 0.08), hsl(200 40% 92% / 0.02));
+  border: 1px solid hsl(0 0% 100% / 0.08);
+  box-shadow: 0 20px 60px -20px hsl(230 40% 4% / 0.6), inset 0 1px 0 hsl(0 0% 100% / 0.06);
+}
+html.lumina .lumina-neon-text {
+  background: linear-gradient(135deg, hsl(var(--neon-cyan)), hsl(var(--neon-amber)));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+html.lumina .lumina-glow {
+  box-shadow: 0 0 40px hsl(var(--primary) / 0.4), 0 0 120px hsl(var(--neon-amber) / 0.2);
+}
+
+/* Cap runaway blurs so scrolling stays at 60fps on mid-range hardware. */
+html.lumina [class*="blur-["] { filter: blur(56px) !important; }
