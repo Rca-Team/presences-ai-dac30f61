@@ -7,9 +7,9 @@ import { Fingerprint, Activity, ShieldCheck } from 'lucide-react';
  * status chips (Presences AI "Lumina" design language, dark mode).
  */
 const chips = [
-  { icon: Fingerprint, title: 'Identity verified', sub: 'Live face match · 99.2%', pos: 'left-2 top-3 sm:left-4' },
-  { icon: Activity, title: 'Live attendance', sub: 'Realtime present · late', pos: 'right-1 top-1/3 sm:right-2' },
-  { icon: ShieldCheck, title: 'No anomalies', sub: 'Security · nominal', pos: 'left-3 bottom-4 sm:left-6' },
+  { icon: Fingerprint, title: 'Identity verified', sub: 'Live face match · 99.2%', pos: 'left-0 top-2' },
+  { icon: Activity, title: 'Live attendance', sub: 'Realtime present · late', pos: 'right-0 top-1/2 -translate-y-1/2' },
+  { icon: ShieldCheck, title: 'No anomalies', sub: 'Security · nominal', pos: 'left-0 bottom-2' },
 ];
 
 const NeuralOrbPanel: React.FC = () => (
@@ -18,7 +18,8 @@ const NeuralOrbPanel: React.FC = () => (
       Neural core
     </p>
 
-    <div className="relative mx-auto mt-4 flex h-52 w-52 items-center justify-center sm:h-60 sm:w-60">
+    <div className="relative mt-4">
+    <div className="relative mx-auto flex h-52 w-52 items-center justify-center sm:h-60 sm:w-60">
       {/* concentric rings */}
       {[1, 1.16, 1.32].map((s, i) => (
         <motion.span
@@ -62,6 +63,7 @@ const NeuralOrbPanel: React.FC = () => (
         </span>
       </motion.div>
     ))}
+    </div>
 
     <div className="mt-4 grid grid-cols-3 gap-2">
       {[

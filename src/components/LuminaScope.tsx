@@ -19,6 +19,8 @@ const LUMINA_PATHS = new Set<string>([
   '/register',
   '/contact',
   '/portfolio',
+  '/login',
+  '/signup',
 ]);
 
 export default function LuminaScope() {
