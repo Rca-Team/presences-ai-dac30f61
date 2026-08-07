@@ -1659,7 +1659,8 @@ html.lumina body {
 }
 
 /* Retire the four animated blur orbs on Lumina routes: biggest jank source. */
-html.lumina .neon-liquid-bg { display: none !important; }
+html.lumina .neon-liquid-bg.fixed { display: none !important; }
+html.lumina .neon-liquid-bg:not(.fixed) { background: none !important; }
 
 /* Flatten the loud multi-gradient shell into calm glass. */
 html.lumina .premium-glass-app { background: transparent; }
