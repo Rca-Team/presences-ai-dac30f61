@@ -16,6 +16,7 @@ import { motion } from 'framer-motion';
 import PageLayout from '@/components/layouts/PageLayout';
 import PageTransition from '@/components/PageTransition';
 import HomeInstallCard from '@/components/HomeInstallCard';
+import NeuralOrbPanel from '@/components/home/NeuralOrbPanel';
 import {
   ArrowRight,
   Scan,
