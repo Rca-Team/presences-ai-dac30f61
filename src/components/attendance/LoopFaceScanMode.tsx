@@ -64,7 +64,7 @@ const SAME_FACE_DIST = 0.42;
 
 const AUTO_BATCH_SIZE = 5;
 const AUTO_FLUSH_MS = 4000;
-const LOCAL_MIN_CONFIDENCE = 0.65;
+const LOCAL_MIN_CONFIDENCE = 0.56;
 
 const euclid = (a: Float32Array | number[], b: Float32Array | number[]) => {
   let s = 0;
