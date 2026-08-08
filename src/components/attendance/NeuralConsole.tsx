@@ -30,6 +30,7 @@ const confOf = (r: LiveRecord) => {
 
 function useLiveRecognition() {
   const [records, setRecords] = useState<LiveRecord[]>([]);
+  const [todayCount, setTodayCount] = useState(0);
 
   useEffect(() => {
     let alive = true;
@@ -37,14 +38,23 @@ function useLiveRecognition() {
     start.setHours(0, 0, 0, 0);
 
     (async () => {
-      const { data } = await supabase
-        .from('attendance_records')
-        .select('id,user_id,timestamp,status,confidence,image_url,device_info')
-        .gte('timestamp', start.toISOString())
-        .in('status', ['present', 'late', 'absent'])
-        .order('timestamp', { ascending: false })
-        .limit(12);
-      if (alive && data) setRecords(data as LiveRecord[]);
+      const [{ data }, { count }] = await Promise.all([
+        supabase
+          .from('attendance_records')
+          .select('id,user_id,timestamp,status,confidence,image_url,device_info')
+          .gte('timestamp', start.toISOString())
+          .in('status', ['present', 'late', 'absent'])
+          .order('timestamp', { ascending: false })
+          .limit(12),
+        supabase
+          .from('attendance_records')
+          .select('id', { count: 'exact', head: true })
+          .gte('timestamp', start.toISOString())
+          .in('status', ['present', 'late']),
+      ]);
+      if (!alive) return;
+      if (data) setRecords(data as LiveRecord[]);
+      setTodayCount(count ?? 0);
     })();
 
     const channel = supabase
@@ -56,6 +66,7 @@ function useLiveRecognition() {
           const rec = payload.new as LiveRecord;
           if (rec.status && ['present', 'late', 'absent'].includes(rec.status)) {
             setRecords((prev) => [rec, ...prev].slice(0, 12));
+            if (rec.status !== 'absent') setTodayCount((c) => c + 1);
           }
         },
       )
@@ -74,13 +85,9 @@ function useLiveRecognition() {
     return Math.round(vals.reduce((a, b) => a + b, 0) / vals.length);
   }, [records]);
 
-  const latestScans = useMemo(
-    () => (latest?.user_id ? records.filter((r) => r.user_id === latest.user_id).length : 0),
-    [records, latest],
-  );
-
-  return { records, latest, avgConf, latestScans };
+  return { records, latest, avgConf, todayCount };
 }
+
 
 const ConfidenceRing: React.FC<{ value: number; active: boolean }> = ({ value, active }) => {
   const R = 74;
