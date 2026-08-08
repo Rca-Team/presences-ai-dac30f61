@@ -9,6 +9,8 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { loadModels, areModelsLoaded } from '@/services/face-recognition/ModelService';
 import { recognizeFace, recordAttendance } from '@/services/face-recognition/RecognitionService';
+import { recognizeBestOf } from '@/services/face-recognition/RobustMatchService';
+import { scanTelemetry } from '@/services/face-recognition/ScanTelemetry';
 import { alignFace, isFaceFrontal } from '@/services/face-recognition/FaceAlignmentService';
 import { scoreFaceQuality } from '@/services/face-recognition/FaceQualityService';
 import * as faceapi from 'face-api.js';
