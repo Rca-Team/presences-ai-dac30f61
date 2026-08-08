@@ -13,6 +13,9 @@ import {
   recognizeFace,
   recordAttendance
 } from '@/services/face-recognition/RecognitionService';
+import { recognizeFaceRobust } from '@/services/face-recognition/RobustMatchService';
+import { scanTelemetry } from '@/services/face-recognition/ScanTelemetry';
+
 import { saveEmotionEvent } from '@/services/ai/EmotionAnalysisService';
 import { sendAutoParentNotification } from '@/services/notification/AutoNotificationService';
 import { getCutoffTime, isPastCutoffTime, getAttendanceCutoffTime } from '@/services/attendance/AttendanceSettingsService';
