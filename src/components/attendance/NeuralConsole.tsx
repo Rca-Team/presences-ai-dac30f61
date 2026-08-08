@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { CheckCircle2, XCircle, ScanFace, Sparkles, User, Loader2 } from 'lucide-react';
+import LiveAttendanceFeed from './LiveAttendanceFeed';
 import { useScanTelemetry } from '@/services/face-recognition/ScanTelemetry';
 
 /**
@@ -321,44 +322,8 @@ const NeuralConsole: React.FC<NeuralConsoleProps> = ({
           </div>
         </Panel>
 
-        <Panel className="p-4">
-          <div className="mb-2 flex items-center justify-between">
-            <p className="text-sm font-semibold text-foreground">Recent</p>
-            <Sparkles className="h-3.5 w-3.5 text-primary/70" />
-          </div>
-          <div className="max-h-64 space-y-2 overflow-auto pr-1">
-            {records.length === 0 && (
-              <p className="py-6 text-center text-[11px] text-muted-foreground">No scans yet today</p>
-            )}
-            <AnimatePresence initial={false}>
-              {records.slice(0, 8).map((r) => {
-                const c = confOf(r);
-                const ok = r.status !== 'absent' && c >= 50;
-                return (
-                  <motion.div
-                    key={r.id}
-                    layout
-                    initial={{ opacity: 0, x: 10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.22 }}
-                    className="flex items-center gap-2 rounded-2xl border border-primary/10 bg-background/40 px-3 py-2"
-                  >
-                    <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/15">
-                      <User className="h-3.5 w-3.5 text-primary" />
-                    </div>
-                    <span className="min-w-0 flex-1 truncate text-xs text-foreground">{nameOf(r)}</span>
-                    <span className="text-[11px] tabular-nums text-muted-foreground">{c ? `${c}%` : '—'}</span>
-                    {ok ? (
-                      <CheckCircle2 className="h-3.5 w-3.5 text-success" />
-                    ) : (
-                      <XCircle className="h-3.5 w-3.5 text-destructive" />
-                    )}
-                  </motion.div>
-                );
-              })}
-            </AnimatePresence>
-          </div>
+        <Panel className="p-4 max-h-[380px] overflow-hidden">
+          <LiveAttendanceFeed />
         </Panel>
       </div>
     </div>

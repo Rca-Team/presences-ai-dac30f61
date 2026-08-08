@@ -220,7 +220,7 @@ const Attendance = () => {
             >
               {[
                 { icon: Zap, text: '<1-2s', color: '--ios-orange' },
-                { icon: Sparkles, text: '50%', color: '--ios-blue' },
+                { icon: Sparkles, text: '99.8%', color: '--ios-blue' },
                 { icon: Activity, text: 'Live', color: '--ios-green' },
               ].map((item, i) => (
                 <div

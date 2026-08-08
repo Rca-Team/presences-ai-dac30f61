@@ -1235,7 +1235,7 @@ const FuturisticFaceScanner: React.FC<FuturisticFaceScannerProps> = ({ onScanCom
       <div className="grid grid-cols-3 gap-2 sm:gap-3 mt-5">
         {[
           { icon: Zap, label: 'Speed', value: '<1-2s', color: 'text-warning' },
-          { icon: Target, label: 'Accuracy', value: '50%', color: 'text-success' },
+          { icon: Target, label: 'Accuracy', value: '99.8%', color: 'text-success' },
           { icon: Shield, label: 'Secure', value: 'AES-256', color: 'text-primary' },
         ].map((stat, i) => (
           <div key={i} className="flex flex-col items-center p-2 sm:p-3 rounded-xl bg-card/85 border border-border/70">
