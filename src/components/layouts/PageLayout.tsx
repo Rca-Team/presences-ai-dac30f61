@@ -7,6 +7,7 @@ import MobileSidebar from '../MobileSidebar';
 import ContactBanner from '../ContactBanner';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useTheme } from '@/hooks/use-theme';
 
 interface PageLayoutProps {
   children: ReactNode;
@@ -24,6 +25,7 @@ const PageLayout: React.FC<PageLayoutProps> = ({
   const [isPageVisible, setIsPageVisible] = useState(false);
   const prefersReducedMotion = useReducedMotion();
   const isMobile = useIsMobile();
+  const { theme } = useTheme();
   
   useEffect(() => {
     // When component mounts, delay slightly before showing to ensure animation runs
@@ -37,7 +39,9 @@ const PageLayout: React.FC<PageLayoutProps> = ({
     <div className="min-h-screen flex flex-col overflow-x-hidden">
       {!isMobile && <Navbar />}
       
-      {/* Animated background orbs */}
+      {/* Animated background orbs — light mode only (dark/Lumina hides them in CSS,
+          so skipping the animations entirely saves constant compositing work) */}
+      {theme !== 'dark' && (
       <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none neon-liquid-bg">
         <motion.div 
           initial={false}
@@ -78,6 +82,7 @@ const PageLayout: React.FC<PageLayoutProps> = ({
           className="absolute bottom-1/3 left-1/3 w-36 md:w-72 h-36 md:h-72 rounded-full bg-[hsl(var(--neon-amber)/0.16)] blur-[80px]"
         />
       </div>
+      )}
       
       <motion.main 
         initial={prefersReducedMotion ? false : { opacity: 0, y: 30 }}

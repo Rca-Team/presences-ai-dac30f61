@@ -1,9 +1,12 @@
 import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
+import { useTheme } from '@/hooks/use-theme';
 
 /**
- * Applies the Lumina deep-space dark theme on the routes that were designed
- * for it (home + attendance). Keeps the rest of the app on its normal theme.
+ * Lumina is the DARK-mode design language (deep-space navy + cyan).
+ * Light mode keeps the original theme untouched, so both UIs coexist:
+ *   light  -> previous design
+ *   dark   -> new Lumina design
  */
 const LUMINA_PATHS = new Set<string>([
   '/',
@@ -23,36 +26,24 @@ const LUMINA_PATHS = new Set<string>([
   '/signup',
 ]);
 
+export function isLuminaPath(pathname: string) {
+  return LUMINA_PATHS.has(pathname);
+}
+
 export default function LuminaScope() {
   const { pathname } = useLocation();
+  const { theme } = useTheme();
 
   useEffect(() => {
     const root = document.documentElement;
-    const active = LUMINA_PATHS.has(pathname);
+    const active = theme === 'dark' && LUMINA_PATHS.has(pathname);
 
-    const syncStoredTheme = () => {
-      let stored: string | null = null;
-      try {
-        stored = localStorage.getItem('ui-theme');
-      } catch {
-        stored = null;
-      }
-      root.classList.toggle('dark', stored === 'dark');
-    };
-
-    if (active) {
-      root.classList.add('lumina', 'dark');
-    } else {
-      root.classList.remove('lumina');
-      syncStoredTheme();
-    }
+    root.classList.toggle('lumina', active);
 
     return () => {
-      if (!active) return;
       root.classList.remove('lumina');
-      syncStoredTheme();
     };
-  }, [pathname]);
+  }, [pathname, theme]);
 
   return null;
 }
