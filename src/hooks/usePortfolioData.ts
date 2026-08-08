@@ -172,8 +172,9 @@ export function usePortfolioData() {
 
   useEffect(() => {
     void fetchOnce();
+    const channelName = `portfolio-live-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const channel = supabase
-      .channel('portfolio-live')
+      .channel(channelName)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'attendance_settings', filter: `key=eq.${PORTFOLIO_KEY}` },
