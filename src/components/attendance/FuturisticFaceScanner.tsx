@@ -350,12 +350,17 @@ const FuturisticFaceScanner: React.FC<FuturisticFaceScannerProps> = ({ onScanCom
     }
 
     try {
+      // SSD MobileNet is far more reliable than TinyFaceDetector at classroom
+      // distance / angles — this alone removes many "unknown" outcomes.
       const detections = await faceapi
-        .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.45 }))
+        .detectAllFaces(video, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.45, maxResults: 12 }))
         .withFaceLandmarks()
         .withFaceDescriptors();
 
+      scanTelemetry.faces(detections.length);
+
       const nextStableMap = new Map<string, number>();
+
 
       for (const detection of detections) {
         const box = detection.detection.box;
