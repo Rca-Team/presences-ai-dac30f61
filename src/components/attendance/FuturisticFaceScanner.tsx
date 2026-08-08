@@ -716,6 +716,7 @@ const FuturisticFaceScanner: React.FC<FuturisticFaceScannerProps> = ({ onScanCom
               rememberSessionEmbedding(descriptor, result.employee.id);
             }
           } else {
+            scanTelemetry.unknown(result.confidence ?? 0);
             results.push({
               id: `unknown-${Math.random().toString(36).substr(2, 9)}`,
               name: 'Unknown',
@@ -724,6 +725,7 @@ const FuturisticFaceScanner: React.FC<FuturisticFaceScannerProps> = ({ onScanCom
               box: { x: box.x, y: box.y, width: box.width, height: box.height }
             });
           }
+
         } catch (recognitionErr) {
           console.error('Recognition error for face:', recognitionErr);
           results.push({
