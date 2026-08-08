@@ -238,21 +238,29 @@ const NeuralConsole: React.FC<NeuralConsoleProps> = ({
             </div>
             <ScanFace className="h-4 w-4 text-primary/70" />
           </div>
-          <ConfidenceRing value={confidence} active={!latest} />
+          <ConfidenceRing value={confidence} active={live.phase === 'analyzing' || live.phase === 'searching'} />
           <div className="mt-3 flex items-center justify-center gap-2 rounded-2xl border border-primary/10 bg-background/40 px-3 py-2.5">
-            {latest ? (
+            {live.phase === 'matched' || (live.phase === 'idle' && latest) ? (
               <>
                 <CheckCircle2 className="h-3.5 w-3.5 text-success" />
-                <span className="text-[11px] text-muted-foreground">Last inference locked</span>
+                <span className="text-[11px] text-muted-foreground">
+                  {live.phase === 'matched' ? liveStatus : 'Last inference locked'}
+                </span>
+              </>
+            ) : live.phase === 'unknown' ? (
+              <>
+                <XCircle className="h-3.5 w-3.5 text-destructive" />
+                <span className="text-[11px] text-muted-foreground">No identity match — hold still</span>
               </>
             ) : (
               <>
                 <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
-                <span className="text-[11px] text-muted-foreground">Analyzing biometric signature…</span>
+                <span className="text-[11px] text-muted-foreground">{liveStatus}</span>
               </>
             )}
           </div>
         </Panel>
+
 
         <Panel className="p-4">
           <p className="mb-3 inline-flex items-center gap-1.5 font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
