@@ -2,6 +2,8 @@ import React, { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { usePerformanceMode } from '@/hooks/usePerformanceMode';
 import LiteHome from '@/components/lite/LiteHome';
+import DarkModeHome3D from '@/components/home/DarkModeHome3D';
+import { useTheme } from '@/hooks/use-theme';
 import gauravPhoto from '@/assets/gaurav-photo.png';
 import swamiAnantVyasPhoto from '@/assets/swami-anant-vyas.png.asset.json';
 import teamRcaPhoto from '@/assets/team-rca.jpg.asset.json';
@@ -17,8 +19,6 @@ import PageLayout from '@/components/layouts/PageLayout';
 import PageTransition from '@/components/PageTransition';
 import HomeInstallCard from '@/components/HomeInstallCard';
 import NeuralOrbPanel from '@/components/home/NeuralOrbPanel';
-import { useTheme } from '@/hooks/use-theme';
-import Dark3DHome from '@/components/home/Dark3DHome';
 import {
   ArrowRight,
   Scan,
@@ -61,14 +61,6 @@ const cardTilt = {
 const Index = () => {
   const { liteMode } = usePerformanceMode();
   const { theme } = useTheme();
-
-  if (theme === 'dark' && !liteMode) {
-    return <Dark3DHome />;
-  }
-
-  if (liteMode) {
-    return <LiteHome />;
-  }
   const [activeProfile, setActiveProfile] = useState<null | {
     name: string;
     role: string;
@@ -188,6 +180,7 @@ const Index = () => {
 
 
   if (liteMode) return <LiteHome />;
+  if (theme === 'dark') return <DarkModeHome3D />;
 
   return (
     <PageTransition>

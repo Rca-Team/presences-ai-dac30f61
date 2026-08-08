@@ -1,5 +1,4 @@
 import { Suspense, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { AnimatePresence } from "framer-motion";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -17,7 +16,7 @@ const Attendance = lazyWithRetry(() => import("./pages/Attendance"), "attendance
 const Login = lazyWithRetry(() => import("./pages/Login"), "login");
 const Signup = lazyWithRetry(() => import("./pages/Signup"), "signup");
 const NotFound = lazyWithRetry(() => import("./pages/NotFound"), "not-found");
-const Admin = lazyWithRetry(() => import("./pages/Admin"), "admin");
+import Admin from "./pages/Admin";
 const Contact = lazyWithRetry(() => import('./pages/Contact'), 'contact');
 const NotificationDemo = lazyWithRetry(() => import('./pages/NotificationDemo'), 'notification-demo');
 const Profile = lazyWithRetry(() => import('./pages/Profile'), 'profile');
@@ -221,23 +220,8 @@ const keepAliveElements: Record<string, JSX.Element> = {
   ),
 };
 
-const ROUTE_INDEXES: Record<string, number> = {
-  '/': 0,
-  '/parent': 1,
-  '/profile': 2,
-  '/register': 3,
-  '/attendance': 4,
-  '/user': 4,
-  '/gate': 5,
-  '/gate/vision': 5,
-  '/admin': 6,
-  '/teacher': 6,
-  '/features': 7,
-  '/contact': 8,
-  '/portfolio': 9,
-};
-
-// This component wraps our routes with a keep-alive cache and directional slide animations
+// This component wraps our routes with a keep-alive cache so pages remain
+// mounted (and preserve scroll) when the user navigates between them.
 function AnimatedRoutes() {
   const location = useLocation();
   const path = location.pathname;
@@ -246,15 +230,13 @@ function AnimatedRoutes() {
   const [visited, setVisited] = useState<string[]>(() => (isKeepAlive ? [path] : []));
   const scrollPositions = useRef<Record<string, number>>({});
   const prevPathRef = useRef<string>(path);
-  const directionRef = useRef<number>(1);
 
+  // Save the outgoing path's scroll position BEFORE the DOM swaps, then
+  // restore the incoming path's saved scroll position synchronously so the
+  // user never sees a flash of scroll-to-top or a reload-style jump.
   useLayoutEffect(() => {
     const previous = prevPathRef.current;
     if (previous !== path) {
-      const prevIdx = ROUTE_INDEXES[previous] ?? 0;
-      const currIdx = ROUTE_INDEXES[path] ?? 0;
-      directionRef.current = currIdx >= prevIdx ? 1 : -1;
-
       if (KEEP_ALIVE_PATHS.has(previous)) {
         scrollPositions.current[previous] = window.scrollY;
       }
@@ -267,6 +249,8 @@ function AnimatedRoutes() {
 
     if (isKeepAlive) {
       const saved = scrollPositions.current[path] ?? 0;
+      // Two rAFs: first waits for the hidden -> visible swap to paint, second
+      // guarantees layout is settled before we restore the scroll offset.
       requestAnimationFrame(() => {
         requestAnimationFrame(() => window.scrollTo(0, saved));
       });
@@ -275,76 +259,67 @@ function AnimatedRoutes() {
 
   return (
     <Suspense fallback={<RouteFallback />}>
-      <AnimatePresence mode="popLayout" initial={false} custom={directionRef.current}>
-        {visited.map((cachedPath) => {
-          const active = cachedPath === path;
-          if (!active) return null;
-          return (
-            <motion.div
-              key={cachedPath}
-              custom={directionRef.current}
-              initial={{ opacity: 0, x: directionRef.current * 40, filter: 'blur(4px)' }}
-              animate={{ opacity: 1, x: 0, filter: 'blur(0px)' }}
-              exit={{ opacity: 0, x: directionRef.current * -40, filter: 'blur(4px)' }}
-              transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-              className="route-mount"
-            >
-              {keepAliveElements[cachedPath]}
-            </motion.div>
-          );
-        })}
-
-        {!isKeepAlive && (
-          <motion.div
-            key={path}
-            custom={directionRef.current}
-            initial={{ opacity: 0, x: directionRef.current * 40, filter: 'blur(4px)' }}
-            animate={{ opacity: 1, x: 0, filter: 'blur(0px)' }}
-            exit={{ opacity: 0, x: directionRef.current * -40, filter: 'blur(4px)' }}
-            transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-            className="route-mount"
+      {/* Keep-alive cache: every visited cacheable route stays mounted;
+          only the active one is visible. */}
+      {visited.map((cachedPath) => {
+        const active = cachedPath === path;
+        return (
+          <div
+            key={cachedPath}
+            hidden={!active}
+            aria-hidden={!active}
+            style={active ? undefined : { display: 'none' }}
+            className={active ? 'route-mount' : undefined}
           >
-            <Routes location={location}>
-              <Route path="/login" element={<Login />} />
-              <Route path="/signup" element={<Signup />} />
-              <Route path="/register" element={<Register />} />
-              <Route path="/attendance" element={
-                <ProtectedRoute requireRoles={["admin", "principal", "teacher", "user"]}>
-                  <Attendance />
-                </ProtectedRoute>
-              } />
-              <Route path="/user" element={
-                <ProtectedRoute requireRoles={["admin", "principal", "teacher", "user"]}>
-                  <Attendance />
-                </ProtectedRoute>
-              } />
-              <Route path="/gate" element={
-                <ProtectedRoute requireRoles={["admin", "principal", "teacher"]}>
-                  <GateMode />
-                </ProtectedRoute>
-              } />
-              <Route path="/gate/vision" element={
-                <ProtectedRoute requireRoles={["admin", "principal", "teacher"]}>
-                  <GateVisionMode />
-                </ProtectedRoute>
-              } />
-              <Route path="/unsubscribe" element={<Unsubscribe />} />
-              <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
-              <Route path="/data" element={
-                <ProtectedRoute requireRoles={["admin"]}>
-                  <DataBackup />
-                </ProtectedRoute>
-              } />
-              <Route path="/__admin/face-model-validator" element={
-                <ProtectedRoute requireRoles={["admin"]}>
-                  <FaceModelValidator />
-                </ProtectedRoute>
-              } />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            {keepAliveElements[cachedPath]}
+          </div>
+        );
+      })}
+
+      {/* Fall-through routes render only when the current path is not a
+          keep-alive path, so cached siblings above never render twice. */}
+      {!isKeepAlive && (
+        <div key={path} className="route-mount">
+          <Routes location={location}>
+            <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Signup />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/attendance" element={
+              <ProtectedRoute requireRoles={["admin", "principal", "teacher", "user"]}>
+                <Attendance />
+              </ProtectedRoute>
+            } />
+            <Route path="/user" element={
+              <ProtectedRoute requireRoles={["admin", "principal", "teacher", "user"]}>
+                <Attendance />
+              </ProtectedRoute>
+            } />
+            <Route path="/gate" element={
+              <ProtectedRoute requireRoles={["admin", "principal", "teacher"]}>
+                <GateMode />
+              </ProtectedRoute>
+            } />
+            <Route path="/gate/vision" element={
+              <ProtectedRoute requireRoles={["admin", "principal", "teacher"]}>
+                <GateVisionMode />
+              </ProtectedRoute>
+            } />
+            <Route path="/unsubscribe" element={<Unsubscribe />} />
+            <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
+            <Route path="/data" element={
+              <ProtectedRoute requireRoles={["admin"]}>
+                <DataBackup />
+              </ProtectedRoute>
+            } />
+            <Route path="/__admin/face-model-validator" element={
+              <ProtectedRoute requireRoles={["admin"]}>
+                <FaceModelValidator />
+              </ProtectedRoute>
+            } />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </div>
+      )}
     </Suspense>
   );
 }
@@ -417,8 +392,10 @@ function App() {
   useEffect(() => {
     if (!mountNonCritical) return;
 
-    const runIdlePrefetch = () => {
+    const prefetchTimer = window.setTimeout(() => {
+      // Warm the most common route chunks so first tab click is instant.
       warmCommonRoutes(['/attendance', '/register', '/profile', '/admin', '/gate']);
+
       void import('./components/gate/GateModeScanner').catch(() => undefined);
       void import('./components/attendance/FuturisticFaceScanner').catch(() => undefined);
 
@@ -427,15 +404,7 @@ function App() {
           console.warn('Gate model preload failed, will retry on Gate Mode open', err);
         });
       }
-    };
-
-    const prefetchTimer = window.setTimeout(() => {
-      if ('requestIdleCallback' in window) {
-        (window as any).requestIdleCallback(runIdlePrefetch, { timeout: 3000 });
-      } else {
-        runIdlePrefetch();
-      }
-    }, 2200);
+    }, 500);
 
     return () => window.clearTimeout(prefetchTimer);
   }, [mountNonCritical]);
@@ -469,27 +438,26 @@ function App() {
             <HelmetProvider>
               <div className="premium-glass-app">
                 <BrowserRouter>
-                  <NotificationPermissionGate>
-                    <MobileAppShell>
-                      <SeoHead />
-                      <LuminaScope />
-                      <AnimatedRoutes />
-                    </MobileAppShell>
-                    {mountNonCritical && (
-                      <>
-                        <AppExperienceLayer />
-                        <PWAInstallPrompt />
-                      </>
-                    )}
-                    <EmergencyAlertListener />
-                    <RealtimeNotificationListener />
-                  </NotificationPermissionGate>
+                  {showSplash ? (
+                    <SplashAnimation onComplete={handleSplashComplete} duration={1100} />
+                  ) : (
 
-                  <AnimatePresence>
-                    {showSplash && (
-                      <SplashAnimation onComplete={handleSplashComplete} duration={2600} />
-                    )}
-                  </AnimatePresence>
+                    <NotificationPermissionGate>
+                      <MobileAppShell>
+                        <SeoHead />
+                        <LuminaScope />
+                        <AnimatedRoutes />
+                      </MobileAppShell>
+                      {mountNonCritical && (
+                        <>
+                          <AppExperienceLayer />
+                          <PWAInstallPrompt />
+                        </>
+                      )}
+                      <EmergencyAlertListener />
+                      <RealtimeNotificationListener />
+                    </NotificationPermissionGate>
+                  )}
                 </BrowserRouter>
               </div>
             </HelmetProvider>

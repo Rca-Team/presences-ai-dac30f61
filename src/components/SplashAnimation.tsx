@@ -1,6 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShieldCheck, Scan, Sparkles, Activity, CheckCircle2, Cpu, Zap, Radio } from 'lucide-react';
 import Logo from '@/components/Logo';
 
 interface SplashAnimationProps {
@@ -8,304 +7,181 @@ interface SplashAnimationProps {
   duration?: number;
 }
 
-/**
- * Interactive 3D Canvas Particle Sphere for Splash Animation (Optimized)
- */
-const Splash3DCanvas: React.FC = () => {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d', { alpha: true });
-    if (!ctx) return;
-
-    let animId: number;
-    let w = (canvas.width = window.innerWidth);
-    let h = (canvas.height = window.innerHeight);
-
-    const isMobile = window.innerWidth < 768;
-    const count = isMobile ? 30 : 50;
-    const radius = Math.min(w, h) * 0.28;
-    const particles: { x: number; y: number; z: number }[] = [];
-
-    for (let i = 0; i < count; i++) {
-      const theta = Math.acos(2 * Math.random() - 1);
-      const phi = Math.random() * Math.PI * 2;
-      particles.push({
-        x: radius * Math.sin(theta) * Math.cos(phi),
-        y: radius * Math.sin(theta) * Math.sin(phi),
-        z: radius * Math.cos(theta),
-      });
-    }
-
-    let rotY = 0;
-    let rotX = 0;
-
-    const handleResize = () => {
-      if (!canvas) return;
-      w = canvas.width = window.innerWidth;
-      h = canvas.height = window.innerHeight;
-    };
-    window.addEventListener('resize', handleResize, { passive: true });
-
-    const render = () => {
-      if (document.hidden) return;
-
-      ctx.clearRect(0, 0, w, h);
-      rotY += 0.006;
-      rotX += 0.002;
-
-      const cosY = Math.cos(rotY);
-      const sinY = Math.sin(rotY);
-      const cosX = Math.cos(rotX);
-      const sinX = Math.sin(rotX);
-
-      const points: { px: number; py: number; alpha: number }[] = [];
-
-      for (let i = 0; i < count; i++) {
-        const p = particles[i];
-        let x1 = p.x * cosY - p.z * sinY;
-        let z1 = p.x * sinY + p.z * cosY;
-        let y1 = p.y * cosX - z1 * sinX;
-        let z2 = p.y * sinX + z1 * cosX;
-
-        const fov = 350;
-        const scale = fov / (fov + z2 + 250);
-        const px = w / 2 + x1 * scale;
-        const py = h / 2 + y1 * scale;
-        const alpha = Math.max(0.15, Math.min(0.9, (z2 + radius) / (radius * 2)));
-
-        points.push({ px, py, alpha });
-
-        ctx.beginPath();
-        ctx.arc(px, py, 2 * scale, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(0, 240, 255, ${alpha * 0.85})`;
-        ctx.fill();
-      }
-
-      ctx.lineWidth = 0.75;
-      for (let i = 0; i < count; i++) {
-        const p1 = points[i];
-        for (let j = i + 1; j < count; j++) {
-          const p2 = points[j];
-          const dx = p1.px - p2.px;
-          const dy = p1.py - p2.py;
-          const distSq = dx * dx + dy * dy;
-
-          if (distSq < 2500) { // 50px cutoff squared
-            const dist = Math.sqrt(distSq);
-            const lineAlpha = (1 - dist / 50) * 0.25 * Math.min(p1.alpha, p2.alpha);
-            ctx.beginPath();
-            ctx.moveTo(p1.px, p1.py);
-            ctx.lineTo(p2.px, p2.py);
-            ctx.strokeStyle = `rgba(168, 85, 247, ${lineAlpha})`;
-            ctx.stroke();
-          }
-        }
-      }
-
-      animId = requestAnimationFrame(render);
-    };
-
-    render();
-
-    return () => {
-      cancelAnimationFrame(animId);
-      window.removeEventListener('resize', handleResize);
-    };
-  }, []);
-
-  return <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none z-0" />;
-};
-
 const SplashAnimation: React.FC<SplashAnimationProps> = ({
   onComplete,
-  duration = 2600,
+  duration = 2200,
 }) => {
   const [progress, setProgress] = useState(0);
-  const [stepIndex, setStepIndex] = useState(0);
-
-  const steps = [
-    { label: 'Initializing 3D Spatial Neural Matrix', icon: Cpu, badge: 'SPATIAL v4.8' },
-    { label: 'Loading Facial Recognition Descriptors', icon: Scan, badge: 'FACIAL ID' },
-    { label: 'Calibrating 3D Vision Neural Net', icon: Activity, badge: 'NEURAL 3D' },
-    { label: 'Verifying Security & Edge Gateways', icon: ShieldCheck, badge: 'SECURE' },
-    { label: 'System 3D Online — Welcome to Presence', icon: CheckCircle2, badge: 'ONLINE' },
-  ];
+  const [isExiting, setIsExiting] = useState(false);
 
   useEffect(() => {
-    const stepInterval = duration / 100;
-    const progressTimer = setInterval(() => {
-      setProgress((prev) => {
-        if (prev >= 100) {
-          clearInterval(progressTimer);
-          return 100;
-        }
-        const next = prev + 2;
-        if (next < 25) setStepIndex(0);
-        else if (next < 50) setStepIndex(1);
-        else if (next < 75) setStepIndex(2);
-        else if (next < 92) setStepIndex(3);
-        else setStepIndex(4);
-        return next;
+    const progressInterval = setInterval(() => {
+      setProgress(prev => {
+        if (prev >= 100) { clearInterval(progressInterval); return 100; }
+        return prev + 2.5;
       });
-    }, stepInterval);
+    }, duration / 50);
 
-    const exitTimer = setTimeout(() => {
-      if (onComplete) onComplete();
+    const timer = setTimeout(() => {
+      setIsExiting(true);
+      setTimeout(() => { if (onComplete) onComplete(); }, 440);
     }, duration);
 
     return () => {
-      clearTimeout(exitTimer);
-      clearInterval(progressTimer);
+      clearTimeout(timer);
+      clearInterval(progressInterval);
     };
   }, [duration, onComplete]);
 
-  const currentStep = steps[stepIndex];
+  const loadingText =
+    progress < 30 ? 'Initializing presence core' :
+    progress < 60 ? 'Syncing intelligent modules' :
+    progress < 90 ? 'Preparing secure environment' :
+    'Launch ready';
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0, scale: 1.06, filter: 'blur(12px)' }}
-      transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-      className="fixed inset-0 z-[100] flex items-center justify-center overflow-hidden bg-[#030712] select-none font-sans text-cyan-400"
-    >
-      {/* Interactive 3D WebGL Particle Canvas Background */}
-      <Splash3DCanvas />
-
-      {/* Radial 3D Glow Backlight */}
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
-        <motion.div
-          animate={{
-            scale: [0.85, 1.2, 0.9],
-            opacity: [0.25, 0.45, 0.25],
-          }}
-          transition={{ duration: 3.5, repeat: Infinity, ease: 'easeInOut' }}
-          className="w-[550px] h-[550px] rounded-full bg-[radial-gradient(circle,rgba(0,240,255,0.22)_0%,rgba(168,85,247,0.14)_45%,transparent_70%)] blur-3xl"
-        />
-      </div>
-
-      {/* Holographic HUD Grid */}
-      <div
-        className="absolute inset-0 opacity-15 pointer-events-none"
-        style={{
-          backgroundImage: `
-            linear-gradient(to right, rgba(0, 240, 255, 0.15) 1px, transparent 1px),
-            linear-gradient(to bottom, rgba(0, 240, 255, 0.15) 1px, transparent 1px)
-          `,
-          backgroundSize: '44px 44px',
-        }}
-      />
-
-      {/* Main 3D HUD Interface Container */}
-      <div className="relative z-10 flex flex-col items-center max-w-md w-full px-6 text-center">
-
-        {/* 3D Arc Reactor Camera Iris Viewport */}
-        <div className="relative flex items-center justify-center w-52 h-52 sm:w-60 sm:h-60 mb-8">
-          
-          {/* Outer 3D Segmented HUD Ring */}
-          <motion.div
-            animate={{ rotate: 360 }}
-            transition={{ duration: 16, repeat: Infinity, ease: 'linear' }}
-            className="absolute inset-0 rounded-full border-2 border-dashed border-cyan-500/40 shadow-[0_0_30px_rgba(0,240,255,0.2)]"
-          />
-
-          {/* Middle 3D Rotating Vision Ring */}
-          <motion.div
-            animate={{ rotate: -360 }}
-            transition={{ duration: 10, repeat: Infinity, ease: 'linear' }}
-            className="absolute inset-4 rounded-full border border-purple-500/50 shadow-[0_0_20px_rgba(168,85,247,0.3)]"
-          />
-
-          {/* Vertical Laser Scanning Beam */}
-          <motion.div
-            animate={{ y: ['-80px', '80px', '-80px'] }}
-            transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
-            className="absolute inset-x-4 h-0.5 rounded-full z-20"
-            style={{
-              background: 'linear-gradient(90deg, transparent 0%, #00f0ff 30%, #a855f7 70%, transparent 100%)',
-              boxShadow: '0 0 20px #00f0ff, 0 0 10px #a855f7',
-            }}
-          />
-
-          {/* Target Corner Reticles */}
-          <div className="absolute -top-1 -left-1 w-6 h-6 border-t-2 border-l-2 border-cyan-300 shadow-[0_0_10px_#00f0ff]" />
-          <div className="absolute -top-1 -right-1 w-6 h-6 border-t-2 border-r-2 border-cyan-300 shadow-[0_0_10px_#00f0ff]" />
-          <div className="absolute -bottom-1 -left-1 w-6 h-6 border-b-2 border-l-2 border-cyan-300 shadow-[0_0_10px_#00f0ff]" />
-          <div className="absolute -bottom-1 -right-1 w-6 h-6 border-b-2 border-r-2 border-cyan-300 shadow-[0_0_10px_#00f0ff]" />
-
-          {/* Center 3D Glass Capsule with Logo */}
-          <motion.div
-            animate={{
-              scale: [0.96, 1.05, 0.96],
-              boxShadow: [
-                '0 0 35px rgba(0,240,255,0.4), inset 0 0 20px rgba(0,240,255,0.6)',
-                '0 0 65px rgba(0,240,255,0.7), inset 0 0 35px rgba(0,240,255,0.9)',
-                '0 0 35px rgba(0,240,255,0.4), inset 0 0 20px rgba(0,240,255,0.6)',
-              ],
-            }}
-            transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
-            className="relative w-36 h-36 sm:w-40 sm:h-40 rounded-3xl border-2 border-cyan-300/80 bg-[#030712]/85 backdrop-blur-2xl flex items-center justify-center p-4 z-10"
-          >
-            <Logo size="lg" className="[&>div>span:last-child]:text-cyan-200 [&>div>span:last-child]:font-bold [&>div>span:last-child]:tracking-widest drop-shadow-[0_0_15px_#00f0ff]" />
-          </motion.div>
-        </div>
-
-        {/* 3D Spatial Brand Header */}
-        <motion.div
-          initial={{ y: 16, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.15, duration: 0.5 }}
-          className="space-y-2"
-        >
-          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full border border-cyan-500/40 bg-cyan-950/40 text-[11px] font-mono tracking-widest text-cyan-300 shadow-[0_0_15px_rgba(0,240,255,0.2)]">
-            <currentStep.icon className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />
-            <span className="uppercase">{currentStep.badge}</span>
-          </div>
-
-          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-cyan-200 via-white to-purple-300 drop-shadow-[0_0_20px_rgba(0,240,255,0.5)]">
-            PRESENCES AI
-          </h1>
-
-          <p className="text-xs sm:text-sm text-cyan-400/80 font-mono tracking-widest uppercase">
-            3D SPATIAL BIOMETRIC ATTENDANCE OS
-          </p>
-        </motion.div>
-
-        {/* 3D Progress Tube */}
+    <AnimatePresence>
+      {!isExiting && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 0.3 }}
-          className="w-full mt-8 space-y-3"
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.45 }}
+          className="fixed inset-0 z-50 overflow-hidden"
         >
-          <div className="relative h-2 overflow-hidden rounded-full border border-cyan-500/50 bg-black/60 shadow-[0_0_15px_rgba(0,240,255,0.25)]">
-            <motion.div
-              className="h-full rounded-full bg-gradient-to-r from-cyan-500 via-purple-400 to-white shadow-[0_0_20px_#00f0ff]"
-              style={{ width: `${progress}%` }}
-            />
-            <motion.div
-              animate={{ x: ['-100%', '200%'] }}
-              transition={{ duration: 1.2, repeat: Infinity, ease: 'linear' }}
-              className="absolute inset-y-0 w-24 bg-gradient-to-r from-transparent via-white/40 to-transparent"
-            />
-          </div>
+          <div
+            className="absolute inset-0"
+            style={{
+              background:
+                'radial-gradient(120% 95% at 82% -10%, hsl(var(--neon-blue) / 0.22) 0%, transparent 62%), radial-gradient(110% 90% at -8% 110%, hsl(var(--neon-pink) / 0.24) 0%, transparent 58%), linear-gradient(142deg, hsl(var(--background)) 0%, hsl(var(--secondary) / 0.96) 48%, hsl(var(--accent) / 0.76) 100%)',
+            }}
+          />
 
-          <div className="flex items-center justify-between text-xs text-cyan-300/90 font-mono tracking-wider px-1">
-            <span className="truncate max-w-[260px] text-left">
-              {currentStep.label}
-            </span>
-            <span className="font-bold text-cyan-300 flex items-center gap-1">
-              <Zap className="w-3 h-3 text-cyan-400" />
-              {Math.round(progress)}%
-            </span>
+          <div
+            className="absolute inset-0 opacity-[0.32]"
+            style={{
+              backgroundImage:
+                'repeating-linear-gradient(118deg, hsl(var(--foreground) / 0.03) 0 14px, transparent 14px 26px), repeating-linear-gradient(24deg, hsl(var(--neon-blue) / 0.06) 0 18px, transparent 18px 32px)',
+            }}
+          />
+
+          <motion.div
+            initial={{ x: '-130%' }}
+            animate={{ x: '140%' }}
+            transition={{ duration: 1.15, ease: [0.23, 1, 0.32, 1] }}
+            className="absolute inset-y-0 w-[38%]"
+            style={{
+              transform: 'skewX(-28deg)',
+              background:
+                'linear-gradient(95deg, transparent 0%, hsl(var(--neon-cyan) / 0.24) 34%, hsl(var(--neon-pink) / 0.28) 64%, hsl(var(--neon-blue) / 0.24) 100%)',
+              filter: 'blur(8px)',
+            }}
+          />
+
+          {[...Array(10)].map((_, i) => (
+            <motion.div
+              key={i}
+              className="absolute rounded-full"
+              style={{
+                width: i % 3 === 0 ? 6 : 4,
+                height: i % 3 === 0 ? 6 : 4,
+                background: i % 2 === 0 ? 'hsl(var(--neon-cyan) / 0.52)' : 'hsl(var(--neon-blue) / 0.48)',
+                boxShadow: i % 2 === 0 ? '0 0 16px hsl(var(--neon-cyan) / 0.42)' : '0 0 16px hsl(var(--neon-blue) / 0.4)',
+              }}
+              initial={{
+                x: Math.random() * (typeof window !== 'undefined' ? window.innerWidth : 400),
+                y: Math.random() * (typeof window !== 'undefined' ? window.innerHeight : 800),
+              }}
+              animate={{
+                y: [null, Math.random() * -180 - 80],
+                opacity: [0, 0.75, 0],
+              }}
+              transition={{
+                duration: 2.5 + Math.random() * 2,
+                repeat: Infinity,
+                delay: Math.random() * 2,
+                ease: 'easeOut',
+              }}
+            />
+          ))}
+
+          <div className="relative h-full w-full grid grid-cols-1 md:grid-cols-[1.1fr_0.9fr]">
+            <motion.div
+              initial={{ x: -28, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+              className="flex flex-col items-start justify-center px-8 sm:px-12 md:px-16 pt-20 md:pt-8"
+            >
+              <div className="px-3 py-1 rounded-full border border-border/70 bg-card/70 text-[10px] tracking-[0.24em] uppercase text-muted-foreground mb-5">
+                Presence OS
+              </div>
+              <h1 className="font-bold text-4xl sm:text-5xl md:text-6xl leading-[0.95] tracking-tight text-foreground max-w-xl">
+                Presence
+                <span className="block text-[0.44em] font-normal tracking-[0.26em] uppercase text-muted-foreground mt-2">
+                  Smart School Automation
+                </span>
+              </h1>
+              <p className="mt-4 text-sm sm:text-base text-muted-foreground max-w-md">
+                {loadingText}
+              </p>
+
+              <div className="mt-8 w-full max-w-sm">
+                <div className="relative h-1.5 overflow-hidden rounded-full border border-white/15 bg-black/35">
+                  <motion.div
+                    className="absolute inset-y-0 left-0 rounded-full"
+                    style={{
+                      width: `${progress}%`,
+                      background: 'linear-gradient(90deg, hsl(var(--neon-cyan)) 0%, hsl(var(--neon-blue)) 58%, hsl(var(--neon-pink)) 100%)',
+                    }}
+                  />
+                  <motion.div
+                    animate={{ x: ['-100%', '180%'] }}
+                    transition={{ duration: 1.05, repeat: Infinity, ease: 'linear' }}
+                    className="absolute inset-y-0 w-[36%]"
+                    style={{
+                      background: 'linear-gradient(90deg, transparent 0%, hsl(var(--foreground) / 0.22) 50%, transparent 100%)',
+                    }}
+                  />
+                </div>
+                <div className="mt-2.5 flex items-center justify-between text-xs text-muted-foreground">
+                  <span>{Math.round(progress)}%</span>
+                  <span className="tracking-[0.2em] uppercase">Booting</span>
+                </div>
+              </div>
+            </motion.div>
+
+            <motion.div
+              initial={{ x: 32, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              transition={{ duration: 0.68, ease: [0.22, 1, 0.36, 1], delay: 0.06 }}
+              className="relative flex items-center justify-center px-8 pb-10 md:pb-0"
+            >
+              <div className="relative w-full max-w-[320px] aspect-square rounded-[28px] border border-border/70 bg-card/80 backdrop-blur-2xl overflow-hidden shadow-[0_28px_80px_-24px_hsl(var(--neon-pink)/0.35)]">
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 10, repeat: Infinity, ease: 'linear' }}
+                  className="absolute inset-3 rounded-[22px] border border-border/70"
+                  style={{ borderStyle: 'dashed' }}
+                />
+                <motion.div
+                  animate={{ scale: [1, 1.06, 1], opacity: [0.28, 0.54, 0.28] }}
+                  transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
+                  className="absolute inset-8 rounded-2xl"
+                  style={{
+                    background: 'radial-gradient(circle, hsl(var(--neon-cyan) / 0.24) 0%, hsl(var(--neon-blue) / 0.2) 45%, hsl(var(--neon-pink) / 0.18) 100%)',
+                  }}
+                />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="rounded-2xl border border-border/70 bg-card/85 px-5 py-4 backdrop-blur-xl">
+                    <Logo size="md" className="[&>div>span:last-child]:text-foreground [&>div>span:last-child]:tracking-wide" />
+                  </div>
+                </div>
+              </div>
+            </motion.div>
           </div>
         </motion.div>
-
-      </div>
-    </motion.div>
+      )}
+    </AnimatePresence>
   );
 };
 
