@@ -107,7 +107,7 @@ const AMBIGUITY_RATIO = 0.82;
 /**
  * Auto-mark without manual confirmation only when confidence is this high.
  */
-const AUTO_MARK_CONFIDENCE = 0.80;
+const AUTO_MARK_CONFIDENCE = 0.62;
 
 // ─── caches ───────────────────────────────────────────────────────────────────
 

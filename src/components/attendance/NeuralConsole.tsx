@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { CheckCircle2, XCircle, ScanFace, Sparkles, User, Loader2 } from 'lucide-react';
+import { useScanTelemetry } from '@/services/face-recognition/ScanTelemetry';
 
 /**
  * NeuralConsole — cinematic dark scan console (Presences AI "Lumina" language).
@@ -30,6 +31,7 @@ const confOf = (r: LiveRecord) => {
 
 function useLiveRecognition() {
   const [records, setRecords] = useState<LiveRecord[]>([]);
+  const [todayCount, setTodayCount] = useState(0);
 
   useEffect(() => {
     let alive = true;
@@ -37,14 +39,23 @@ function useLiveRecognition() {
     start.setHours(0, 0, 0, 0);
 
     (async () => {
-      const { data } = await supabase
-        .from('attendance_records')
-        .select('id,user_id,timestamp,status,confidence,image_url,device_info')
-        .gte('timestamp', start.toISOString())
-        .in('status', ['present', 'late', 'absent'])
-        .order('timestamp', { ascending: false })
-        .limit(12);
-      if (alive && data) setRecords(data as LiveRecord[]);
+      const [{ data }, { count }] = await Promise.all([
+        supabase
+          .from('attendance_records')
+          .select('id,user_id,timestamp,status,confidence,image_url,device_info')
+          .gte('timestamp', start.toISOString())
+          .in('status', ['present', 'late', 'absent'])
+          .order('timestamp', { ascending: false })
+          .limit(12),
+        supabase
+          .from('attendance_records')
+          .select('id', { count: 'exact', head: true })
+          .gte('timestamp', start.toISOString())
+          .in('status', ['present', 'late']),
+      ]);
+      if (!alive) return;
+      if (data) setRecords(data as LiveRecord[]);
+      setTodayCount(count ?? 0);
     })();
 
     const channel = supabase
@@ -56,6 +67,7 @@ function useLiveRecognition() {
           const rec = payload.new as LiveRecord;
           if (rec.status && ['present', 'late', 'absent'].includes(rec.status)) {
             setRecords((prev) => [rec, ...prev].slice(0, 12));
+            if (rec.status !== 'absent') setTodayCount((c) => c + 1);
           }
         },
       )
@@ -74,13 +86,9 @@ function useLiveRecognition() {
     return Math.round(vals.reduce((a, b) => a + b, 0) / vals.length);
   }, [records]);
 
-  const latestScans = useMemo(
-    () => (latest?.user_id ? records.filter((r) => r.user_id === latest.user_id).length : 0),
-    [records, latest],
-  );
-
-  return { records, latest, avgConf, latestScans };
+  return { records, latest, avgConf, todayCount };
 }
+
 
 const ConfidenceRing: React.FC<{ value: number; active: boolean }> = ({ value, active }) => {
   const R = 74;
@@ -152,8 +160,18 @@ const NeuralConsole: React.FC<NeuralConsoleProps> = ({
   children,
   footer,
 }) => {
-  const { records, latest, avgConf, latestScans } = useLiveRecognition();
-  const confidence = latest ? confOf(latest) : 0;
+  const { records, latest, avgConf, todayCount } = useLiveRecognition();
+  const live = useScanTelemetry();
+  const confidence = live.confidence || (latest ? confOf(latest) : 0);
+  const liveStatus = live.phase === 'idle' ? statusText : live.statusText;
+  const subjectName = live.subjectName ?? (latest ? nameOf(latest) : undefined);
+  const subjectMeta =
+    live.subjectMeta ??
+    (latest
+      ? `${latest.device_info?.metadata?.class ?? 'Student'} · ${new Date(latest.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+      : undefined);
+  const subjectImage = live.subjectImage ?? (latest?.image_url ?? undefined);
+
 
   return (
     <div className="grid gap-4 lg:grid-cols-[1.65fr_1fr]">
@@ -196,7 +214,11 @@ const NeuralConsole: React.FC<NeuralConsoleProps> = ({
           <div className="inline-flex items-center gap-2 rounded-xl border border-primary/15 bg-background/40 px-3 py-1.5">
             <ScanFace className="h-3.5 w-3.5 text-primary" />
             <span className="text-[11px] text-muted-foreground">
-              Status: <span className="font-semibold text-primary">{statusText}</span>
+              Status: <span className="font-semibold text-primary">{liveStatus}</span>
+              {live.facesInFrame > 0 && (
+                <span className="ml-2 text-primary/80">· {live.facesInFrame} in frame</span>
+              )}
+
             </span>
           </div>
           <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
@@ -216,21 +238,29 @@ const NeuralConsole: React.FC<NeuralConsoleProps> = ({
             </div>
             <ScanFace className="h-4 w-4 text-primary/70" />
           </div>
-          <ConfidenceRing value={confidence} active={!latest} />
+          <ConfidenceRing value={confidence} active={live.phase === 'analyzing' || live.phase === 'searching'} />
           <div className="mt-3 flex items-center justify-center gap-2 rounded-2xl border border-primary/10 bg-background/40 px-3 py-2.5">
-            {latest ? (
+            {live.phase === 'matched' || (live.phase === 'idle' && latest) ? (
               <>
                 <CheckCircle2 className="h-3.5 w-3.5 text-success" />
-                <span className="text-[11px] text-muted-foreground">Last inference locked</span>
+                <span className="text-[11px] text-muted-foreground">
+                  {live.phase === 'matched' ? liveStatus : 'Last inference locked'}
+                </span>
+              </>
+            ) : live.phase === 'unknown' ? (
+              <>
+                <XCircle className="h-3.5 w-3.5 text-destructive" />
+                <span className="text-[11px] text-muted-foreground">No identity match — hold still</span>
               </>
             ) : (
               <>
                 <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
-                <span className="text-[11px] text-muted-foreground">Analyzing biometric signature…</span>
+                <span className="text-[11px] text-muted-foreground">{liveStatus}</span>
               </>
             )}
           </div>
         </Panel>
+
 
         <Panel className="p-4">
           <p className="mb-3 inline-flex items-center gap-1.5 font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
@@ -238,7 +268,7 @@ const NeuralConsole: React.FC<NeuralConsoleProps> = ({
           </p>
           <AnimatePresence mode="wait">
             <motion.div
-              key={latest?.id ?? 'idle'}
+              key={subjectName ?? 'idle'}
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -6 }}
@@ -246,8 +276,8 @@ const NeuralConsole: React.FC<NeuralConsoleProps> = ({
             >
               <div className="flex items-center gap-3">
                 <div className="h-12 w-12 overflow-hidden rounded-full border border-primary/25 bg-primary/15">
-                  {latest?.image_url?.startsWith('http') || latest?.image_url?.startsWith('data:') ? (
-                    <img src={latest.image_url} alt="" className="h-full w-full object-cover" />
+                  {subjectImage?.startsWith('http') || subjectImage?.startsWith('data:') ? (
+                    <img src={subjectImage} alt="" className="h-full w-full object-cover" />
                   ) : (
                     <div className="flex h-full w-full items-center justify-center">
                       <User className="h-5 w-5 text-primary" />
@@ -256,31 +286,29 @@ const NeuralConsole: React.FC<NeuralConsoleProps> = ({
                 </div>
                 <div className="min-w-0">
                   <p className="truncate text-sm font-semibold text-foreground">
-                    {latest ? nameOf(latest) : 'Awaiting subject'}
+                    {subjectName ?? (live.phase === 'unknown' ? 'Unrecognised face' : 'Awaiting subject')}
                   </p>
                   <p className="truncate text-[11px] text-muted-foreground">
-                    {latest
-                      ? `${latest.device_info?.metadata?.class ?? 'Student'} · ${new Date(
-                          latest.timestamp,
-                        ).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
-                      : 'No identity in frame'}
+                    {subjectMeta ?? (live.facesInFrame > 0 ? 'Face in frame — matching' : 'No identity in frame')}
                   </p>
-                  {latest && (
+                  {subjectName && (
                     <p className="mt-0.5 inline-flex items-center gap-1 text-[11px] text-success">
                       <CheckCircle2 className="h-3 w-3" />
-                      {latest.status === 'late' ? 'Marked late' : 'Cleared for entry'}
+                      {live.phase === 'matched' ? 'Identity locked' : latest?.status === 'late' ? 'Marked late' : 'Cleared for entry'}
                     </p>
                   )}
                 </div>
               </div>
+
             </motion.div>
           </AnimatePresence>
 
           <div className="mt-3 grid grid-cols-3 gap-2">
             {[
-              { v: latestScans ? `${latestScans}` : '—', l: 'Scans today' },
+              { v: todayCount ? `${todayCount}` : '—', l: 'Scans today' },
               { v: avgConf ? `${avgConf}%` : '—', l: 'Avg conf' },
-              { v: `${records.length}`, l: 'Session' },
+              { v: `${live.sessionCount}`, l: 'Session' },
+
             ].map((s) => (
               <div
                 key={s.l}

@@ -13,6 +13,9 @@ import {
   recognizeFace,
   recordAttendance
 } from '@/services/face-recognition/RecognitionService';
+import { recognizeFaceRobust } from '@/services/face-recognition/RobustMatchService';
+import { scanTelemetry } from '@/services/face-recognition/ScanTelemetry';
+
 import { saveEmotionEvent } from '@/services/ai/EmotionAnalysisService';
 import { sendAutoParentNotification } from '@/services/notification/AutoNotificationService';
 import { getCutoffTime, isPastCutoffTime, getAttendanceCutoffTime } from '@/services/attendance/AttendanceSettingsService';
@@ -347,12 +350,17 @@ const FuturisticFaceScanner: React.FC<FuturisticFaceScannerProps> = ({ onScanCom
     }
 
     try {
+      // SSD MobileNet is far more reliable than TinyFaceDetector at classroom
+      // distance / angles — this alone removes many "unknown" outcomes.
       const detections = await faceapi
-        .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.45 }))
+        .detectAllFaces(video, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.45, maxResults: 12 }))
         .withFaceLandmarks()
         .withFaceDescriptors();
 
+      scanTelemetry.faces(detections.length);
+
       const nextStableMap = new Map<string, number>();
+
 
       for (const detection of detections) {
         const box = detection.detection.box;
@@ -386,15 +394,25 @@ const FuturisticFaceScanner: React.FC<FuturisticFaceScannerProps> = ({ onScanCom
         void (async () => {
           try {
             const recognition = await withTimeout(
-              recognizeFace(detection.descriptor),
-              7000,
+              recognizeFaceRobust(video, detection),
+              9000,
               'Loop recognition timed out'
             );
 
-            if (!recognition.recognized || !recognition.employee) return;
+            if (!recognition.recognized || !recognition.employee) {
+              scanTelemetry.unknown(recognition.confidence);
+              return;
+            }
 
             const recentlyRecognizedAt = recognizedUserCooldownRef.current.get(recognition.employee.id) || 0;
             if (Date.now() - recentlyRecognizedAt < 9000) {
+              scanTelemetry.matched({
+                name: recognition.employee.name,
+                confidence: recognition.confidence,
+                meta: 'Already captured',
+                image: recognition.employee.avatar_url || recognition.employee.firebase_image_url,
+                counted: false,
+              });
               return;
             }
 
@@ -421,15 +439,22 @@ const FuturisticFaceScanner: React.FC<FuturisticFaceScannerProps> = ({ onScanCom
               'Loop attendance save timed out'
             );
 
-            rememberSessionEmbedding(detection.descriptor, recognition.employee.id);
+            rememberSessionEmbedding(recognition.descriptor ?? detection.descriptor, recognition.employee.id);
             recognizedUserCooldownRef.current.set(recognition.employee.id, Date.now());
             processedFaceCooldownRef.current.set(faceKey, Date.now());
             setLoopCapturedCount((prev) => prev + 1);
+            scanTelemetry.matched({
+              name: recognition.employee.name,
+              confidence: recognition.confidence,
+              meta: `Marked ${status}`,
+              image: recognition.employee.avatar_url || recognition.employee.firebase_image_url,
+            });
 
             toast({
               title: 'Loop capture processed',
               description: `${recognition.employee.name} marked ${status} with stable face-only photo.`,
             });
+
           } catch (error) {
             console.error('Loop scan face process failed:', error);
           } finally {
@@ -489,6 +514,7 @@ const FuturisticFaceScanner: React.FC<FuturisticFaceScannerProps> = ({ onScanCom
 
     setIsScanning(true);
     setScanPhase('detecting');
+    scanTelemetry.set({ phase: 'analyzing', statusText: 'Detecting faces…' });
     setScanResult(null);
     setRecognizedFaces([]);
 
@@ -545,6 +571,7 @@ const FuturisticFaceScanner: React.FC<FuturisticFaceScannerProps> = ({ onScanCom
 
       await new Promise(r => setTimeout(r, 400));
       setScanPhase('matching');
+      scanTelemetry.set({ phase: 'analyzing', statusText: 'Matching biometric signature…', facesInFrame: fullDetections.length });
 
       // Process all detected faces
       const results: RecognizedFaceData[] = [];
@@ -573,15 +600,16 @@ const FuturisticFaceScanner: React.FC<FuturisticFaceScannerProps> = ({ onScanCom
         }
         
         try {
-          // Recognition with 5 second timeout per face
+          // Multi-view recognition (raw + aligned + mirrored + padded crop):
+          // dramatically higher recall for registered students.
           const result = await withTimeout(
-            recognizeFace(descriptor),
-            isFirstRecognitionAttempt ? 12000 : 5000,
+            recognizeFaceRobust(video, detection),
+            isFirstRecognitionAttempt ? 15000 : 9000,
             isFirstRecognitionAttempt
               ? 'Face recognition warm-up in progress. Please hold still.'
               : 'Face recognition timed out'
           );
-          
+
           if (result.recognized && result.employee) {
             const status = isPastCutoff ? 'late' : 'present';
             const strictMetrics = result.strictMetrics;
@@ -590,6 +618,15 @@ const FuturisticFaceScanner: React.FC<FuturisticFaceScannerProps> = ({ onScanCom
             const autoMarkEligible =
               strictScore >= thresholdTarget ||
               !!strictMetrics?.autoMarkEligible;
+
+            scanTelemetry.matched({
+              name: result.employee.name,
+              confidence: result.confidence ?? 0,
+              meta: autoMarkEligible ? `Marked ${status}` : 'Needs confirmation',
+              image: result.employee.avatar_url || result.employee.firebase_image_url,
+              counted: autoMarkEligible,
+            });
+
 
             saveEmotionEvent({
               userId: result.employee.id,
@@ -681,6 +718,7 @@ const FuturisticFaceScanner: React.FC<FuturisticFaceScannerProps> = ({ onScanCom
               rememberSessionEmbedding(descriptor, result.employee.id);
             }
           } else {
+            scanTelemetry.unknown(result.confidence ?? 0);
             results.push({
               id: `unknown-${Math.random().toString(36).substr(2, 9)}`,
               name: 'Unknown',
@@ -689,6 +727,7 @@ const FuturisticFaceScanner: React.FC<FuturisticFaceScannerProps> = ({ onScanCom
               box: { x: box.x, y: box.y, width: box.width, height: box.height }
             });
           }
+
         } catch (recognitionErr) {
           console.error('Recognition error for face:', recognitionErr);
           results.push({

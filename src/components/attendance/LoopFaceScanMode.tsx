@@ -9,6 +9,8 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { loadModels, areModelsLoaded } from '@/services/face-recognition/ModelService';
 import { recognizeFace, recordAttendance } from '@/services/face-recognition/RecognitionService';
+import { recognizeBestOf } from '@/services/face-recognition/RobustMatchService';
+import { scanTelemetry } from '@/services/face-recognition/ScanTelemetry';
 import { alignFace, isFaceFrontal } from '@/services/face-recognition/FaceAlignmentService';
 import { scoreFaceQuality } from '@/services/face-recognition/FaceQualityService';
 import * as faceapi from 'face-api.js';
@@ -64,7 +66,7 @@ const SAME_FACE_DIST = 0.42;
 
 const AUTO_BATCH_SIZE = 5;
 const AUTO_FLUSH_MS = 4000;
-const LOCAL_MIN_CONFIDENCE = 0.65;
+const LOCAL_MIN_CONFIDENCE = 0.56;
 
 const euclid = (a: Float32Array | number[], b: Float32Array | number[]) => {
   let s = 0;
@@ -205,18 +207,15 @@ const LoopFaceScanMode: React.FC = () => {
         for (const s of item.samples3 || []) candidates.push(new Float32Array(s));
         if (item.altDescriptor) candidates.push(new Float32Array(item.altDescriptor));
 
-        let best: { employee: any; confidence: number } | null = null;
-        for (const cand of candidates) {
-          const rec = await recognizeFace(cand);
-          const c = rec.confidence ?? 0;
-          if (rec.recognized && rec.employee && c > (best?.confidence ?? 0)) {
-            best = { employee: rec.employee, confidence: c };
-          }
-          if (best && best.confidence >= 0.9) break; // already certain
-        }
+        scanTelemetry.set({ phase: 'analyzing', statusText: 'Matching captured faces…' });
+        const match = await recognizeBestOf(candidates);
+        const best = match.recognized && match.employee
+          ? { employee: match.employee, confidence: match.confidence }
+          : null;
 
         if (!best) {
           unrecognized++;
+          scanTelemetry.unknown(match.confidence);
           results.push({ clientId: item.clientId, recognized: false, reason: 'no_match' });
           continue;
         }
@@ -224,10 +223,18 @@ const LoopFaceScanMode: React.FC = () => {
         if (conf < LOCAL_MIN_CONFIDENCE) {
           lowConf++;
           unrecognized++;
+          scanTelemetry.unknown(conf);
           results.push({ clientId: item.clientId, recognized: false, reason: 'low_confidence', confidence: conf });
           continue;
         }
         const rec = { employee: best.employee };
+        scanTelemetry.matched({
+          name: rec.employee.name,
+          confidence: conf,
+          meta: 'Loop match',
+          image: rec.employee.avatar_url || rec.employee.firebase_image_url,
+        });
+
         const outcome = await recordAttendance(
           rec.employee.id,
           'present',
@@ -496,6 +503,7 @@ const LoopFaceScanMode: React.FC = () => {
 
         const active = tracksRef.current.size;
         setLiveFaces(active);
+        scanTelemetry.faces(active);
         setTracking(active > 0);
       } catch {
         /* transient frame errors are ignored */
