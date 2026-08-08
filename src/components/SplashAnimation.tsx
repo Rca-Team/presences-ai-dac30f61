@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Cpu, ShieldCheck, Zap, Radio, Sparkles, Activity, Eye, Terminal } from 'lucide-react';
+import { ShieldCheck, Scan, Sparkles, Activity, CheckCircle2, Lock, Cpu } from 'lucide-react';
 import Logo from '@/components/Logo';
 
 interface SplashAnimationProps {
@@ -14,46 +14,48 @@ const SplashAnimation: React.FC<SplashAnimationProps> = ({
 }) => {
   const [progress, setProgress] = useState(0);
   const [isExiting, setIsExiting] = useState(false);
-  const [telemetryIndex, setTelemetryIndex] = useState(0);
+  const [stepIndex, setStepIndex] = useState(0);
 
-  const telemetryLogs = [
-    'INITIALIZING ARC CORE // STARK OS v4.8',
-    'CALIBRATING NEURAL VISION & BIOMETRICS',
-    'ENGAGING QUANTUM ENCRYPTION PROTOCOLS',
-    'SYNCHRONIZING PRESENCES AI DATABASE',
-    'WELCOME BACK, SIR. SYSTEM ONLINE.',
+  const steps = [
+    { label: 'Initializing Presence AI Engine', icon: Cpu, badge: 'CORE v4.2' },
+    { label: 'Loading Facial Recognition Descriptors', icon: Scan, badge: 'BIOMETRICS' },
+    { label: 'Calibrating Neural Vision Matrix', icon: Activity, badge: 'VISION AI' },
+    { label: 'Verifying Security & Edge Gateways', icon: ShieldCheck, badge: 'ENCRYPTED' },
+    { label: 'System Ready — Welcome to Presence', icon: CheckCircle2, badge: 'ONLINE' },
   ];
 
   useEffect(() => {
-    const stepTime = duration / 100;
-    const progressInterval = setInterval(() => {
-      setProgress(prev => {
+    const stepInterval = duration / 100;
+    const progressTimer = setInterval(() => {
+      setProgress((prev) => {
         if (prev >= 100) {
-          clearInterval(progressInterval);
+          clearInterval(progressTimer);
           return 100;
         }
         const next = prev + 2;
-        if (next < 25) setTelemetryIndex(0);
-        else if (next < 50) setTelemetryIndex(1);
-        else if (next < 75) setTelemetryIndex(2);
-        else if (next < 95) setTelemetryIndex(3);
-        else setTelemetryIndex(4);
+        if (next < 25) setStepIndex(0);
+        else if (next < 50) setStepIndex(1);
+        else if (next < 75) setStepIndex(2);
+        else if (next < 92) setStepIndex(3);
+        else setStepIndex(4);
         return next;
       });
-    }, stepTime);
+    }, stepInterval);
 
-    const timer = setTimeout(() => {
+    const exitTimer = setTimeout(() => {
       setIsExiting(true);
       setTimeout(() => {
         if (onComplete) onComplete();
-      }, 500);
+      }, 480);
     }, duration);
 
     return () => {
-      clearTimeout(timer);
-      clearInterval(progressInterval);
+      clearTimeout(exitTimer);
+      clearInterval(progressTimer);
     };
   }, [duration, onComplete]);
+
+  const currentStep = steps[stepIndex];
 
   return (
     <AnimatePresence>
@@ -61,225 +63,150 @@ const SplashAnimation: React.FC<SplashAnimationProps> = ({
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          exit={{ opacity: 0, scale: 1.12, filter: 'blur(12px)' }}
-          transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-          className="fixed inset-0 z-[100] overflow-hidden bg-[#030712] font-mono text-cyan-400 select-none"
+          exit={{ opacity: 0, scale: 1.05, filter: 'blur(10px)' }}
+          transition={{ duration: 0.48, ease: [0.22, 1, 0.36, 1] }}
+          className="fixed inset-0 z-[100] flex items-center justify-center overflow-hidden bg-background select-none font-sans"
         >
-          {/* JARVIS Background Grid & Hologram Glow */}
+          {/* Ambient Glowing Orbs */}
+          <div className="absolute inset-0 overflow-hidden pointer-events-none">
+            <motion.div
+              animate={{
+                scale: [1, 1.25, 1],
+                opacity: [0.18, 0.32, 0.18],
+              }}
+              transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+              className="absolute -top-32 -right-32 w-[520px] h-[520px] rounded-full blur-[120px]"
+              style={{ background: 'hsl(var(--ios-blue) / 0.3)' }}
+            />
+            <motion.div
+              animate={{
+                scale: [1.2, 1, 1.2],
+                opacity: [0.15, 0.28, 0.15],
+              }}
+              transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
+              className="absolute -bottom-32 -left-32 w-[520px] h-[520px] rounded-full blur-[120px]"
+              style={{ background: 'hsl(var(--ios-purple) / 0.25)' }}
+            />
+            <motion.div
+              animate={{
+                scale: [0.9, 1.15, 0.9],
+                opacity: [0.12, 0.22, 0.12],
+              }}
+              transition={{ duration: 4.5, repeat: Infinity, ease: 'easeInOut', delay: 2 }}
+              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full blur-[140px]"
+              style={{ background: 'hsl(var(--ios-pink) / 0.18)' }}
+            />
+          </div>
+
+          {/* Subtext Grid Pattern Overlay */}
           <div
-            className="absolute inset-0 opacity-20 pointer-events-none"
+            className="absolute inset-0 opacity-[0.04] pointer-events-none dark:opacity-[0.07]"
             style={{
               backgroundImage: `
-                linear-gradient(to right, rgba(0, 240, 255, 0.15) 1px, transparent 1px),
-                linear-gradient(to bottom, rgba(0, 240, 255, 0.15) 1px, transparent 1px)
+                linear-gradient(to right, hsl(var(--foreground)) 1px, transparent 1px),
+                linear-gradient(to bottom, hsl(var(--foreground)) 1px, transparent 1px)
               `,
-              backgroundSize: '40px 40px',
+              backgroundSize: '48px 48px',
             }}
           />
 
-          {/* Radial Arc Reactor Backlight */}
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <motion.div
-              animate={{
-                scale: [0.8, 1.25, 0.95, 1.1, 1],
-                opacity: [0.2, 0.45, 0.3, 0.5, 0.35],
-              }}
-              transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-              className="w-[600px] h-[600px] rounded-full bg-[radial-gradient(circle,rgba(0,240,255,0.25)_0%,rgba(14,165,233,0.1)_45%,transparent_70%)] blur-3xl"
-            />
-          </div>
+          {/* Main Card Container */}
+          <div className="relative z-10 flex flex-col items-center max-w-md w-full px-6 text-center">
 
-          {/* Holographic Scanline Overlay */}
-          <div
-            className="absolute inset-0 opacity-15 pointer-events-none"
-            style={{
-              backgroundImage: 'repeating-linear-gradient(0deg, rgba(0, 240, 255, 0.1) 0px, transparent 2px, transparent 4px)',
-            }}
-          />
-
-          {/* HUD Corner Brackets */}
-          {/* Top-Left Corner */}
-          <div className="absolute top-6 left-6 p-4 border-t-2 border-l-2 border-cyan-500/60 rounded-tl-lg flex flex-col gap-1 text-[10px] tracking-wider text-cyan-400/80">
-            <div className="flex items-center gap-2 font-bold text-cyan-300">
-              <span className="h-2 w-2 rounded-full bg-cyan-400 animate-ping" />
-              <span>J.A.R.V.I.S // PRESENCES OS</span>
-            </div>
-            <span>LOC_REF: 0x7E9A_STARK</span>
-            <span>SYS_TEMP: 36.8°C // NOMINAL</span>
-          </div>
-
-          {/* Top-Right Corner */}
-          <div className="absolute top-6 right-6 p-4 border-t-2 border-r-2 border-cyan-500/60 rounded-tr-lg flex flex-col items-end gap-1 text-[10px] tracking-wider text-cyan-400/80">
-            <div className="flex items-center gap-2 font-bold text-cyan-300">
-              <Radio className="w-3.5 h-3.5 animate-pulse text-cyan-400" />
-              <span>MARK-85 HUD CORE</span>
-            </div>
-            <span>BIOMETRICS: ACTIVE</span>
-            <span>ENCRYPTION: AES-256</span>
-          </div>
-
-          {/* Bottom-Left Corner */}
-          <div className="absolute bottom-6 left-6 p-4 border-b-2 border-l-2 border-cyan-500/60 rounded-bl-lg flex flex-col gap-1 text-[10px] tracking-wider text-cyan-400/80">
-            <div className="flex items-center gap-2 font-semibold text-cyan-300">
-              <Terminal className="w-3.5 h-3.5" />
-              <span>SYSTEM DIAGNOSTICS</span>
-            </div>
-            <span className="text-cyan-400/90">{telemetryLogs[telemetryIndex]}</span>
-          </div>
-
-          {/* Bottom-Right Corner - Frequency Waveform Bars */}
-          <div className="absolute bottom-6 right-6 p-4 border-b-2 border-r-2 border-cyan-500/60 rounded-br-lg flex flex-col items-end gap-2 text-[10px] tracking-wider text-cyan-400/80">
-            <div className="flex items-end gap-1 h-6">
-              {[40, 75, 30, 90, 60, 100, 45, 80, 50, 95].map((h, idx) => (
-                <motion.div
-                  key={idx}
-                  className="w-1 bg-cyan-400/80 rounded-t"
-                  animate={{ height: [`${h * 0.3}%`, `${h}%`, `${h * 0.5}%`] }}
-                  transition={{ duration: 0.8 + (idx % 3) * 0.2, repeat: Infinity, ease: 'easeInOut' }}
-                />
-              ))}
-            </div>
-            <span>FREQUENCY: 432.8 MHz</span>
-          </div>
-
-          {/* Floating HUD Energy Particles */}
-          {[...Array(12)].map((_, i) => (
-            <motion.div
-              key={i}
-              className="absolute rounded-full bg-cyan-300 shadow-[0_0_12px_#00f0ff]"
-              style={{
-                width: i % 2 === 0 ? 4 : 2,
-                height: i % 2 === 0 ? 4 : 2,
-                left: `${15 + (i * 7) % 70}%`,
-                top: `${20 + (i * 11) % 60}%`,
-              }}
-              animate={{
-                y: [-20, -120],
-                opacity: [0, 0.9, 0],
-                scale: [0.8, 1.5, 0.5],
-              }}
-              transition={{
-                duration: 2 + (i % 4) * 0.5,
-                repeat: Infinity,
-                delay: i * 0.2,
-                ease: 'easeOut',
-              }}
-            />
-          ))}
-
-          {/* Center Arc Reactor & JARVIS Core */}
-          <div className="relative h-full w-full flex flex-col items-center justify-center">
-            
-            {/* ARC REACTOR HUD RINGS CONTAINER */}
-            <div className="relative flex items-center justify-center w-72 h-72 sm:w-96 sm:h-96">
+            {/* AI Facial Recognition Camera Iris Viewport */}
+            <div className="relative flex items-center justify-center w-48 h-48 sm:w-56 sm:h-56 mb-8">
               
-              {/* Ring 1: Outer Segmented HUD Ring (Clockwise) */}
+              {/* Outer Rotating HUD Aperture Ring */}
               <motion.div
                 animate={{ rotate: 360 }}
-                transition={{ duration: 16, repeat: Infinity, ease: 'linear' }}
-                className="absolute inset-0 rounded-full border-2 border-dashed border-cyan-500/40 shadow-[0_0_30px_rgba(0,240,255,0.15)]"
+                transition={{ duration: 18, repeat: Infinity, ease: 'linear' }}
+                className="absolute inset-0 rounded-full border border-dashed border-primary/30"
               />
 
-              {/* Ring 2: Arc Reactor Notch Ring (Counter-Clockwise) */}
+              {/* Inner Pulsing Vision Ring */}
               <motion.div
                 animate={{ rotate: -360 }}
-                transition={{ duration: 10, repeat: Infinity, ease: 'linear' }}
-                className="absolute inset-4 rounded-full border border-cyan-400/60"
-                style={{
-                  boxShadow: '0 0 25px rgba(0, 240, 255, 0.3)',
-                  backgroundImage: 'radial-gradient(circle, transparent 60%, rgba(0,240,255,0.08) 100%)',
-                }}
-              >
-                {/* Arc Notches */}
-                {[0, 45, 90, 135, 180, 225, 270, 315].map((deg) => (
-                  <div
-                    key={deg}
-                    className="absolute w-2 h-4 bg-cyan-400/80 rounded-sm left-1/2 top-0 -translate-x-1/2 shadow-[0_0_8px_#00f0ff]"
-                    style={{ transformOrigin: '0 160px', transform: `rotate(${deg}deg)` }}
-                  />
-                ))}
-              </motion.div>
-
-              {/* Ring 3: Inner Target Reticle (Clockwise Fast) */}
-              <motion.div
-                animate={{ rotate: 360 }}
-                transition={{ duration: 6, repeat: Infinity, ease: 'linear' }}
-                className="absolute inset-12 rounded-full border-2 border-cyan-300/80 border-t-transparent border-b-transparent shadow-[0_0_20px_rgba(0,240,255,0.5)]"
+                transition={{ duration: 12, repeat: Infinity, ease: 'linear' }}
+                className="absolute inset-3 rounded-full border border-primary/40 shadow-[0_0_30px_hsl(var(--primary)/0.2)]"
               />
 
-              {/* Center Arc Glow Core */}
+              {/* Vertical Facial Scanning Beam Line */}
+              <motion.div
+                animate={{ y: ['-70px', '70px', '-70px'] }}
+                transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
+                className="absolute inset-x-4 h-0.5 rounded-full z-20"
+                style={{
+                  background: 'linear-gradient(90deg, transparent 0%, hsl(var(--ios-blue)) 30%, hsl(var(--ios-purple)) 70%, transparent 100%)',
+                  boxShadow: '0 0 15px hsl(var(--ios-blue)), 0 0 8px hsl(var(--ios-purple))',
+                }}
+              />
+
+              {/* Biometric Target Corner Brackets */}
+              <div className="absolute top-1 left-1 w-5 h-5 border-t-2 border-l-2 border-primary rounded-tl-md" />
+              <div className="absolute top-1 right-1 w-5 h-5 border-t-2 border-r-2 border-primary rounded-tr-md" />
+              <div className="absolute bottom-1 left-1 w-5 h-5 border-b-2 border-l-2 border-primary rounded-bl-md" />
+              <div className="absolute bottom-1 right-1 w-5 h-5 border-b-2 border-r-2 border-primary rounded-br-md" />
+
+              {/* Center Glass Capsule with Brand Logo */}
               <motion.div
                 animate={{
-                  scale: [0.95, 1.1, 0.95],
-                  boxShadow: [
-                    '0 0 40px rgba(0, 240, 255, 0.6), inset 0 0 30px rgba(0, 240, 255, 0.8)',
-                    '0 0 80px rgba(0, 240, 255, 0.9), inset 0 0 50px rgba(0, 240, 255, 1)',
-                    '0 0 40px rgba(0, 240, 255, 0.6), inset 0 0 30px rgba(0, 240, 255, 0.8)',
-                  ],
+                  scale: [0.96, 1.04, 0.96],
                 }}
-                transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
-                className="relative w-36 h-36 sm:w-44 sm:h-44 rounded-full border-4 border-cyan-200 bg-[#030712]/90 backdrop-blur-md flex flex-col items-center justify-center p-4 text-center z-10"
+                transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+                className="relative w-32 h-32 sm:w-36 sm:h-36 rounded-3xl border border-white/20 dark:border-white/10 bg-card/75 backdrop-blur-2xl flex items-center justify-center p-4 shadow-[0_20px_50px_-15px_hsl(var(--primary)/0.3)] z-10"
               >
-                {/* Brand Logo inside Reactor Core */}
-                <motion.div
-                  initial={{ scale: 0.8, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  transition={{ duration: 0.6 }}
-                  className="flex flex-col items-center justify-center"
-                >
-                  <Logo size="md" className="[&>div>span:last-child]:text-cyan-200 [&>div>span:last-child]:tracking-widest drop-shadow-[0_0_15px_#00f0ff]" />
-                </motion.div>
+                <Logo size="lg" className="[&>div>span:last-child]:text-foreground [&>div>span:last-child]:font-bold [&>div>span:last-child]:tracking-wide" />
               </motion.div>
-
-              {/* Holographic Target Brackets framing center */}
-              <div className="absolute -top-3 -left-3 w-8 h-8 border-t-2 border-l-2 border-cyan-300 shadow-[0_0_10px_#00f0ff]" />
-              <div className="absolute -top-3 -right-3 w-8 h-8 border-t-2 border-r-2 border-cyan-300 shadow-[0_0_10px_#00f0ff]" />
-              <div className="absolute -bottom-3 -left-3 w-8 h-8 border-b-2 border-l-2 border-cyan-300 shadow-[0_0_10px_#00f0ff]" />
-              <div className="absolute -bottom-3 -right-3 w-8 h-8 border-b-2 border-r-2 border-cyan-300 shadow-[0_0_10px_#00f0ff]" />
             </div>
 
-            {/* STARK TECH TITLE & SYSTEM STATUS */}
+            {/* App Brand Header */}
             <motion.div
-              initial={{ y: 20, opacity: 0 }}
+              initial={{ y: 16, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: 0.2, duration: 0.6 }}
-              className="mt-8 text-center px-4 max-w-lg"
+              transition={{ delay: 0.15, duration: 0.5 }}
+              className="space-y-2"
             >
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-cyan-500/40 bg-cyan-950/40 text-[11px] tracking-[0.25em] text-cyan-300 mb-2 shadow-[0_0_15px_rgba(0,240,255,0.2)]">
-                <Cpu className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />
-                <span>NEURAL ENGINE ACTIVE</span>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-primary/20 bg-primary/10 text-xs font-semibold text-primary shadow-sm">
+                <currentStep.icon className="w-3.5 h-3.5 animate-pulse" />
+                <span className="tracking-wide uppercase text-[10px]">{currentStep.badge}</span>
               </div>
 
-              <h1 className="text-2xl sm:text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-200 via-white to-cyan-400 tracking-wider drop-shadow-[0_0_20px_rgba(0,240,255,0.5)]">
-                PRESENCES AI
+              <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-foreground">
+                Presence
               </h1>
-              <p className="text-xs text-cyan-400/75 tracking-[0.2em] uppercase mt-1">
-                STARK INTELLIGENT AUTOMATION ARCHITECTURE
+
+              <p className="text-xs sm:text-sm text-muted-foreground font-medium max-w-xs mx-auto">
+                AI Facial Recognition & Attendance System
               </p>
+            </motion.div>
 
-              {/* Progress HUD Bar */}
-              <div className="mt-6 w-72 sm:w-96 mx-auto">
-                <div className="relative h-2 overflow-hidden rounded-full border border-cyan-500/50 bg-black/60 shadow-[0_0_15px_rgba(0,240,255,0.2)]">
-                  <motion.div
-                    className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-cyan-500 via-cyan-300 to-white shadow-[0_0_20px_#00f0ff]"
-                    style={{ width: `${progress}%` }}
-                  />
-                  <motion.div
-                    animate={{ x: ['-100%', '200%'] }}
-                    transition={{ duration: 1.2, repeat: Infinity, ease: 'linear' }}
-                    className="absolute inset-y-0 w-24 bg-gradient-to-r from-transparent via-white/40 to-transparent"
-                  />
-                </div>
+            {/* Dynamic Status Progress Component */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.3 }}
+              className="w-full mt-8 space-y-3"
+            >
+              {/* Progress Bar Container */}
+              <div className="relative h-2 overflow-hidden rounded-full border border-border/60 bg-muted/50 p-0.5 shadow-inner">
+                <motion.div
+                  className="h-full rounded-full"
+                  style={{
+                    width: `${progress}%`,
+                    background: 'linear-gradient(90deg, hsl(var(--ios-blue)) 0%, hsl(var(--ios-purple)) 50%, hsl(var(--ios-pink)) 100%)',
+                    boxShadow: '0 0 12px hsl(var(--ios-blue) / 0.5)',
+                  }}
+                />
+              </div>
 
-                <div className="mt-2 flex items-center justify-between text-[11px] text-cyan-400/90 tracking-widest">
-                  <span className="flex items-center gap-1 font-bold text-cyan-300">
-                    <Zap className="w-3 h-3 text-cyan-400" />
-                    <span>{Math.round(progress)}%</span>
-                  </span>
-                  <span className="uppercase text-cyan-400/70">
-                    {progress === 100 ? 'ONLINE' : 'CHARGING CORE'}
-                  </span>
-                </div>
+              {/* Step Status Text & Percentage */}
+              <div className="flex items-center justify-between text-xs text-muted-foreground font-medium px-1">
+                <span className="truncate max-w-[260px] text-left text-foreground/90 font-semibold">
+                  {currentStep.label}
+                </span>
+                <span className="tabular-nums font-bold text-primary">
+                  {Math.round(progress)}%
+                </span>
               </div>
             </motion.div>
 
