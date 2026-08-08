@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { CheckCircle2, XCircle, ScanFace, Sparkles, User, Loader2 } from 'lucide-react';
+import { useScanTelemetry } from '@/services/face-recognition/ScanTelemetry';
 
 /**
  * NeuralConsole — cinematic dark scan console (Presences AI "Lumina" language).
