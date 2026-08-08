@@ -214,7 +214,11 @@ const NeuralConsole: React.FC<NeuralConsoleProps> = ({
           <div className="inline-flex items-center gap-2 rounded-xl border border-primary/15 bg-background/40 px-3 py-1.5">
             <ScanFace className="h-3.5 w-3.5 text-primary" />
             <span className="text-[11px] text-muted-foreground">
-              Status: <span className="font-semibold text-primary">{statusText}</span>
+              Status: <span className="font-semibold text-primary">{liveStatus}</span>
+              {live.facesInFrame > 0 && (
+                <span className="ml-2 text-primary/80">· {live.facesInFrame} in frame</span>
+              )}
+
             </span>
           </div>
           <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
