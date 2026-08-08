@@ -268,7 +268,7 @@ const NeuralConsole: React.FC<NeuralConsoleProps> = ({
           </p>
           <AnimatePresence mode="wait">
             <motion.div
-              key={latest?.id ?? 'idle'}
+              key={subjectName ?? 'idle'}
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -6 }}
@@ -276,8 +276,8 @@ const NeuralConsole: React.FC<NeuralConsoleProps> = ({
             >
               <div className="flex items-center gap-3">
                 <div className="h-12 w-12 overflow-hidden rounded-full border border-primary/25 bg-primary/15">
-                  {latest?.image_url?.startsWith('http') || latest?.image_url?.startsWith('data:') ? (
-                    <img src={latest.image_url} alt="" className="h-full w-full object-cover" />
+                  {subjectImage?.startsWith('http') || subjectImage?.startsWith('data:') ? (
+                    <img src={subjectImage} alt="" className="h-full w-full object-cover" />
                   ) : (
                     <div className="flex h-full w-full items-center justify-center">
                       <User className="h-5 w-5 text-primary" />
@@ -286,22 +286,20 @@ const NeuralConsole: React.FC<NeuralConsoleProps> = ({
                 </div>
                 <div className="min-w-0">
                   <p className="truncate text-sm font-semibold text-foreground">
-                    {latest ? nameOf(latest) : 'Awaiting subject'}
+                    {subjectName ?? (live.phase === 'unknown' ? 'Unrecognised face' : 'Awaiting subject')}
                   </p>
                   <p className="truncate text-[11px] text-muted-foreground">
-                    {latest
-                      ? `${latest.device_info?.metadata?.class ?? 'Student'} · ${new Date(
-                          latest.timestamp,
-                        ).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
-                      : 'No identity in frame'}
+                    {subjectMeta ?? (live.facesInFrame > 0 ? 'Face in frame — matching' : 'No identity in frame')}
                   </p>
-                  {latest && (
+                  {subjectName && (
                     <p className="mt-0.5 inline-flex items-center gap-1 text-[11px] text-success">
                       <CheckCircle2 className="h-3 w-3" />
-                      {latest.status === 'late' ? 'Marked late' : 'Cleared for entry'}
+                      {live.phase === 'matched' ? 'Identity locked' : latest?.status === 'late' ? 'Marked late' : 'Cleared for entry'}
                     </p>
                   )}
                 </div>
+              </div>
+
               </div>
             </motion.div>
           </AnimatePresence>
