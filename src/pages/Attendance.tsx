@@ -44,6 +44,7 @@ const AttendanceLoadingSkeleton = ({ isMobile }: { isMobile: boolean }) => (
 const Attendance = () => {
   const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState('single');
+  const [tabDir, setTabDir] = useState(1);
   const [attendanceMethod, setAttendanceMethod] = useState<'face' | 'qr' | 'loop'>('face');
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const { toast } = useToast();
@@ -72,11 +73,24 @@ const Attendance = () => {
     { value: 'help', label: 'Help', shortLabel: 'Help', icon: Info },
   ];
 
+  const switchTab = (next: string) => {
+    const order = ['single', 'stats', 'help'];
+    setTabDir(order.indexOf(next) >= order.indexOf(activeTab) ? 1 : -1);
+    setActiveTab(next);
+  };
+
+  const slide = {
+    initial: { opacity: 0, x: tabDir * 42 },
+    animate: { opacity: 1, x: 0 },
+    exit: { opacity: 0, x: tabDir * -42 },
+    transition: { duration: 0.3, ease: [0.22, 1, 0.36, 1] as const },
+  };
+
   const handleVoiceCommand = (command: string) => {
     const tabMap: Record<string, string> = {
       'scan': 'single', 'stats': 'stats', 'help': 'help'
     };
-    if (tabMap[command]) setActiveTab(tabMap[command]);
+    if (tabMap[command]) switchTab(tabMap[command]);
   };
 
   const ModeToggle = () => (
@@ -233,7 +247,7 @@ const Attendance = () => {
                 return (
                   <button
                     key={tab.value}
-                    onClick={() => setActiveTab(tab.value)}
+                    onClick={() => switchTab(tab.value)}
                     className={`relative flex items-center justify-center gap-1.5 flex-1 px-2 py-3 rounded-xl text-xs sm:text-sm font-medium transition-all duration-300 active:scale-95 ${
                       isActive
                         ? 'text-primary-foreground shadow-md'
@@ -276,10 +290,7 @@ const Attendance = () => {
             {activeTab === 'single' && (
               <motion.div
                 key="single"
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -6 }}
-                transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                {...slide}
                 className="space-y-4"
               >
                 {/* Method toggle */}
@@ -351,7 +362,7 @@ const Attendance = () => {
 
 
             {activeTab === 'stats' && (
-              <motion.div key="stats" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} transition={{ duration: 0.3 }}
+              <motion.div key="stats" {...slide}
                 className="space-y-4 lg:grid lg:grid-cols-3 lg:gap-5 lg:space-y-0"
               >
                 <div className="lg:col-span-2">
@@ -390,7 +401,7 @@ const Attendance = () => {
             )}
 
             {activeTab === 'help' && (
-              <motion.div key="help" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} transition={{ duration: 0.3 }}>
+              <motion.div key="help" {...slide}>
                 <div className="bg-card/80 backdrop-blur-xl rounded-2xl sm:rounded-3xl border border-border/50 shadow-lg overflow-hidden">
                   <div className="p-3 sm:p-4 flex items-center gap-3" style={{ background: 'linear-gradient(135deg, hsl(var(--ios-orange)), hsl(var(--ios-red)))' }}>
                     <div className="w-9 h-9 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
