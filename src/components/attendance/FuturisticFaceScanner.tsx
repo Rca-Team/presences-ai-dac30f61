@@ -394,15 +394,25 @@ const FuturisticFaceScanner: React.FC<FuturisticFaceScannerProps> = ({ onScanCom
         void (async () => {
           try {
             const recognition = await withTimeout(
-              recognizeFace(detection.descriptor),
-              7000,
+              recognizeFaceRobust(video, detection),
+              9000,
               'Loop recognition timed out'
             );
 
-            if (!recognition.recognized || !recognition.employee) return;
+            if (!recognition.recognized || !recognition.employee) {
+              scanTelemetry.unknown(recognition.confidence);
+              return;
+            }
 
             const recentlyRecognizedAt = recognizedUserCooldownRef.current.get(recognition.employee.id) || 0;
             if (Date.now() - recentlyRecognizedAt < 9000) {
+              scanTelemetry.matched({
+                name: recognition.employee.name,
+                confidence: recognition.confidence,
+                meta: 'Already captured',
+                image: recognition.employee.avatar_url || recognition.employee.firebase_image_url,
+                counted: false,
+              });
               return;
             }
 
@@ -429,15 +439,22 @@ const FuturisticFaceScanner: React.FC<FuturisticFaceScannerProps> = ({ onScanCom
               'Loop attendance save timed out'
             );
 
-            rememberSessionEmbedding(detection.descriptor, recognition.employee.id);
+            rememberSessionEmbedding(recognition.descriptor ?? detection.descriptor, recognition.employee.id);
             recognizedUserCooldownRef.current.set(recognition.employee.id, Date.now());
             processedFaceCooldownRef.current.set(faceKey, Date.now());
             setLoopCapturedCount((prev) => prev + 1);
+            scanTelemetry.matched({
+              name: recognition.employee.name,
+              confidence: recognition.confidence,
+              meta: `Marked ${status}`,
+              image: recognition.employee.avatar_url || recognition.employee.firebase_image_url,
+            });
 
             toast({
               title: 'Loop capture processed',
               description: `${recognition.employee.name} marked ${status} with stable face-only photo.`,
             });
+
           } catch (error) {
             console.error('Loop scan face process failed:', error);
           } finally {
