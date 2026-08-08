@@ -468,26 +468,27 @@ function App() {
             <HelmetProvider>
               <div className="premium-glass-app">
                 <BrowserRouter>
-                  {showSplash ? (
-                    <SplashAnimation onComplete={handleSplashComplete} duration={2600} />
-                  ) : (
+                  <NotificationPermissionGate>
+                    <MobileAppShell>
+                      <SeoHead />
+                      <LuminaScope />
+                      <AnimatedRoutes />
+                    </MobileAppShell>
+                    {mountNonCritical && (
+                      <>
+                        <AppExperienceLayer />
+                        <PWAInstallPrompt />
+                      </>
+                    )}
+                    <EmergencyAlertListener />
+                    <RealtimeNotificationListener />
+                  </NotificationPermissionGate>
 
-                    <NotificationPermissionGate>
-                      <MobileAppShell>
-                        <SeoHead />
-                        <LuminaScope />
-                        <AnimatedRoutes />
-                      </MobileAppShell>
-                      {mountNonCritical && (
-                        <>
-                          <AppExperienceLayer />
-                          <PWAInstallPrompt />
-                        </>
-                      )}
-                      <EmergencyAlertListener />
-                      <RealtimeNotificationListener />
-                    </NotificationPermissionGate>
-                  )}
+                  <AnimatePresence>
+                    {showSplash && (
+                      <SplashAnimation onComplete={handleSplashComplete} duration={2600} />
+                    )}
+                  </AnimatePresence>
                 </BrowserRouter>
               </div>
             </HelmetProvider>

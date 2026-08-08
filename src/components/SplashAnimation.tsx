@@ -124,7 +124,6 @@ const SplashAnimation: React.FC<SplashAnimationProps> = ({
   duration = 2600,
 }) => {
   const [progress, setProgress] = useState(0);
-  const [isExiting, setIsExiting] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
 
   const steps = [
@@ -154,10 +153,7 @@ const SplashAnimation: React.FC<SplashAnimationProps> = ({
     }, stepInterval);
 
     const exitTimer = setTimeout(() => {
-      setIsExiting(true);
-      setTimeout(() => {
-        if (onComplete) onComplete();
-      }, 500);
+      if (onComplete) onComplete();
     }, duration);
 
     return () => {
@@ -169,151 +165,147 @@ const SplashAnimation: React.FC<SplashAnimationProps> = ({
   const currentStep = steps[stepIndex];
 
   return (
-    <AnimatePresence>
-      {!isExiting && (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0, scale: 1.06, filter: 'blur(12px)' }}
+      transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+      className="fixed inset-0 z-[100] flex items-center justify-center overflow-hidden bg-[#030712] select-none font-sans text-cyan-400"
+    >
+      {/* Interactive 3D WebGL Particle Canvas Background */}
+      <Splash3DCanvas />
+
+      {/* Radial 3D Glow Backlight */}
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0, scale: 1.1, filter: 'blur(14px)' }}
-          transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-          className="fixed inset-0 z-[100] flex items-center justify-center overflow-hidden bg-[#030712] select-none font-sans text-cyan-400"
-        >
-          {/* Interactive 3D WebGL Particle Canvas Background */}
-          <Splash3DCanvas />
+          animate={{
+            scale: [0.85, 1.2, 0.9],
+            opacity: [0.25, 0.45, 0.25],
+          }}
+          transition={{ duration: 3.5, repeat: Infinity, ease: 'easeInOut' }}
+          className="w-[550px] h-[550px] rounded-full bg-[radial-gradient(circle,rgba(0,240,255,0.22)_0%,rgba(168,85,247,0.14)_45%,transparent_70%)] blur-3xl"
+        />
+      </div>
 
-          {/* Radial 3D Glow Backlight */}
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
-            <motion.div
-              animate={{
-                scale: [0.85, 1.2, 0.9],
-                opacity: [0.25, 0.45, 0.25],
-              }}
-              transition={{ duration: 3.5, repeat: Infinity, ease: 'easeInOut' }}
-              className="w-[550px] h-[550px] rounded-full bg-[radial-gradient(circle,rgba(0,240,255,0.22)_0%,rgba(168,85,247,0.14)_45%,transparent_70%)] blur-3xl"
-            />
-          </div>
+      {/* Holographic HUD Grid */}
+      <div
+        className="absolute inset-0 opacity-15 pointer-events-none"
+        style={{
+          backgroundImage: `
+            linear-gradient(to right, rgba(0, 240, 255, 0.15) 1px, transparent 1px),
+            linear-gradient(to bottom, rgba(0, 240, 255, 0.15) 1px, transparent 1px)
+          `,
+          backgroundSize: '44px 44px',
+        }}
+      />
 
-          {/* Holographic HUD Grid */}
-          <div
-            className="absolute inset-0 opacity-15 pointer-events-none"
+      {/* Main 3D HUD Interface Container */}
+      <div className="relative z-10 flex flex-col items-center max-w-md w-full px-6 text-center">
+
+        {/* 3D Arc Reactor Camera Iris Viewport */}
+        <div className="relative flex items-center justify-center w-52 h-52 sm:w-60 sm:h-60 mb-8">
+          
+          {/* Outer 3D Segmented HUD Ring */}
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 16, repeat: Infinity, ease: 'linear' }}
+            className="absolute inset-0 rounded-full border-2 border-dashed border-cyan-500/40 shadow-[0_0_30px_rgba(0,240,255,0.2)]"
+          />
+
+          {/* Middle 3D Rotating Vision Ring */}
+          <motion.div
+            animate={{ rotate: -360 }}
+            transition={{ duration: 10, repeat: Infinity, ease: 'linear' }}
+            className="absolute inset-4 rounded-full border border-purple-500/50 shadow-[0_0_20px_rgba(168,85,247,0.3)]"
+          />
+
+          {/* Vertical Laser Scanning Beam */}
+          <motion.div
+            animate={{ y: ['-80px', '80px', '-80px'] }}
+            transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
+            className="absolute inset-x-4 h-0.5 rounded-full z-20"
             style={{
-              backgroundImage: `
-                linear-gradient(to right, rgba(0, 240, 255, 0.15) 1px, transparent 1px),
-                linear-gradient(to bottom, rgba(0, 240, 255, 0.15) 1px, transparent 1px)
-              `,
-              backgroundSize: '44px 44px',
+              background: 'linear-gradient(90deg, transparent 0%, #00f0ff 30%, #a855f7 70%, transparent 100%)',
+              boxShadow: '0 0 20px #00f0ff, 0 0 10px #a855f7',
             }}
           />
 
-          {/* Main 3D HUD Interface Container */}
-          <div className="relative z-10 flex flex-col items-center max-w-md w-full px-6 text-center">
+          {/* Target Corner Reticles */}
+          <div className="absolute -top-1 -left-1 w-6 h-6 border-t-2 border-l-2 border-cyan-300 shadow-[0_0_10px_#00f0ff]" />
+          <div className="absolute -top-1 -right-1 w-6 h-6 border-t-2 border-r-2 border-cyan-300 shadow-[0_0_10px_#00f0ff]" />
+          <div className="absolute -bottom-1 -left-1 w-6 h-6 border-b-2 border-l-2 border-cyan-300 shadow-[0_0_10px_#00f0ff]" />
+          <div className="absolute -bottom-1 -right-1 w-6 h-6 border-b-2 border-r-2 border-cyan-300 shadow-[0_0_10px_#00f0ff]" />
 
-            {/* 3D Arc Reactor Camera Iris Viewport */}
-            <div className="relative flex items-center justify-center w-52 h-52 sm:w-60 sm:h-60 mb-8">
-              
-              {/* Outer 3D Segmented HUD Ring */}
-              <motion.div
-                animate={{ rotate: 360 }}
-                transition={{ duration: 16, repeat: Infinity, ease: 'linear' }}
-                className="absolute inset-0 rounded-full border-2 border-dashed border-cyan-500/40 shadow-[0_0_30px_rgba(0,240,255,0.2)]"
-              />
+          {/* Center 3D Glass Capsule with Logo */}
+          <motion.div
+            animate={{
+              scale: [0.96, 1.05, 0.96],
+              boxShadow: [
+                '0 0 35px rgba(0,240,255,0.4), inset 0 0 20px rgba(0,240,255,0.6)',
+                '0 0 65px rgba(0,240,255,0.7), inset 0 0 35px rgba(0,240,255,0.9)',
+                '0 0 35px rgba(0,240,255,0.4), inset 0 0 20px rgba(0,240,255,0.6)',
+              ],
+            }}
+            transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
+            className="relative w-36 h-36 sm:w-40 sm:h-40 rounded-3xl border-2 border-cyan-300/80 bg-[#030712]/85 backdrop-blur-2xl flex items-center justify-center p-4 z-10"
+          >
+            <Logo size="lg" className="[&>div>span:last-child]:text-cyan-200 [&>div>span:last-child]:font-bold [&>div>span:last-child]:tracking-widest drop-shadow-[0_0_15px_#00f0ff]" />
+          </motion.div>
+        </div>
 
-              {/* Middle 3D Rotating Vision Ring */}
-              <motion.div
-                animate={{ rotate: -360 }}
-                transition={{ duration: 10, repeat: Infinity, ease: 'linear' }}
-                className="absolute inset-4 rounded-full border border-purple-500/50 shadow-[0_0_20px_rgba(168,85,247,0.3)]"
-              />
+        {/* 3D Spatial Brand Header */}
+        <motion.div
+          initial={{ y: 16, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.15, duration: 0.5 }}
+          className="space-y-2"
+        >
+          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full border border-cyan-500/40 bg-cyan-950/40 text-[11px] font-mono tracking-widest text-cyan-300 shadow-[0_0_15px_rgba(0,240,255,0.2)]">
+            <currentStep.icon className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />
+            <span className="uppercase">{currentStep.badge}</span>
+          </div>
 
-              {/* Vertical Laser Scanning Beam */}
-              <motion.div
-                animate={{ y: ['-80px', '80px', '-80px'] }}
-                transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
-                className="absolute inset-x-4 h-0.5 rounded-full z-20"
-                style={{
-                  background: 'linear-gradient(90deg, transparent 0%, #00f0ff 30%, #a855f7 70%, transparent 100%)',
-                  boxShadow: '0 0 20px #00f0ff, 0 0 10px #a855f7',
-                }}
-              />
+          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-cyan-200 via-white to-purple-300 drop-shadow-[0_0_20px_rgba(0,240,255,0.5)]">
+            PRESENCES AI
+          </h1>
 
-              {/* Target Corner Reticles */}
-              <div className="absolute -top-1 -left-1 w-6 h-6 border-t-2 border-l-2 border-cyan-300 shadow-[0_0_10px_#00f0ff]" />
-              <div className="absolute -top-1 -right-1 w-6 h-6 border-t-2 border-r-2 border-cyan-300 shadow-[0_0_10px_#00f0ff]" />
-              <div className="absolute -bottom-1 -left-1 w-6 h-6 border-b-2 border-l-2 border-cyan-300 shadow-[0_0_10px_#00f0ff]" />
-              <div className="absolute -bottom-1 -right-1 w-6 h-6 border-b-2 border-r-2 border-cyan-300 shadow-[0_0_10px_#00f0ff]" />
+          <p className="text-xs sm:text-sm text-cyan-400/80 font-mono tracking-widest uppercase">
+            3D SPATIAL BIOMETRIC ATTENDANCE OS
+          </p>
+        </motion.div>
 
-              {/* Center 3D Glass Capsule with Logo */}
-              <motion.div
-                animate={{
-                  scale: [0.96, 1.05, 0.96],
-                  boxShadow: [
-                    '0 0 35px rgba(0,240,255,0.4), inset 0 0 20px rgba(0,240,255,0.6)',
-                    '0 0 65px rgba(0,240,255,0.7), inset 0 0 35px rgba(0,240,255,0.9)',
-                    '0 0 35px rgba(0,240,255,0.4), inset 0 0 20px rgba(0,240,255,0.6)',
-                  ],
-                }}
-                transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
-                className="relative w-36 h-36 sm:w-40 sm:h-40 rounded-3xl border-2 border-cyan-300/80 bg-[#030712]/85 backdrop-blur-2xl flex items-center justify-center p-4 z-10"
-              >
-                <Logo size="lg" className="[&>div>span:last-child]:text-cyan-200 [&>div>span:last-child]:font-bold [&>div>span:last-child]:tracking-widest drop-shadow-[0_0_15px_#00f0ff]" />
-              </motion.div>
-            </div>
-
-            {/* 3D Spatial Brand Header */}
+        {/* 3D Progress Tube */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.3 }}
+          className="w-full mt-8 space-y-3"
+        >
+          <div className="relative h-2 overflow-hidden rounded-full border border-cyan-500/50 bg-black/60 shadow-[0_0_15px_rgba(0,240,255,0.25)]">
             <motion.div
-              initial={{ y: 16, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: 0.15, duration: 0.5 }}
-              className="space-y-2"
-            >
-              <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full border border-cyan-500/40 bg-cyan-950/40 text-[11px] font-mono tracking-widest text-cyan-300 shadow-[0_0_15px_rgba(0,240,255,0.2)]">
-                <currentStep.icon className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />
-                <span className="uppercase">{currentStep.badge}</span>
-              </div>
-
-              <h1 className="text-3xl sm:text-4xl font-extrabold tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-cyan-200 via-white to-purple-300 drop-shadow-[0_0_20px_rgba(0,240,255,0.5)]">
-                PRESENCES AI
-              </h1>
-
-              <p className="text-xs sm:text-sm text-cyan-400/80 font-mono tracking-widest uppercase">
-                3D SPATIAL BIOMETRIC ATTENDANCE OS
-              </p>
-            </motion.div>
-
-            {/* 3D Progress Tube */}
+              className="h-full rounded-full bg-gradient-to-r from-cyan-500 via-purple-400 to-white shadow-[0_0_20px_#00f0ff]"
+              style={{ width: `${progress}%` }}
+            />
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.3 }}
-              className="w-full mt-8 space-y-3"
-            >
-              <div className="relative h-2 overflow-hidden rounded-full border border-cyan-500/50 bg-black/60 shadow-[0_0_15px_rgba(0,240,255,0.25)]">
-                <motion.div
-                  className="h-full rounded-full bg-gradient-to-r from-cyan-500 via-purple-400 to-white shadow-[0_0_20px_#00f0ff]"
-                  style={{ width: `${progress}%` }}
-                />
-                <motion.div
-                  animate={{ x: ['-100%', '200%'] }}
-                  transition={{ duration: 1.2, repeat: Infinity, ease: 'linear' }}
-                  className="absolute inset-y-0 w-24 bg-gradient-to-r from-transparent via-white/40 to-transparent"
-                />
-              </div>
+              animate={{ x: ['-100%', '200%'] }}
+              transition={{ duration: 1.2, repeat: Infinity, ease: 'linear' }}
+              className="absolute inset-y-0 w-24 bg-gradient-to-r from-transparent via-white/40 to-transparent"
+            />
+          </div>
 
-              <div className="flex items-center justify-between text-xs text-cyan-300/90 font-mono tracking-wider px-1">
-                <span className="truncate max-w-[260px] text-left">
-                  {currentStep.label}
-                </span>
-                <span className="font-bold text-cyan-300 flex items-center gap-1">
-                  <Zap className="w-3 h-3 text-cyan-400" />
-                  {Math.round(progress)}%
-                </span>
-              </div>
-            </motion.div>
-
+          <div className="flex items-center justify-between text-xs text-cyan-300/90 font-mono tracking-wider px-1">
+            <span className="truncate max-w-[260px] text-left">
+              {currentStep.label}
+            </span>
+            <span className="font-bold text-cyan-300 flex items-center gap-1">
+              <Zap className="w-3 h-3 text-cyan-400" />
+              {Math.round(progress)}%
+            </span>
           </div>
         </motion.div>
-      )}
-    </AnimatePresence>
+
+      </div>
+    </motion.div>
   );
 };
 
