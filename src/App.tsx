@@ -16,7 +16,7 @@ const Attendance = lazyWithRetry(() => import("./pages/Attendance"), "attendance
 const Login = lazyWithRetry(() => import("./pages/Login"), "login");
 const Signup = lazyWithRetry(() => import("./pages/Signup"), "signup");
 const NotFound = lazyWithRetry(() => import("./pages/NotFound"), "not-found");
-import Admin from "./pages/Admin";
+const Admin = lazyWithRetry(() => import("./pages/Admin"), "admin");
 const Contact = lazyWithRetry(() => import('./pages/Contact'), 'contact');
 const NotificationDemo = lazyWithRetry(() => import('./pages/NotificationDemo'), 'notification-demo');
 const Profile = lazyWithRetry(() => import('./pages/Profile'), 'profile');
@@ -416,10 +416,8 @@ function App() {
   useEffect(() => {
     if (!mountNonCritical) return;
 
-    const prefetchTimer = window.setTimeout(() => {
-      // Warm the most common route chunks so first tab click is instant.
+    const runIdlePrefetch = () => {
       warmCommonRoutes(['/attendance', '/register', '/profile', '/admin', '/gate']);
-
       void import('./components/gate/GateModeScanner').catch(() => undefined);
       void import('./components/attendance/FuturisticFaceScanner').catch(() => undefined);
 
@@ -428,7 +426,15 @@ function App() {
           console.warn('Gate model preload failed, will retry on Gate Mode open', err);
         });
       }
-    }, 500);
+    };
+
+    const prefetchTimer = window.setTimeout(() => {
+      if ('requestIdleCallback' in window) {
+        (window as any).requestIdleCallback(runIdlePrefetch, { timeout: 3000 });
+      } else {
+        runIdlePrefetch();
+      }
+    }, 2200);
 
     return () => window.clearTimeout(prefetchTimer);
   }, [mountNonCritical]);

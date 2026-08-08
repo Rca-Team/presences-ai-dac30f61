@@ -37,7 +37,7 @@ import {
 } from 'lucide-react';
 
 /**
- * Interactive 3D Canvas Particle Sphere & Neural Network Renderer
+ * Interactive 3D Canvas Particle Sphere & Neural Network Renderer (Optimized for 60FPS)
  */
 const Interactive3DCanvas: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -45,22 +45,16 @@ const Interactive3DCanvas: React.FC = () => {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { alpha: true });
     if (!ctx) return;
 
     let animationFrameId: number;
+    let isVisible = true;
     let width = (canvas.width = canvas.parentElement?.clientWidth || window.innerWidth);
     let height = (canvas.height = canvas.parentElement?.clientHeight || 500);
 
-    const handleResize = () => {
-      if (!canvas) return;
-      width = canvas.width = canvas.parentElement?.clientWidth || window.innerWidth;
-      height = canvas.height = canvas.parentElement?.clientHeight || 500;
-    };
-    window.addEventListener('resize', handleResize);
-
-    // 3D Particles Matrix
-    const particleCount = 140;
+    const isMobile = window.innerWidth < 768;
+    const particleCount = isMobile ? 35 : 60;
     const particles: { x: number; y: number; z: number; ox: number; oy: number; oz: number }[] = [];
     const radius = Math.min(width, height) * 0.35;
 
@@ -80,18 +74,41 @@ const Interactive3DCanvas: React.FC = () => {
     let rotX = 0;
     let rotY = 0;
 
+    const handleResize = () => {
+      if (!canvas) return;
+      width = canvas.width = canvas.parentElement?.clientWidth || window.innerWidth;
+      height = canvas.height = canvas.parentElement?.clientHeight || 500;
+    };
+
     const handleMouseMove = (e: MouseEvent) => {
       const rect = canvas.getBoundingClientRect();
-      mouseX = (e.clientX - rect.left - width / 2) * 0.001;
-      mouseY = (e.clientY - rect.top - height / 2) * 0.001;
+      mouseX = (e.clientX - rect.left - width / 2) * 0.0006;
+      mouseY = (e.clientY - rect.top - height / 2) * 0.0006;
     };
-    window.addEventListener('mousemove', handleMouseMove);
+
+    // Pause rendering when canvas is out of viewport
+    const observer = new IntersectionObserver(([entry]) => {
+      isVisible = entry.isIntersecting;
+      if (isVisible) render();
+    }, { threshold: 0.1 });
+    observer.observe(canvas);
+
+    window.addEventListener('resize', handleResize, { passive: true });
+    window.addEventListener('mousemove', handleMouseMove, { passive: true });
+
+    let lastTime = performance.now();
 
     const render = () => {
+      if (!isVisible || document.hidden) return;
+
+      const now = performance.now();
+      const delta = Math.min(32, now - lastTime);
+      lastTime = now;
+
       ctx.clearRect(0, 0, width, height);
 
-      targetRotY += 0.005 + mouseX * 0.05;
-      targetRotX += mouseY * 0.05;
+      targetRotY += 0.004 + mouseX * (delta / 16);
+      targetRotX += mouseY * (delta / 16);
       rotX += (targetRotX - rotX) * 0.05;
       rotY += (targetRotY - rotY) * 0.05;
 
@@ -104,49 +121,42 @@ const Interactive3DCanvas: React.FC = () => {
 
       for (let i = 0; i < particleCount; i++) {
         const p = particles[i];
-
-        // 3D Rotation Y
         let x1 = p.ox * cosY - p.oz * sinY;
         let z1 = p.ox * sinY + p.oz * cosY;
-
-        // 3D Rotation X
         let y1 = p.oy * cosX - z1 * sinX;
         let z2 = p.oy * sinX + z1 * cosX;
 
-        // Perspective Projection
-        const fov = 400;
-        const scale = fov / (fov + z2 + 300);
+        const fov = 380;
+        const scale = fov / (fov + z2 + 280);
         const px = width / 2 + x1 * scale;
         const py = height / 2 + y1 * scale;
-        const alpha = Math.max(0.1, Math.min(1, (z2 + radius) / (radius * 2)));
+        const alpha = Math.max(0.12, Math.min(0.9, (z2 + radius) / (radius * 2)));
 
         projectedPoints.push({ px, py, scale, alpha });
 
-        // Draw Nodes
         ctx.beginPath();
-        ctx.arc(px, py, 2.5 * scale, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(0, 240, 255, ${alpha * 0.85})`;
-        ctx.shadowBlur = 12;
-        ctx.shadowColor = '#00f0ff';
+        ctx.arc(px, py, 2 * scale, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(0, 240, 255, ${alpha * 0.8})`;
         ctx.fill();
       }
 
-      // Draw Neural Connectors between nearby 3D nodes
+      // Fast connection distance checks
+      ctx.lineWidth = 0.75;
       for (let i = 0; i < particleCount; i++) {
+        const p1 = projectedPoints[i];
         for (let j = i + 1; j < particleCount; j++) {
-          const p1 = projectedPoints[i];
           const p2 = projectedPoints[j];
           const dx = p1.px - p2.px;
           const dy = p1.py - p2.py;
-          const dist = Math.sqrt(dx * dx + dy * dy);
+          const distSq = dx * dx + dy * dy;
 
-          if (dist < 65) {
-            const lineAlpha = (1 - dist / 65) * 0.35 * Math.min(p1.alpha, p2.alpha);
+          if (distSq < 3000) { // 54.7px cutoff squared
+            const dist = Math.sqrt(distSq);
+            const lineAlpha = (1 - dist / 55) * 0.3 * Math.min(p1.alpha, p2.alpha);
             ctx.beginPath();
             ctx.moveTo(p1.px, p1.py);
             ctx.lineTo(p2.px, p2.py);
             ctx.strokeStyle = `rgba(168, 85, 247, ${lineAlpha})`;
-            ctx.lineWidth = 1;
             ctx.stroke();
           }
         }
@@ -159,6 +169,7 @@ const Interactive3DCanvas: React.FC = () => {
 
     return () => {
       cancelAnimationFrame(animationFrameId);
+      observer.disconnect();
       window.removeEventListener('resize', handleResize);
       window.removeEventListener('mousemove', handleMouseMove);
     };

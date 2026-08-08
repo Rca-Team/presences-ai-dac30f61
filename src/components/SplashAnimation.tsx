@@ -9,7 +9,7 @@ interface SplashAnimationProps {
 }
 
 /**
- * Interactive 3D Canvas Particle Sphere for Splash Animation
+ * Interactive 3D Canvas Particle Sphere for Splash Animation (Optimized)
  */
 const Splash3DCanvas: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -17,21 +17,15 @@ const Splash3DCanvas: React.FC = () => {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { alpha: true });
     if (!ctx) return;
 
     let animId: number;
     let w = (canvas.width = window.innerWidth);
     let h = (canvas.height = window.innerHeight);
 
-    const handleResize = () => {
-      if (!canvas) return;
-      w = canvas.width = window.innerWidth;
-      h = canvas.height = window.innerHeight;
-    };
-    window.addEventListener('resize', handleResize);
-
-    const count = 90;
+    const isMobile = window.innerWidth < 768;
+    const count = isMobile ? 30 : 50;
     const radius = Math.min(w, h) * 0.28;
     const particles: { x: number; y: number; z: number }[] = [];
 
@@ -48,10 +42,19 @@ const Splash3DCanvas: React.FC = () => {
     let rotY = 0;
     let rotX = 0;
 
+    const handleResize = () => {
+      if (!canvas) return;
+      w = canvas.width = window.innerWidth;
+      h = canvas.height = window.innerHeight;
+    };
+    window.addEventListener('resize', handleResize, { passive: true });
+
     const render = () => {
+      if (document.hidden) return;
+
       ctx.clearRect(0, 0, w, h);
-      rotY += 0.008;
-      rotX += 0.003;
+      rotY += 0.006;
+      rotX += 0.002;
 
       const cosY = Math.cos(rotY);
       const sinY = Math.sin(rotY);
@@ -71,33 +74,32 @@ const Splash3DCanvas: React.FC = () => {
         const scale = fov / (fov + z2 + 250);
         const px = w / 2 + x1 * scale;
         const py = h / 2 + y1 * scale;
-        const alpha = Math.max(0.15, Math.min(1, (z2 + radius) / (radius * 2)));
+        const alpha = Math.max(0.15, Math.min(0.9, (z2 + radius) / (radius * 2)));
 
         points.push({ px, py, alpha });
 
         ctx.beginPath();
-        ctx.arc(px, py, 2.2 * scale, 0, Math.PI * 2);
+        ctx.arc(px, py, 2 * scale, 0, Math.PI * 2);
         ctx.fillStyle = `rgba(0, 240, 255, ${alpha * 0.85})`;
-        ctx.shadowBlur = 10;
-        ctx.shadowColor = '#00f0ff';
         ctx.fill();
       }
 
+      ctx.lineWidth = 0.75;
       for (let i = 0; i < count; i++) {
+        const p1 = points[i];
         for (let j = i + 1; j < count; j++) {
-          const p1 = points[i];
           const p2 = points[j];
           const dx = p1.px - p2.px;
           const dy = p1.py - p2.py;
-          const dist = Math.sqrt(dx * dx + dy * dy);
+          const distSq = dx * dx + dy * dy;
 
-          if (dist < 55) {
-            const lineAlpha = (1 - dist / 55) * 0.28 * Math.min(p1.alpha, p2.alpha);
+          if (distSq < 2500) { // 50px cutoff squared
+            const dist = Math.sqrt(distSq);
+            const lineAlpha = (1 - dist / 50) * 0.25 * Math.min(p1.alpha, p2.alpha);
             ctx.beginPath();
             ctx.moveTo(p1.px, p1.py);
             ctx.lineTo(p2.px, p2.py);
             ctx.strokeStyle = `rgba(168, 85, 247, ${lineAlpha})`;
-            ctx.lineWidth = 0.8;
             ctx.stroke();
           }
         }
