@@ -296,9 +296,10 @@ const NeuralConsole: React.FC<NeuralConsoleProps> = ({
 
           <div className="mt-3 grid grid-cols-3 gap-2">
             {[
-              { v: latestScans ? `${latestScans}` : '—', l: 'Scans today' },
+              { v: todayCount ? `${todayCount}` : '—', l: 'Scans today' },
               { v: avgConf ? `${avgConf}%` : '—', l: 'Avg conf' },
-              { v: `${records.length}`, l: 'Session' },
+              { v: `${live.sessionCount}`, l: 'Session' },
+
             ].map((s) => (
               <div
                 key={s.l}
