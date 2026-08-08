@@ -18,6 +18,14 @@ import { BarChart3, Info, Scan, Sparkles, Zap, Activity, QrCode, Feather } from 
 import { useIsMobile } from '@/hooks/use-mobile';
 import { usePerformanceMode } from '@/hooks/usePerformanceMode';
 import LiteAttendanceMode from '@/components/attendance/LiteAttendanceMode';
+import { useTheme } from '@/hooks/use-theme';
+
+/** Lumina NeuralConsole is a dark-mode experience; light mode keeps the classic layout. */
+const ScanShell: React.FC<React.ComponentProps<typeof NeuralConsole>> = ({ children, ...props }) => {
+  const { theme } = useTheme();
+  if (theme !== 'dark') return <>{children}</>;
+  return <NeuralConsole {...props}>{children}</NeuralConsole>;
+};
 
 
 const AttendanceLoadingSkeleton = ({ isMobile }: { isMobile: boolean }) => (
@@ -282,7 +290,7 @@ const Attendance = () => {
                 <AnimatePresence mode="wait">
                   {attendanceMethod === 'face' ? (
                     <motion.div key="face" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}>
-                      <NeuralConsole
+                      <ScanShell
                         title="Recognition"
                         subtitle="Live neural inference"
                         cameraLabel="CAM-01 · FACE STATION"
@@ -290,11 +298,11 @@ const Attendance = () => {
                         badge="REC · FACE ID"
                       >
                         <FuturisticFaceScanner />
-                      </NeuralConsole>
+                      </ScanShell>
                     </motion.div>
                   ) : attendanceMethod === 'loop' ? (
                     <motion.div key="loop" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}>
-                      <NeuralConsole
+                      <ScanShell
                         title="Loop inference"
                         subtitle="Batch capture · deferred matching"
                         cameraLabel="CAM-02 · LOOP STATION"
@@ -302,7 +310,7 @@ const Attendance = () => {
                         badge="REC · LOOP"
                       >
                         <LoopFaceScanMode />
-                      </NeuralConsole>
+                      </ScanShell>
                     </motion.div>
                   ) : (
                     <motion.div
