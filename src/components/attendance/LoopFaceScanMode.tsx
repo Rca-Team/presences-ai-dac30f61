@@ -503,6 +503,7 @@ const LoopFaceScanMode: React.FC = () => {
 
         const active = tracksRef.current.size;
         setLiveFaces(active);
+        scanTelemetry.faces(active);
         setTracking(active > 0);
       } catch {
         /* transient frame errors are ignored */
