@@ -159,8 +159,18 @@ const NeuralConsole: React.FC<NeuralConsoleProps> = ({
   children,
   footer,
 }) => {
-  const { records, latest, avgConf, latestScans } = useLiveRecognition();
-  const confidence = latest ? confOf(latest) : 0;
+  const { records, latest, avgConf, todayCount } = useLiveRecognition();
+  const live = useScanTelemetry();
+  const confidence = live.confidence || (latest ? confOf(latest) : 0);
+  const liveStatus = live.phase === 'idle' ? statusText : live.statusText;
+  const subjectName = live.subjectName ?? (latest ? nameOf(latest) : undefined);
+  const subjectMeta =
+    live.subjectMeta ??
+    (latest
+      ? `${latest.device_info?.metadata?.class ?? 'Student'} · ${new Date(latest.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+      : undefined);
+  const subjectImage = live.subjectImage ?? (latest?.image_url ?? undefined);
+
 
   return (
     <div className="grid gap-4 lg:grid-cols-[1.65fr_1fr]">
