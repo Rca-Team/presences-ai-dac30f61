@@ -598,15 +598,16 @@ const FuturisticFaceScanner: React.FC<FuturisticFaceScannerProps> = ({ onScanCom
         }
         
         try {
-          // Recognition with 5 second timeout per face
+          // Multi-view recognition (raw + aligned + mirrored + padded crop):
+          // dramatically higher recall for registered students.
           const result = await withTimeout(
-            recognizeFace(descriptor),
-            isFirstRecognitionAttempt ? 12000 : 5000,
+            recognizeFaceRobust(video, detection),
+            isFirstRecognitionAttempt ? 15000 : 9000,
             isFirstRecognitionAttempt
               ? 'Face recognition warm-up in progress. Please hold still.'
               : 'Face recognition timed out'
           );
-          
+
           if (result.recognized && result.employee) {
             const status = isPastCutoff ? 'late' : 'present';
             const strictMetrics = result.strictMetrics;
@@ -615,6 +616,15 @@ const FuturisticFaceScanner: React.FC<FuturisticFaceScannerProps> = ({ onScanCom
             const autoMarkEligible =
               strictScore >= thresholdTarget ||
               !!strictMetrics?.autoMarkEligible;
+
+            scanTelemetry.matched({
+              name: result.employee.name,
+              confidence: result.confidence ?? 0,
+              meta: autoMarkEligible ? `Marked ${status}` : 'Needs confirmation',
+              image: result.employee.avatar_url || result.employee.firebase_image_url,
+              counted: autoMarkEligible,
+            });
+
 
             saveEmotionEvent({
               userId: result.employee.id,
