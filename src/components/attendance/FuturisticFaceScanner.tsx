@@ -514,6 +514,7 @@ const FuturisticFaceScanner: React.FC<FuturisticFaceScannerProps> = ({ onScanCom
 
     setIsScanning(true);
     setScanPhase('detecting');
+    scanTelemetry.set({ phase: 'analyzing', statusText: 'Detecting faces…' });
     setScanResult(null);
     setRecognizedFaces([]);
 
@@ -570,6 +571,7 @@ const FuturisticFaceScanner: React.FC<FuturisticFaceScannerProps> = ({ onScanCom
 
       await new Promise(r => setTimeout(r, 400));
       setScanPhase('matching');
+      scanTelemetry.set({ phase: 'analyzing', statusText: 'Matching biometric signature…', facesInFrame: fullDetections.length });
 
       // Process all detected faces
       const results: RecognizedFaceData[] = [];
