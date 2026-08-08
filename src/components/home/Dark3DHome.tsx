@@ -170,13 +170,13 @@ const Interactive3DCanvas: React.FC = () => {
 /**
  * 3D Interactive Card Component with Real-Time Motion Tilt
  */
-interface 3DCardProps {
+interface Spatial3DCardProps {
   children: React.ReactNode;
   className?: string;
   onClick?: () => void;
 }
 
-const Interactive3DCard: React.FC<3DCardProps> = ({ children, className = '', onClick }) => {
+const Interactive3DCard: React.FC<Spatial3DCardProps> = ({ children, className = '', onClick }) => {
   const x = useMotionValue(0);
   const y = useMotionValue(0);
 

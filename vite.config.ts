@@ -87,11 +87,19 @@ export default defineConfig(({ mode }) => {
       sourcemap: true,
       rollupOptions: {
         output: {
-          manualChunks: {
-            vendor: ["react", "react-dom", "react-router-dom"],
-            faceapi: ["face-api.js"],
-            firebase: ["firebase/app", "firebase/storage"],
-            supabase: ["@supabase/supabase-js"],
+          manualChunks(id) {
+            if (id.includes('node_modules/react/') || id.includes('node_modules/react-dom/') || id.includes('node_modules/react-router-dom/')) {
+              return 'vendor';
+            }
+            if (id.includes('node_modules/face-api.js/')) {
+              return 'faceapi';
+            }
+            if (id.includes('node_modules/firebase/')) {
+              return 'firebase';
+            }
+            if (id.includes('node_modules/@supabase/')) {
+              return 'supabase';
+            }
           },
         },
       },
