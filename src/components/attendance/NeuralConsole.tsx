@@ -300,7 +300,6 @@ const NeuralConsole: React.FC<NeuralConsoleProps> = ({
                 </div>
               </div>
 
-              </div>
             </motion.div>
           </AnimatePresence>
 
